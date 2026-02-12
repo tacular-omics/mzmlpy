@@ -1,7 +1,6 @@
 <div align="center">
   <img src="logo.png" alt="MZMLpy Logo" width="400" style="margin: 20px;"/>
   
-  
     A lightweight Python library for parsing mzML mass spectrometry files. It uses lazy loading for efficient access to spectral data and metadata, supporting both standard and gzip-compressed files.
     Initially built from pymzml, it adds a more straightforward, type-safe API, and adds support for modern mzML structures (> 1.1.0).
 
@@ -28,11 +27,11 @@ pip install mzmlpy
 from mzmlpy import Mzml
 
 # Initialize reader with an mzML file (supports .mzML and .mzML.gz)
-reader = Mzml("tests/data/example.mzML.gz")
-
-# Print basic file info
-print(f"File ID: {reader.id}")
-print(f"Total Spectra: {len(reader.spectra)}")
+with Mzml("tests/data/example.mzML.gz") as reader:
+    
+    # Print basic file info
+    print(f"File ID: {reader.id}")
+    print(f"Total Spectra: {len(reader.spectra)}")
 ```
 
 ## Examples
