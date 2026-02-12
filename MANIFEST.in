@@ -1,0 +1,12 @@
+include HISTORY.md
+include README.md
+include .gitignore
+include tests/data
+
+recursive-include tests *
+recursive-include .github *
+
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+
+recursive-include *.md justfile *.jpg *.png *.gif

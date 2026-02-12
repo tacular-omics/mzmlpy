@@ -1,0 +1,61 @@
+[project]
+name = "mzmlpy"
+version = "0.1.0"
+description = "A lightweight Python library for parsing mzML mass spectrometry files."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=1.26.0",
+]
+authors = [
+    { name = "Patrick Garrett", email = "pgarrett@scripps.edu" }
+]
+maintainers = [
+    { name = "Patrick Garrett", email = "pgarrett@scripps.edu" }
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
+    "Typing :: Typed",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mzmlpy"]
+
+[tool.uv]
+package = true
+dev-dependencies = [
+    "pytest>=8.0.0",
+    "ruff>=0.3.0",
+    "ty>=0.0.11",
+    "pyupgrade>=3.15.0",
+    "zstd>=1.5.5",
+]
+
+[project.optional-dependencies]
+numpress = ["pynumpress>=0.0.4"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ty.src]
+exclude = ["src/mzmlpy/decoder.py"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+
