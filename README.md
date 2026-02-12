@@ -1,7 +1,19 @@
-# mzmlpy
+<div align="center">
+  <img src="logo.png" alt="MZMLpy Logo" width="400" style="margin: 20px;"/>
+  
+  
+    A lightweight Python library for parsing mzML mass spectrometry files. It uses lazy loading for efficient access to spectral data and metadata, supporting both standard and gzip-compressed files.
+    Initially built from pymzml, it adds a more straightforward, type-safe API, and adds support for modern mzML structures (> 1.1.0).
 
-A lightweight Python library for parsing mzML mass spectrometry files. It uses lazy loading for efficient access to spectral data and metadata, supporting both standard and gzip-compressed files.
-Initially built from pymzml, it adds a more straightforward, type-safe API, and adds support for modern mzML structures (> 1.1.0).
+  
+  [![Python package](https://github.com/tacular-omics/peptacular/actions/workflows/python-package.yml/badge.svg)](https://github.com/tacular-omics/peptacular/actions/workflows/python-package.yml)
+  [![codecov](https://codecov.io/github/tacular-omics/peptacular/graph/badge.svg?token=1CTVZVFXF7)](https://codecov.io/github/tacular-omics/peptacular)
+  [![PyPI version](https://badge.fury.io/py/peptacular.svg)](https://badge.fury.io/py/peptacular)
+  [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-g.svg)](https://opensource.org/licenses/MIT)
+  
+</div>
+
 
 
 ## Installation
@@ -36,7 +48,9 @@ for spectrum in reader.spectra:
 
 ### 2. Accessing Spectral Data
 
-Access m/z and intensity arrays as NumPy arrays. Note that binary arrays are lazily loaded each time, so for repeated use, it is best to save the array to a local variable to avoid decoding the array multiple times.
+Internally, spectra and chromatograms are stored as 2 dictionary lookups, one by index and one by ID.
+The index is parsed from the spectrum/chromatogram index attribute, so it's technically possible that it won't start at 0 or be congruent.
+In most cases it should start at 0 and end at (num spectra - 1).
 
 ```python
 # Get by index
@@ -61,7 +75,7 @@ except KeyError:
 
 ### 3. Iterating over Spectra/Chromatograms
 
-Use standard Python list comprehensions or loops to filter.
+Use standard Python list comprehensions or loops to filter. This crawls the mzml file rather than relying on lookups, so it should always be safe.
 
 ```python
 # Get all MS2 spectra
@@ -74,12 +88,16 @@ print(f"Found {len(ms2_spectra)} MS2 spectra")
 Spectra and Chromatograms have easy access to mz, time, and intensity arrays as these are the most common types.
 There are a number of other binary data arrays supported by PSI CV terms, as well as custom-defined arrays.
 
+Access to the data property (decoded array) is lazily loaded each time, so for repeated use, 
+it is best to save the array to a local variable to avoid having to decode the data multiple times.
+
 ```python
 spectra = reader.spectra[0]
 
 # looks for a matching cv term
-spectra.has_binary_array('MS:1003007')
-spectra.get_binary_array('MS:1003007')
+_ = spectra.has_binary_array('MS:1003007')
+barr = spectra.get_binary_array('MS:1003007')
+np_arr = barr.data # decodes the binary data
 
 # for user defined binary array (uncommon) you will have to iterate over the binary arrays to identify
 for ba in spectra.binary_arrays:
@@ -158,4 +176,3 @@ just test
 # or run all the above:
 just check
 ```
-# mzmlpy

@@ -24,6 +24,9 @@ wheels = [
 name = "mzmlpy"
 version = "0.1.0"
 source = { editable = "." }
+dependencies = [
+    { name = "numpy" },
+]
 
 [package.optional-dependencies]
 numpress = [
@@ -32,7 +35,6 @@ numpress = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "numpy" },
     { name = "pytest" },
     { name = "pyupgrade" },
     { name = "ruff" },
@@ -41,17 +43,19 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pynumpress", marker = "extra == 'numpress'", specifier = ">=0.0.4" }]
+requires-dist = [
+    { name = "numpy", specifier = ">=1.26.0" },
+    { name = "pynumpress", marker = "extra == 'numpress'", specifier = ">=0.0.4" },
+]
 provides-extras = ["numpress"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "numpy", specifier = ">=1.8.0" },
-    { name = "pytest", specifier = ">=9.0.2" },
-    { name = "pyupgrade", specifier = ">=3.21.0" },
-    { name = "ruff", specifier = ">=0.14.11" },
+    { name = "pytest", specifier = ">=8.0.0" },
+    { name = "pyupgrade", specifier = ">=3.15.0" },
+    { name = "ruff", specifier = ">=0.3.0" },
     { name = "ty", specifier = ">=0.0.11" },
-    { name = "zstd", specifier = ">=1.5.7.3" },
+    { name = "zstd", specifier = ">=1.5.5" },
 ]
 
 [[package]]

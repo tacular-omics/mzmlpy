@@ -71,28 +71,33 @@ class Mzml:
         in_memory: bool = True,
     ) -> None:
         """Initialize Mzml and parse metadata."""
-        # Normalize to string if Path
-        self.path_or_file = str(file) if isinstance(file, Path) else file
-        self.file_name = str(file)
+        self._path: Path | None = None
+        file_interface_arg: Any
 
-        # Determine encoding
-        self.encoding = (
-            _determine_file_encoding(self.path_or_file)
-            if isinstance(self.path_or_file, str)
-            else _guess_encoding(self.path_or_file)
-        )
+        if isinstance(file, str | Path):
+            self._path = Path(file)
+            # Use string representation for internal helpers that expect paths
+            path_str = str(self._path)
+            self._encoding = _determine_file_encoding(path_str)
+            file_interface_arg = path_str
+        else:
+            # File-like object
+            if hasattr(file, "name"):
+                self._path = Path(file.name)
+            self._encoding = _guess_encoding(file)
+            file_interface_arg = file
 
         # Open file
-        self.file_object: FileInterface = FileInterface(
-            path=file,
-            encoding=self.encoding,
+        self._file_object: FileInterface = FileInterface(
+            path=file_interface_arg,
+            encoding=self._encoding,
             build_index_from_scratch=build_index_from_scratch,
             extract_gzip=extract_gzip,
             in_memory=in_memory,
         )
 
         # Parse metadata
-        self.root, self.iter, builder = self._parse_metadata()
+        self._root, self.iter, builder = self._parse_metadata()
         # Extract parsed content
         self._content: _MzMLContent = builder.build()
         self.obo_version = builder.obo_version
@@ -101,7 +106,7 @@ class Mzml:
         self,
     ) -> tuple[ElementTree.Element, Iterator[tuple[str, ElementTree.Element]], MzMLContentBuilder]:
         """Parse metadata and return root, iterator, and builder."""
-        file_handle = self.file_object.file_handler.get_file_handler(self.encoding)
+        file_handle = self._file_object.file_handler.get_file_handler(self._encoding)
 
         mzml_iter: Iterator[tuple[str, ElementTree.Element]] = iter(
             ElementTree.iterparse(file_handle, events=("end", "start"))
@@ -117,20 +122,32 @@ class Mzml:
         return root, mzml_iter, builder
 
     @property
+    def file_path(self) -> Path | None:
+        """Access the file path as a Path object if available."""
+        return self._path
+
+    @property
+    def file_name(self) -> str:
+        """Access the file name as a string."""
+        if self._path:
+            return self._path.name
+        return "in-memory-stream"
+
+    @property
     def spectra(self) -> SpectrumLookup:
         """Access spectra lookup."""
-        return SpectrumLookup(file_object=self.file_object)
+        return SpectrumLookup(file_object=self._file_object)
 
     @property
     def chromatograms(self) -> ChromatogramLookup:
         """Access chromatograms lookup."""
-        return ChromatogramLookup(file_object=self.file_object)
+        return ChromatogramLookup(file_object=self._file_object)
 
     @property
     def TIC(self) -> Chromatogram | None:
         """Access the Total Ion Chromatogram (TIC)."""
         try:
-            return self.file_object.TIC
+            return self._file_object.TIC
         except KeyError:
             return None
 
@@ -141,7 +158,7 @@ class Mzml:
         self.close()
 
     def close(self) -> None:
-        self.file_object.close()
+        self._file_object.close()
 
     @property
     def id(self) -> str:
