@@ -1,13 +1,13 @@
 <div align="center">
   <img src="logo.png" alt="MZMLpy Logo" width="400" style="margin: 20px;"/>
   
-    A lightweight Python library for parsing mzML mass spectrometry files. It uses lazy loading for efficient access to spectral data and metadata, supporting both standard and gzip-compressed files.
-    Initially built from pymzml, it adds a more straightforward, type-safe API, and adds support for modern mzML structures (> 1.1.0).
+    
+    A lightweight Python library for parsing mzML mass spectrometry files. Initially built from pymzml, it implements a more straightforward (type-safe API), and includes direct support for modern mzML structures (> 1.1.0).
 
   
-  [![Python package](https://github.com/tacular-omics/peptacular/actions/workflows/python-package.yml/badge.svg)](https://github.com/tacular-omics/peptacular/actions/workflows/python-package.yml)
-  [![codecov](https://codecov.io/github/tacular-omics/peptacular/graph/badge.svg?token=1CTVZVFXF7)](https://codecov.io/github/tacular-omics/peptacular)
-  [![PyPI version](https://badge.fury.io/py/peptacular.svg)](https://badge.fury.io/py/peptacular)
+  [![Python package](https://github.com/tacular-omics/mzmlpy/actions/workflows/python-package.yml/badge.svg)](https://github.com/tacular-omics/mzmlpy/actions/workflows/python-package.yml)
+  [![codecov](https://codecov.io/github/tacular-omics/mzmlpy/graph/badge.svg?token=1CTVZVFXF7)](https://codecov.io/github/tacular-omics/mzmlpy)
+  [![PyPI version](https://badge.fury.io/py/mzmlpy.svg)](https://badge.fury.io/py/mzmlpy)
   [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
   [![License: MIT](https://img.shields.io/badge/License-MIT-g.svg)](https://opensource.org/licenses/MIT)
   
@@ -34,11 +34,14 @@ with Mzml("tests/data/example.mzML.gz") as reader:
     print(f"Total Spectra: {len(reader.spectra)}")
 ```
 
+The `reader` object above contains all the contents of the mzML file. Data is lazily loaded, meaning it is only accessed when requested. In addition to metadata, `reader` exposes `spectra` and `chromatograms` via the `reader.spectra` and `reader.chromatograms` properties, respectively. Both return lookup classes that support iteration and lookup by index or ID (see examples below).
+
+
 ## Examples
 
-### 1. Iterating Over Spectra
+### 1. Iterating Spectra
 
-You can iterate directly over the `spectra` object.
+You can iterate directly over the `spectra` object. 
 
 ```python
 for spectrum in reader.spectra:
@@ -48,8 +51,7 @@ for spectrum in reader.spectra:
 ### 2. Accessing Spectral Data
 
 Internally, spectra and chromatograms are stored as 2 dictionary lookups, one by index and one by ID.
-The index is parsed from the spectrum/chromatogram index attribute, so it's technically possible that it won't start at 0 or be congruent.
-In most cases it should start at 0 and end at (num spectra - 1).
+The index is parsed from the spectrum/chromatogram index attribute, so it's technically possible that it won't start at 0 or be congruent. In most cases it should start at 0 and end at (num spectra - 1).
 
 ```python
 # Get by index
@@ -91,11 +93,13 @@ Access to the data property (decoded array) is lazily loaded each time, so for r
 it is best to save the array to a local variable to avoid having to decode the data multiple times.
 
 ```python
+from mzmlpy import constants as c
+
 spectra = reader.spectra[0]
 
 # looks for a matching cv term
 _ = spectra.has_binary_array('MS:1003007')
-barr = spectra.get_binary_array('MS:1003007')
+barr = spectra.get_binary_array(c.BinaryDataArrayAccession.RAW_ION_MOBILITY) # can also access via included Enums
 np_arr = barr.data # decodes the binary data
 
 # for user defined binary array (uncommon) you will have to iterate over the binary arrays to identify
