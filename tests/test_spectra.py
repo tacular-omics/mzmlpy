@@ -22,8 +22,19 @@ def test_spectra(filename):
     scan = s1.scans[0]
     assert scan.scan_start_time.total_seconds() == 5.8905 * 60  # minutes to seconds
     assert len(scan.scan_windows) == 1
-    assert scan.scan_windows[0].lower_limit == 400.0
-    assert scan.scan_windows[0].upper_limit == 1800.0
+    assert scan.scan_windows[0].lower_mz == 400.0
+    assert scan.scan_windows[0].upper_mz == 1800.0
+
+    # Check spectrum-level scan delegation (via _ScanListMixin)
+    assert s1.scan_start_time.total_seconds() == 5.8905 * 60
+    assert s1.ion_injection_time is None
+    assert s1.lower_mz == 400.0
+    assert s1.upper_mz == 1800.0
+
+    # Check new binary array properties (no IM or charge data in test file)
+    assert s1.has_im is False
+    assert s1.im_types == set()
+    assert s1.charge is None
 
     # Check Binary Data
     assert s1.mz is not None

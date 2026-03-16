@@ -112,8 +112,8 @@ class SpectrumCombinationAccession(StrEnum):
 class ScanPolarity(StrEnum):
     """Enumeration of MS accessions for chromatogram properties."""
 
-    POSITIVE = "MS:1000129"
-    NEGATIVE = "MS:1000130"
+    POSITIVE = "MS:1000130"
+    NEGATIVE = "MS:1000129"
 
 
 # TODO: These are a mix of spectrum params and scan/window params
@@ -168,6 +168,19 @@ class BinaryDataArrayAccession(StrEnum):
     MASS = "MS:1003143"
     TEMPERATURE = "MS:1000822"
     SAMPLED_NOISE_MZ = "MS:1002743"
+
+
+ION_MOBILITIES = {
+    BinaryDataArrayAccession.RAW_ION_MOBILITY,
+    BinaryDataArrayAccession.MEAN_ION_MOBILITY_DRIFT_TIME,
+    BinaryDataArrayAccession.DECONVOLUTED_ION_MOBILITY_DRIFT_TIME,
+    BinaryDataArrayAccession.MEAN_INVERSE_REDUCED_ION_MOBILITY,
+    BinaryDataArrayAccession.MEAN_ION_MOBILITY,
+    BinaryDataArrayAccession.DECONVOLUTED_INVERSE_REDUCED_ION_MOBILITY,
+    BinaryDataArrayAccession.RAW_ION_MOBILITY_DRIFT_TIME,
+    BinaryDataArrayAccession.RAW_INVERSE_REDUCED_ION_MOBILITY,
+    BinaryDataArrayAccession.ION_MOBILITY,
+}
 
 
 class XMLNamespace(StrEnum):

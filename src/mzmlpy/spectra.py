@@ -11,6 +11,7 @@ from numpy.typing import NDArray
 
 from .constants import (
     BINARY_DECODE_DTYPES,
+    ION_MOBILITIES,
     BinaryDataArrayAccession,
     BinaryDataTypeAccession,
     ChromatogramTypeAccession,
@@ -195,19 +196,21 @@ class ScanWindow(_ParamGroup):
     """
 
     @property
-    def lower_limit(self) -> float | None:
+    def lower_mz(self) -> float | None:
         """Get scan window lower limit for this spectrum."""
-        cv = self.get_cvparm(SpectrumMSAccession.SCAN_WINDOW_LOWER_LIMIT)
-        if cv is not None and cv.value is not None:
-            return float(cv.value)
+        for cv in self.cv_params:
+            if cv.accession == SpectrumMSAccession.SCAN_WINDOW_LOWER_LIMIT and cv.unit_name == "m/z":
+                if cv.value is not None:
+                    return float(cv.value)
         return None
 
     @property
-    def upper_limit(self) -> float | None:
+    def upper_mz(self) -> float | None:
         """Get scan window upper limit for this spectrum."""
-        cv = self.get_cvparm(SpectrumMSAccession.SCAN_WINDOW_UPPER_LIMIT)
-        if cv is not None and cv.value is not None:
-            return float(cv.value)
+        for cv in self.cv_params:
+            if cv.accession == SpectrumMSAccession.SCAN_WINDOW_UPPER_LIMIT and cv.unit_name == "m/z":
+                if cv.value is not None:
+                    return float(cv.value)
         return None
 
 
@@ -267,21 +270,31 @@ class Scan(_ParamGroup):
         )
 
     @property
-    def lower_scan_window_limit(self) -> float | None:
+    def lower_mz(self) -> float | None:
         """Get scan window lower limit for this scan, if it has a single scan window."""
         if self._scan_window_list is not None:
             if not self.is_single_windowed_scan:
-                raise ValueError("This scan has multiple scan windows. Cannot determine a single lower limit.")
-            return self.scan_windows[0].lower_limit
+                warnings.warn(
+                    "This scan has multiple scan windows. Cannot determine a single lower limit.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                return None
+            return self.scan_windows[0].lower_mz
         return None
 
     @property
-    def upper_scan_window_limit(self) -> float | None:
+    def upper_mz(self) -> float | None:
         """Get scan window upper limit for this scan, if it has a single scan window."""
         if self._scan_window_list is not None:
             if not self.is_single_windowed_scan:
-                raise ValueError("This scan has multiple scan windows. Cannot determine a single upper limit.")
-            return self.scan_windows[0].upper_limit
+                warnings.warn(
+                    "This scan has multiple scan windows. Cannot determine a single upper limit.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                return None
+            return self.scan_windows[0].upper_mz
         return None
 
     @property
@@ -366,28 +379,69 @@ class _ScanListMixin(_DataTreeWrapperProtocol):
     """
 
     @property
-    def lower_scan_window_limit(self) -> float | None:
+    def lower_mz(self) -> float | None:
         """Get scan window lower limit for this spectrum, if it has a single scan with a single scan window."""
         if self._scan_list is not None:
             if not self.is_single_scan:
-                raise ValueError("This spectrum has multiple scans. Returning lower limit of the first scan.")
-
+                warnings.warn(
+                    "This spectrum has multiple scans. Returning lower limit of the first scan.",
+                    UserWarning,
+                    stacklevel=2,
+                )
             if self.scans is None or len(self.scans) == 0:
                 raise RuntimeError("Scan list is present but contains no scans.")
-            return self.scans[0].lower_scan_window_limit
+            return self.scans[0].lower_mz
         return None
 
     @property
-    def upper_scan_window_limit(self) -> float | None:
+    def upper_mz(self) -> float | None:
         """Get scan window upper limit for this spectrum, if it has a single scan with a single scan window."""
         if self._scan_list is not None:
             if not self.is_single_scan:
-                raise ValueError("This spectrum has multiple scans. Returning upper limit of the first scan.")
+                warnings.warn(
+                    "This spectrum has multiple scans. Returning upper limit of the first scan.",
+                    UserWarning,
+                    stacklevel=2,
+                )
 
             if self.scans is None or len(self.scans) == 0:
                 raise RuntimeError("Scan list is present but contains no scans.")
 
-            return self.scans[0].upper_scan_window_limit
+            return self.scans[0].upper_mz
+        return None
+
+    @property
+    def scan_start_time(self) -> timedelta | None:
+        """Get scan start time for this spectrum, if it has a single scan."""
+        if self._scan_list is not None:
+            if not self.is_single_scan:
+                warnings.warn(
+                    "This spectrum has multiple scans. Returning scan start time of the first scan.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
+            if self.scans is None or len(self.scans) == 0:
+                raise RuntimeError("Scan list is present but contains no scans.")
+
+            return self.scans[0].scan_start_time
+        return None
+
+    @property
+    def ion_injection_time(self) -> timedelta | None:
+        """Get ion injection time for this spectrum, if it has a single scan."""
+        if self._scan_list is not None:
+            if not self.is_single_scan:
+                warnings.warn(
+                    "This spectrum has multiple scans. Returning ion injection time of the first scan.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
+            if self.scans is None or len(self.scans) == 0:
+                raise RuntimeError("Scan list is present but contains no scans.")
+
+            return self.scans[0].ion_injection_time
         return None
 
 
@@ -696,6 +750,31 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
         if binary_array is not None:
             return binary_array._decode()
         return None
+
+    @property
+    def charge(self) -> NDArray[np.float64] | None:
+        """Get charge array as a numpy array, or None if not present."""
+        binary_array = self.get_binary_array(BinaryDataArrayAccession.CHARGE)
+        if binary_array is not None:
+            return binary_array._decode()
+        return None
+
+    @property
+    def has_im(self) -> bool:
+        """Check if this spectrum has ion mobility data."""
+        for barray in self.binary_arrays:
+            if barray.binary_array_type in ION_MOBILITIES:
+                return True
+        return False
+
+    @property
+    def im_types(self) -> set[BinaryDataArrayAccession]:
+        """Get ion mobility array as a numpy array, or None if not present."""
+        im_arrays = set()
+        for barray in self.binary_arrays:
+            if barray.binary_array_type in ION_MOBILITIES:
+                im_arrays.add(barray.binary_array_type)
+        return im_arrays
 
     @cached_property
     def spectrum_type(self) -> Literal["centroid", "profile"] | None:

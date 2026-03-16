@@ -1,3 +1,5 @@
+__version__ = "0.2.0"
+
 from .content import CVElement
 from .elems import (
     AnalyzerComponent,
@@ -36,6 +38,7 @@ from .spectra import (
 )
 
 __all__ = [
+    "__version__",
     "Mzml",
     "DataProcessing",
     "ProcessingMethod",
