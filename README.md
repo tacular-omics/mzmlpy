@@ -56,15 +56,15 @@ The index is parsed from the spectrum/chromatogram index attribute, so it's tech
 ```python
 # Get by index
 spectrum = reader.spectra[0]
-chrom = reader.chromatogram[1]
+chrom = reader.chromatograms[1]
 
 # Get by slice (must be ints)
 _ = reader.spectra[1:5:1]
-_ = reader.chromatogram[:2]
+_ = reader.chromatograms[:2]
 
 # get by id
 _ = reader.spectra['scan=19']
-_ = reader.chromatogram['sic']
+_ = reader.chromatograms['sic']
 
 try:
     _ = reader.spectra[-1]
@@ -114,7 +114,7 @@ Access chromatograms by ID or iterate through them.
 
 ```python
 # Access Total Ion Chromatogram (TIC) if available
-tic = reader.chromatogram['tic']
+tic = reader.chromatograms['tic']
 
 _ = tic.time 
 _ = tic.intensity 
@@ -132,13 +132,24 @@ Access spectra metadata and arrays.
 ```python
 spec = reader.spectra[0]
 
-_ = spec.mz 
+_ = spec.mz
 _ = spec.intensity
-_ = spec.precursors # list[Precursor]
-_ = spec.products # list[Product]
-_ = spec.scans 
-_ = spec.spectrum_type 
+_ = spec.charge               # NDArray | None — per-point charge array
+_ = spec.precursors           # list[Precursor]
+_ = spec.products             # list[Product]
+_ = spec.scans
+_ = spec.spectrum_type
 _ = spec.polarity
+
+# Ion mobility
+_ = spec.has_im               # bool — True if any IM binary array is present
+_ = spec.im_types             # set[BinaryDataArrayAccession]
+
+# Scan timing and window (delegate to first scan)
+_ = spec.scan_start_time      # timedelta | None
+_ = spec.ion_injection_time   # timedelta | None
+_ = spec.lower_mz             # float | None
+_ = spec.upper_mz             # float | None
 
 # get CvParams
 _ = spec.cv_params
@@ -166,6 +177,35 @@ _ = reader.data_processes
 _ = reader.samples
 _ = reader.scan_settings
 _ = reader.run # does not contain chromatogram or spectra lists (only metadata)
+```
+
+### 8. Ion Mobility
+
+Check whether a spectrum carries ion mobility data and retrieve a specific IM array.
+
+```python
+spec = reader.spectra[0]
+if spec.has_im:
+    print(f"IM types: {spec.im_types}")
+    # Access a specific IM array
+    from mzmlpy.constants import BinaryDataArrayAccession
+    im_array = spec.get_binary_array(BinaryDataArrayAccession.MEAN_INVERSE_REDUCED_ION_MOBILITY)
+    if im_array is not None:
+        values = im_array.data
+```
+
+### 9. Scan Timing
+
+Access retention time and ion injection time from the first scan of a spectrum.
+
+```python
+spec = reader.spectra[0]
+if spec.scan_start_time is not None:
+    rt_seconds = spec.scan_start_time.total_seconds()
+    rt_minutes = rt_seconds / 60
+    print(f"RT: {rt_minutes:.4f} min")
+if spec.ion_injection_time is not None:
+    print(f"Ion injection time: {spec.ion_injection_time.total_seconds() * 1000:.2f} ms")
 ```
 
 ## Development

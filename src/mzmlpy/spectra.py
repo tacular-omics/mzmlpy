@@ -1,3 +1,11 @@
+"""Spectrum, Chromatogram, and related mixin/helper classes for parsing mzML binary and metadata structures.
+
+This module provides `Spectrum` and `Chromatogram` as the primary data-access types, backed by
+a set of internal mixin classes (`_BinaryDataArrayMixin`, `_ScanListMixin`, `_PrecursorListMixin`,
+`_ProductListMixin`) that compose binary data, scan, precursor, and product functionality.
+`BinaryDataArray` handles base64 decoding and decompression for a single `binaryDataArray` XML element.
+"""
+
 import base64
 import contextlib
 import warnings
@@ -37,11 +45,15 @@ def decode_to_numpy(data: bytes, data_type: str) -> NDArray[np.float64]:
 
 @dataclass(frozen=True)
 class BinaryDataArray(_ParamGroup):
-    # class to handle a binary data array.
-    # (element tree should point to a single binary data array element)
+    """Wraps a single `binaryDataArray` XML element, handling base64 decoding and decompression.
+
+    Exposes compression type, numeric encoding, semantic array type, and a `data` property
+    that decodes the raw bytes into a NumPy array on each access.
+    """
 
     @cached_property
     def compression(self) -> CompressionTypeAccessions | None:
+        """Return the compression accession for this array, or None if no compression CV term is present."""
         for param in self.cv_params:
             with contextlib.suppress(ValueError):
                 return CompressionTypeAccessions(param.accession)
@@ -49,6 +61,7 @@ class BinaryDataArray(_ParamGroup):
 
     @cached_property
     def encoding(self) -> BinaryDataTypeAccession | None:
+        """Return the binary data type accession (e.g. 32-bit or 64-bit float/int), or None if absent."""
         for bdaa in BinaryDataTypeAccession:
             if bdaa in self.accessions:
                 return bdaa
@@ -56,6 +69,7 @@ class BinaryDataArray(_ParamGroup):
 
     @cached_property
     def binary_array_type(self) -> BinaryDataArrayAccession | None:
+        """Return the semantic array type accession (e.g. m/z, intensity, ion mobility), or None if absent."""
         for bdaa in BinaryDataArrayAccession:
             if bdaa in self.accessions:
                 return bdaa
@@ -130,13 +144,19 @@ class BinaryDataArray(_ParamGroup):
 
     @property
     def data(self) -> np.ndarray:
-        """Get the decoded binary data array as a numpy array."""
+        """Decode and return the binary data as a NumPy array.
+
+        Decoding runs on every access — store the result in a local variable if you need it more than once.
+        """
         return self._decode()
 
 
 @dataclass(frozen=True)
 class _BinaryDataArrayList(_ParamGroup):
-    # class to handle a list of binary data arrays (element tree should point to a binary data array list element)
+    """Internal wrapper for a `binaryDataArrayList` XML element.
+
+    Provides iteration and lookup over the child `BinaryDataArray` objects.
+    """
 
     @property
     def binary_arrays(self) -> list[BinaryDataArray]:
@@ -157,8 +177,10 @@ class _BinaryDataArrayList(_ParamGroup):
 
 @dataclass(frozen=True)
 class _BinaryDataArrayMixin(_DataTreeWrapperProtocol):
-    """
-    A class representing a binary data array, with various attributes and metadata.
+    """Mixin that adds binary array access to classes wrapping an XML element with a `binaryDataArrayList` child.
+
+    Used by both `Spectrum` and `Chromatogram` to expose `binary_arrays`, `get_binary_array`, and
+    `has_binary_array` without duplicating logic.
     """
 
     @property
@@ -312,9 +334,9 @@ class Scan(_ParamGroup):
 
 @dataclass(frozen=True)
 class _ScanList(_ParamGroup):
-    """
-    A class representing a scan list, which may contain multiple scans.
-    Should be hidden, from users
+    """Internal wrapper for a `scanList` XML element.
+
+    Parses the list of `Scan` objects and the optional spectrum-combination CV term.
     """
 
     @property
@@ -333,6 +355,13 @@ class _ScanList(_ParamGroup):
 
 @dataclass(frozen=True)
 class _ScanListMixin(_DataTreeWrapperProtocol):
+    """Mixin that exposes scan-level convenience properties on `Spectrum`.
+
+    Delegates to the first scan for single-valued properties such as `scan_start_time`,
+    `ion_injection_time`, `lower_mz`, and `upper_mz`, emitting a warning when multiple
+    scans are present.
+    """
+
     @property
     def _has_scan_list(self) -> bool:
         """Check if this spectrum has a scan list."""
@@ -649,6 +678,8 @@ class Precursor(_DataTreeWrapper):
 
 @dataclass(frozen=True)
 class _PrecursorListMixin(_DataTreeWrapperProtocol):
+    """Mixin that exposes precursor access on classes wrapping an XML element with a `precursorList` child."""
+
     @property
     def has_precursors(self) -> bool:
         """Check if this spectrum has a precursor list."""
@@ -670,6 +701,8 @@ class Product(_ParamGroup):
 
 @dataclass(frozen=True, repr=False)
 class _ProductListMixin(_DataTreeWrapperProtocol):
+    """Mixin that exposes product access on classes wrapping an XML element with a `productList` child."""
+
     @property
     def has_products(self) -> bool:
         """Check if this spectrum has a product list."""
@@ -686,6 +719,13 @@ class _ProductListMixin(_DataTreeWrapperProtocol):
 
 @dataclass(frozen=True)
 class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorListMixin, _ProductListMixin):
+    """An mzML `spectrum` element.
+
+    Exposes binary data arrays (`mz`, `intensity`, `charge`, ion mobility via `has_im`/`im_types`),
+    scan metadata (`scan_start_time`, `ion_injection_time`, `lower_mz`, `upper_mz`, `spectrum_type`,
+    `polarity`, `ms_level`, `TIC`), and structured precursor/product lists.
+    """
+
     @property
     def id(self) -> str:
         """Get spectrum id."""
@@ -753,7 +793,7 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
 
     @property
     def charge(self) -> NDArray[np.float64] | None:
-        """Get charge array as a numpy array, or None if not present."""
+        """Return the per-point charge array, or None if no charge binary array is present."""
         binary_array = self.get_binary_array(BinaryDataArrayAccession.CHARGE)
         if binary_array is not None:
             return binary_array._decode()
@@ -761,7 +801,7 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
 
     @property
     def has_im(self) -> bool:
-        """Check if this spectrum has ion mobility data."""
+        """Return True if any ion mobility binary array is present in this spectrum."""
         for barray in self.binary_arrays:
             if barray.binary_array_type in ION_MOBILITIES:
                 return True
@@ -769,7 +809,7 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
 
     @property
     def im_types(self) -> set[BinaryDataArrayAccession]:
-        """Get ion mobility array as a numpy array, or None if not present."""
+        """Return the set of ion mobility array accessions present in this spectrum; empty set if none."""
         im_arrays = set()
         for barray in self.binary_arrays:
             if barray.binary_array_type in ION_MOBILITIES:
@@ -815,6 +855,12 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
 
 @dataclass(frozen=True)
 class Chromatogram(_ParamGroup, _BinaryDataArrayMixin):
+    """An mzML `chromatogram` element.
+
+    Exposes `time` and `intensity` binary arrays, optional `precursor` and `product` structures,
+    and a `chromatogram_type` property (e.g. `"tic"`, `"basepeak"`, `"srm"`).
+    """
+
     @property
     def id(self) -> str:
         """Get chromatogram id."""
