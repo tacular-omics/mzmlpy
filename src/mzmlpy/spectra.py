@@ -476,6 +476,11 @@ class _ScanListMixin(_DataTreeWrapperProtocol):
 
 @dataclass(frozen=True, repr=False)
 class IsolationWindow(_ParamGroup):
+    """Represents an isolation window element from a precursor or product.
+
+    Provides access to the target m/z, lower offset, and upper offset values.
+    """
+
     @property
     def target_mz(self) -> float | None:
         """Get isolation window target m/z for this precursor."""
@@ -503,6 +508,12 @@ class IsolationWindow(_ParamGroup):
 
 @dataclass(frozen=True, repr=False)
 class SelectedIon(_ParamGroup):
+    """Represents a selected ion element within a precursor.
+
+    Provides access to the selected ion m/z, peak intensity, charge state,
+    ion mobility values, FAIMS voltages, and collisional cross section.
+    """
+
     @property
     def selected_ion_mz(self) -> float | None:
         """Get selected ion m/z for this precursor."""
@@ -570,6 +581,12 @@ class SelectedIon(_ParamGroup):
 
 @dataclass(frozen=True, repr=False)
 class Activation(_ParamGroup):
+    """Represents an activation element within a precursor.
+
+    Provides access to the activation type, collision energy, supplemental collision energy,
+    collision gas, and collision gas pressure.
+    """
+
     @property
     def activation_type(self) -> CollisionDissociationTypeAccession | None:
         """Get activation type for this precursor."""
@@ -621,6 +638,12 @@ class Activation(_ParamGroup):
 
 @dataclass(frozen=True, repr=False)
 class Precursor(_DataTreeWrapper):
+    """Represents a precursor element in an mzML spectrum.
+
+    Provides access to the isolation window, selected ions, activation parameters,
+    and reference attributes such as spectrum ref and source file ref.
+    """
+
     @property
     def isolation_window(self) -> IsolationWindow | None:
         iso_window = self.element.find(f"./{self.ns}{MzMLElement.ISOLATION_WINDOW}")

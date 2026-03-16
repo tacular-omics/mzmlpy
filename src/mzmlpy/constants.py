@@ -45,6 +45,8 @@ class BinaryDataTypeAccession(StrEnum):
 
 
 class CompressionTypeAccessions(StrEnum):
+    """Enumeration of compression type accessions used in mzML binary data arrays."""
+
     BYTE_SHUFFLED_ZSTD = "MS:1003781"
     MS_NUMPRESS_SHORT_LOGGED_FLOAT = "MS:1002314"
     TRUNCATION_LINEAR_PREDICTION_ZLIB = "MS:1003090"
@@ -103,6 +105,8 @@ class SpectrumType(StrEnum):
 
 
 class SpectrumCombinationAccession(StrEnum):
+    """Enumeration of spectrum combination accessions."""
+
     NO_COMBINATION = "MS:1000795"
     MEDIAN = "MS:1000573"
     SUM = "MS:1000571"
@@ -252,6 +256,8 @@ BINARY_DECODE_DTYPES: dict[BinaryDataTypeAccession, str] = {
 
 
 class ChromatogramTypeAccession(StrEnum):
+    """Enumeration of chromatogram type accessions."""
+
     EMMISION = "MS:1000813"
     SELECTED_ION_MONITORING = "MS:1001472"
     BASEPEAK = "MS:1000628"

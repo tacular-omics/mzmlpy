@@ -48,19 +48,18 @@ def _determine_file_encoding(path: str) -> str:
 
 
 class Mzml:
-    """
-    Reader for mzML files.
+    """Reader for mzML files.
 
-    Data is lazily loaded, so only the specific sections of the xml file are parsed. The actual data/properties
-    of objects are only parsed when accessed. It's suggested to use the context manager to ensure proper file handling.
-    Spectra and Chromatogram properties will return a lookup object for each respectively.
+    Data is lazily loaded, so only the specific sections of the XML file are parsed.
+    The actual data and properties of objects are only parsed when accessed. Use the
+    context manager to ensure proper file handling. The ``spectra`` and ``chromatograms``
+    properties return lookup objects that support iteration, indexing, and ID-based access.
 
-    Parameters
-    ----------
-    file : Path to the mzML file or a file-like object.
-    build_index_from_scratch : Build the index from scratch instead of using existing index.
-    extract_gzip : Extract gzip-compressed files before reading.
-    in_memory : Load the entire file into memory for faster access.
+    Args:
+        file: Path to the mzML file (str or Path) or a file-like object.
+        build_index_from_scratch: Build the index from scratch instead of using an existing index.
+        extract_gzip: Extract gzip-compressed files before reading.
+        in_memory: Load the entire file into memory for faster access.
     """
 
     def __init__(

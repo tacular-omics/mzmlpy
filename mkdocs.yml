@@ -1,0 +1,37 @@
+site_name: mzmlpy
+site_description: A lightweight Python library for parsing mzML mass spectrometry files.
+repo_url: https://github.com/tacular-omics/mzmlpy
+repo_name: tacular-omics/mzmlpy
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+  palette:
+    - scheme: default
+      primary: blue grey
+      accent: teal
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_symbol_type_heading: true
+            members_order: source
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - API Reference:
+    - Mzml Reader: api/mzml.md
+    - Spectrum: api/spectrum.md
+    - Chromatogram: api/chromatogram.md
+    - Precursor & Ions: api/precursor.md
+    - Constants: api/constants.md

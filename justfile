@@ -39,3 +39,9 @@ test-cov:
 
 codecov-tests:
     uv run pytest tests --cov --junitxml=junit.xml -o junit_family=legacy
+
+docs:  # Build and serve docs
+    uv run mkdocs serve
+
+docs-build:  # Build docs to site/
+    uv run mkdocs build
