@@ -28,7 +28,8 @@ plugins:
             inherited_members: true
             show_signature_annotations: true
             separate_signature: true
-            annotations_path: brief
+            annotations_path: source
+            signature_crossrefs: true
 
 nav:
   - Home: index.md
