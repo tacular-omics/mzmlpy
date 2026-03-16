@@ -34,16 +34,22 @@ class _Param:
 
 @dataclass(frozen=True)
 class CvParam(_Param):
+    """A controlled vocabulary parameter with a CV reference and accession number."""
+
     cv_ref: str
     accession: str
 
 
 @dataclass(frozen=True)
 class UserParam(_Param):
+    """A user-defined parameter with an arbitrary name and optional type annotation."""
+
     name: str
     type_value: str | None
 
 
 @dataclass(frozen=True)
 class ReferenceableParamGroupRef:
+    """A reference to a referenceable parameter group by its id string."""
+
     ref: str

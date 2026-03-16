@@ -8,6 +8,12 @@ from .dtree_wrapper import _DataTreeWrapper, _ParamGroup
 
 @dataclass(frozen=True, repr=False)
 class SourceFile(_ParamGroup):
+    """A single source file referenced by the mzML document.
+
+    Attributes are accessed via CV parameters (checksum type and value)
+    as well as XML attributes (id, name, location).
+    """
+
     @property
     def id(self) -> str | None:
         return self.get_attribute("id")
@@ -51,11 +57,15 @@ class SourceFile(_ParamGroup):
 
 @dataclass(frozen=True, repr=False)
 class FileContent(_ParamGroup):
+    """CV parameters describing the overall content of the mzML file (e.g. MS1 spectrum, centroid spectrum)."""
+
     pass
 
 
 @dataclass(frozen=True, repr=False)
 class Contact(_ParamGroup):
+    """Contact information for a person or organization associated with the mzML file."""
+
     @property
     def name(self) -> str | None:
         cv = self.get_cvparm(ContactAccession.NAME)
@@ -130,6 +140,8 @@ class Contact(_ParamGroup):
 
 @dataclass(frozen=True)
 class FileDescription(_DataTreeWrapper):
+    """Top-level file description element containing content type, source files, and contacts."""
+
     @property
     def file_content(self) -> FileContent | None:
         """return file content as FileContent object if present"""

@@ -6,6 +6,8 @@ from .dtree_wrapper import _ParamGroup
 
 @dataclass(frozen=True, repr=False)
 class Target(_ParamGroup):
+    """A targeted m/z entry within a scan settings target list."""
+
     @property
     def mz(self) -> float | None:
         cv = self.get_cvparm("MS:1000744")
@@ -14,11 +16,14 @@ class Target(_ParamGroup):
 
 @dataclass(frozen=True)
 class SourceFileRef:
+    """A reference to a source file by its id string."""
+
     ref: str
 
 
 @dataclass(frozen=True, repr=False)
 class ScanSetting(_ParamGroup):
+    """Scan acquisition settings including source file references and target m/z lists."""
     @property
     def id(self) -> str:
         id = self.get_attribute("id")

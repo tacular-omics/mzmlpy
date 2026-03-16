@@ -16,21 +16,31 @@ class _Component(_ParamGroup):
 
 @dataclass(frozen=True, repr=False)
 class SourceComponent(_Component):
+    """Ion source component of an instrument configuration (e.g. ESI, MALDI)."""
+
     pass
 
 
 @dataclass(frozen=True, repr=False)
 class AnalyzerComponent(_Component):
+    """Mass analyzer component of an instrument configuration (e.g. quadrupole, Orbitrap)."""
+
     pass
 
 
 @dataclass(frozen=True, repr=False)
 class DetectorComponent(_Component):
+    """Detector component of an instrument configuration (e.g. electron multiplier, focal plane array)."""
+
     pass
 
 
 @dataclass(frozen=True, repr=False)
 class InstrumentConfiguration(_ParamGroup):
+    """Complete description of a mass spectrometer hardware configuration.
+
+    Includes source, analyzer, and detector components.
+    """
     @property
     def id(self) -> str:
         id = self.get_attribute("id")

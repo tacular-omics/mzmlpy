@@ -5,6 +5,8 @@ from .dtree_wrapper import _ParamGroup
 
 @dataclass(frozen=True, repr=False)
 class ReferenceableParamGroup(_ParamGroup):
+    """A named group of CV and user parameters that can be referenced by other elements to avoid repetition."""
+
     @property
     def id(self) -> str:
         id = self.get_attribute("id")

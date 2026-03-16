@@ -6,6 +6,8 @@ from .dtree_wrapper import _DataTreeWrapper, _ParamGroup
 
 @dataclass(frozen=True, repr=False)
 class ProcessingMethod(_ParamGroup):
+    """A single data processing step applied to the spectral data, with an order index and software reference."""
+
     @property
     def order(self) -> int | None:
         order = self.get_attribute("order")
@@ -24,6 +26,8 @@ class ProcessingMethod(_ParamGroup):
 
 @dataclass(frozen=True)
 class DataProcessing(_DataTreeWrapper):
+    """Named collection of ordered processing methods describing how spectral data was transformed."""
+
     @property
     def id(self) -> str:
         id = self.get_attribute("id")

@@ -7,6 +7,8 @@ from .dtree_wrapper import _ParamGroup
 
 @dataclass(frozen=True, repr=False)
 class Run(_ParamGroup):
+    """The mzML run element containing instrument configuration, sample, and acquisition timestamp references."""
+
     @property
     def id(self) -> str | None:
         return self.get_attribute("id")

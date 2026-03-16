@@ -5,6 +5,8 @@ from .dtree_wrapper import _ParamGroup
 
 @dataclass(frozen=True, repr=False)
 class Sample(_ParamGroup):
+    """A sample analyzed in the experiment, described by id, optional name, and CV parameters."""
+
     @property
     def id(self) -> str:
         id = self.get_attribute("id")

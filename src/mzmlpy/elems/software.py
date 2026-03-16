@@ -5,6 +5,8 @@ from .dtree_wrapper import _ParamGroup
 
 @dataclass(frozen=True, repr=False)
 class Software(_ParamGroup):
+    """Software used to acquire or process the data, identified by id and version."""
+
     @property
     def id(self) -> str:
         id = self.get_attribute("id")

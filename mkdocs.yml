@@ -34,4 +34,9 @@ nav:
     - Spectrum: api/spectrum.md
     - Chromatogram: api/chromatogram.md
     - Precursor & Ions: api/precursor.md
+    - File Description: api/file-description.md
+    - Instrument: api/instrument.md
+    - Data Processing: api/data-processing.md
+    - Metadata: api/metadata.md
+    - CV Parameters: api/params.md
     - Constants: api/constants.md
