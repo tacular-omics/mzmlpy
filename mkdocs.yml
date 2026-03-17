@@ -4,14 +4,12 @@ repo_url: https://github.com/tacular-omics/mzmlpy
 repo_name: tacular-omics/mzmlpy
 theme:
   name: material
-  features:
-    - navigation.sections
-    - navigation.top
-    - search.highlight
-  palette:
-    - scheme: default
-      primary: blue grey
-      accent: teal
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
 
 plugins:
   - search
@@ -38,6 +36,7 @@ nav:
     - Mzml Reader: api/mzml.md
     - Spectrum: api/spectrum.md
     - Chromatogram: api/chromatogram.md
+    - Lookup: api/lookup.md
     - Precursor & Ions: api/precursor.md
     - File Description: api/file-description.md
     - Instrument: api/instrument.md

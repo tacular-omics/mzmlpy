@@ -40,8 +40,8 @@ test-cov:
 codecov-tests:
     uv run pytest tests --cov --junitxml=junit.xml -o junit_family=legacy
 
-docs:  # Build and serve docs
-    uv run mkdocs serve
+docs:  # Build and serve docs (port 8001)
+    uv run mkdocs serve --dev-addr=localhost:8001
 
 docs-build:  # Build docs to site/
     uv run mkdocs build

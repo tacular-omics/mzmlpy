@@ -213,9 +213,7 @@ class _BinaryDataArrayMixin(_DataTreeWrapperProtocol):
 
 @dataclass(frozen=True)
 class ScanWindow(_ParamGroup):
-    """
-    A class representing a scan window, with various attributes and metadata.
-    """
+    """A scan window defining the m/z range acquired in a single scan."""
 
     @property
     def lower_mz(self) -> float | None:
@@ -238,10 +236,7 @@ class ScanWindow(_ParamGroup):
 
 @dataclass(frozen=True)
 class _ScanWindowList(_ParamGroup):
-    """
-    A class representing a scan window list, which may contain multiple scan windows.
-    Should be hidden
-    """
+    """A list of scan windows for a single scan event."""
 
     @property
     def scan_windows(self) -> list[ScanWindow]:
@@ -256,9 +251,7 @@ class _ScanWindowList(_ParamGroup):
 
 @dataclass(frozen=True)
 class Scan(_ParamGroup):
-    """
-    A class representing a scan, with various attributes and metadata.
-    """
+    """A single scan event with timing, window, and CV parameter metadata."""
 
     @property
     def _has_scan_windows_list(self) -> bool:
@@ -719,7 +712,7 @@ class _PrecursorListMixin(_DataTreeWrapperProtocol):
 
 @dataclass(frozen=True, repr=False)
 class Product(_ParamGroup):
-    pass
+    """A product ion selection element containing CV parameters describing the product."""
 
 
 @dataclass(frozen=True, repr=False)

@@ -23,6 +23,7 @@ from .elems import (
     Target,
     UserParam,
 )
+from .lookup import ChromatogramLookup, SpectrumLookup
 from .run import Mzml
 from .spectra import (
     Activation,
@@ -40,6 +41,8 @@ from .spectra import (
 __all__ = [
     "__version__",
     "Mzml",
+    "SpectrumLookup",
+    "ChromatogramLookup",
     "DataProcessing",
     "ProcessingMethod",
     "FileDescription",
