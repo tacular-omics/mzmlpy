@@ -4,6 +4,15 @@ repo_url: https://github.com/tacular-omics/mzmlpy
 repo_name: tacular-omics/mzmlpy
 theme:
   name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - navigation.tabs
+  palette:
+    - scheme: default
+      primary: blue grey
+      accent: teal
 
 markdown_extensions:
   - pymdownx.highlight:
