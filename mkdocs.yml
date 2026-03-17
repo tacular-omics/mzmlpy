@@ -7,36 +7,8 @@ theme:
   features:
     - navigation.sections
     - navigation.top
+    - content.code.copy
     - search.highlight
-    - navigation.tabs
-  palette:
-    - scheme: default
-      primary: blue grey
-      accent: teal
-
-markdown_extensions:
-  - pymdownx.highlight:
-      anchor_linenums: true
-  - pymdownx.superfences
-  - pymdownx.inlinehilite
-
-plugins:
-  - search
-  - mkdocstrings:
-      handlers:
-        python:
-          paths: [src]
-          options:
-            docstring_style: google
-            show_source: true
-            show_root_heading: true
-            show_symbol_type_heading: true
-            members_order: source
-            inherited_members: true
-            show_signature_annotations: true
-            separate_signature: true
-            annotations_path: source
-            signature_crossrefs: true
 
 nav:
   - Home: index.md
@@ -53,3 +25,28 @@ nav:
     - Metadata: api/metadata.md
     - CV Parameters: api/params.md
     - Constants: api/constants.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_symbol_type_heading: true
+            members_order: source
+            inherited_members: true
+            merge_init_into_class: true
+            filters: ["!^_"]
+            show_signature_annotations: true
+            separate_signature: true
+            annotations_path: source
+            signature_crossrefs: true
+
+markdown_extensions:
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - admonition
