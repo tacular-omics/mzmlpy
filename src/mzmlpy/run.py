@@ -60,6 +60,12 @@ class Mzml:
         build_index_from_scratch: Build the index from scratch instead of using an existing index.
         extract_gzip: Extract gzip-compressed files before reading.
         in_memory: Load the entire file into memory for faster access.
+        spectrum_id_regex: Optional regex applied to spectrum IDs to create a secondary lookup
+            key. The first capture group (or full match if no groups) becomes the simplified key.
+            For example, ``r"scan=(\\d+)"`` lets you look up spectra by scan number
+            (``reader.spectra["19"]``) instead of the full native ID (``"scan=19"``).
+        chromatogram_id_regex: Optional regex applied to chromatogram IDs to create a secondary
+            lookup key. Works identically to ``spectrum_id_regex`` but for chromatograms.
     """
 
     def __init__(
@@ -68,8 +74,12 @@ class Mzml:
         build_index_from_scratch: bool = False,
         extract_gzip: bool = True,
         in_memory: bool = True,
+        spectrum_id_regex: str | None = None,
+        chromatogram_id_regex: str | None = None,
     ) -> None:
         """Initialize Mzml and parse metadata."""
+        self._spectrum_id_regex = spectrum_id_regex
+        self._chromatogram_id_regex = chromatogram_id_regex
         self._path: Path | None = None
         file_interface_arg: Any
 
@@ -135,12 +145,12 @@ class Mzml:
     @property
     def spectra(self) -> SpectrumLookup:
         """Access spectra lookup."""
-        return SpectrumLookup(file_object=self._file_object)
+        return SpectrumLookup(file_object=self._file_object, id_regex=self._spectrum_id_regex)
 
     @property
     def chromatograms(self) -> ChromatogramLookup:
         """Access chromatograms lookup."""
-        return ChromatogramLookup(file_object=self._file_object)
+        return ChromatogramLookup(file_object=self._file_object, id_regex=self._chromatogram_id_regex)
 
     @property
     def TIC(self) -> Chromatogram | None:

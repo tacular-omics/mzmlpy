@@ -4,6 +4,27 @@ from mzmlpy import Mzml
 
 
 @pytest.mark.parametrize("filename", ["tests/data/example.mzML", "tests/data/example.mzML.gz"])
+def test_id_regex(filename):
+    reader = Mzml(filename, spectrum_id_regex=r"scan=(\d+)")
+
+    # Lookup by extracted key
+    spec = reader.spectra["19"]
+    assert spec.id == "scan=19"
+
+    # Full native ID still works (direct lookup takes priority)
+    spec2 = reader.spectra["scan=19"]
+    assert spec2.id == "scan=19"
+
+    # Unknown key still raises
+    with pytest.raises(KeyError):
+        reader.spectra["9999"]
+
+    # __contains__ respects the map
+    assert "19" in reader.spectra
+    assert "scan=19" in reader.spectra
+
+
+@pytest.mark.parametrize("filename", ["tests/data/example.mzML", "tests/data/example.mzML.gz"])
 def test_spectra(filename):
     reader = Mzml(filename, build_index_from_scratch=False)
 

@@ -1,5 +1,7 @@
+import re
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
+from functools import cached_property
 from typing import overload
 
 from .file_interface import FileInterface
@@ -9,9 +11,29 @@ from .spectra import Chromatogram, Spectrum
 class BaseLookup[T: (Spectrum, Chromatogram)](ABC):
     """Base class for spectrum and chromatogram lookups."""
 
-    def __init__(self, file_object: FileInterface, count: int | None = None) -> None:
+    def __init__(self, file_object: FileInterface, count: int | None = None, id_regex: str | None = None) -> None:
         self.file_object = file_object
         self._count = count
+        self._id_regex = id_regex
+
+    @cached_property
+    def _id_map(self) -> dict[str, str]:
+        """Map regex-extracted keys to their full IDs, built lazily on first use."""
+        if self._id_regex is None:
+            return {}
+        pattern = re.compile(self._id_regex)
+        result: dict[str, str] = {}
+        for full_id in self._get_ids_for_map():
+            if m := pattern.search(full_id):
+                key = m.group(1) if m.lastindex else m.group(0)
+                if key not in result:
+                    result[key] = full_id
+        return result
+
+    @abstractmethod
+    def _get_ids_for_map(self) -> list[str]:
+        """Return the list of all IDs used to build the regex ID map."""
+        ...
 
     def get_by_index(self, index: int | str) -> T:
         """Get item by index."""
@@ -116,7 +138,15 @@ class SpectrumLookup(BaseLookup[Spectrum]):
         return self.file_object.get_spectrum_by_index(index)
 
     def _get_by_id_impl(self, identifier: str) -> Spectrum:
-        return self.file_object.get_spectrum_by_id(identifier)
+        try:
+            return self.file_object.get_spectrum_by_id(identifier)
+        except KeyError:
+            if self._id_regex is not None and (mapped := self._id_map.get(identifier)):
+                return self.file_object.get_spectrum_by_id(mapped)
+            raise
+
+    def _get_ids_for_map(self) -> list[str]:
+        return self.file_object.spectrum_ids
 
     def _get_count_impl(self) -> int | None:
         if self._count is not None:
@@ -134,7 +164,15 @@ class ChromatogramLookup(BaseLookup[Chromatogram]):
         return self.file_object.get_chromatogram_by_index(index)
 
     def _get_by_id_impl(self, identifier: str) -> Chromatogram:
-        return self.file_object.get_chromatogram_by_id(identifier)
+        try:
+            return self.file_object.get_chromatogram_by_id(identifier)
+        except KeyError:
+            if self._id_regex is not None and (mapped := self._id_map.get(identifier)):
+                return self.file_object.get_chromatogram_by_id(mapped)
+            raise
+
+    def _get_ids_for_map(self) -> list[str]:
+        return self.file_object.chromatogram_ids
 
     def _get_count_impl(self) -> int | None:
         if self._count is not None:

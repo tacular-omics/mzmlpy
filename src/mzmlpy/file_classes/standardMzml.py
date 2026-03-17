@@ -116,8 +116,6 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
         self.file_handler.seek(offset, 0)
         data = self.file_handler.read(end_pos - offset)
 
-        print(identifier, data[:100])
-
         return MzmlXMLElement(XML(data), element_type="chromatogram")
 
     def get_chromatogram_by_index(self, index: int) -> ChromatogramElement:

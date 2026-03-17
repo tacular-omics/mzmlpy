@@ -208,6 +208,20 @@ class FileInterface:
         return self.get_chromatogram_by_id("TIC")
 
     @property
+    def spectrum_ids(self) -> list[str]:
+        """All spectrum IDs from the file index."""
+        if hasattr(self.file_handler, "spectrum_offsets"):
+            return list(self.file_handler.spectrum_offsets.keys())
+        return []
+
+    @property
+    def chromatogram_ids(self) -> list[str]:
+        """All chromatogram IDs from the file index."""
+        if hasattr(self.file_handler, "chromatogram_offsets"):
+            return list(self.file_handler.chromatogram_offsets.keys())
+        return []
+
+    @property
     def spectrum_count(self) -> int | None:
         """Count of spectra in the file, if determinable."""
         return self.file_handler.spectrum_count
