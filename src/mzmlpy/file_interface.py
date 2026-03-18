@@ -210,16 +210,12 @@ class FileInterface:
     @property
     def spectrum_ids(self) -> list[str]:
         """All spectrum IDs from the file index."""
-        if hasattr(self.file_handler, "spectrum_offsets"):
-            return list(self.file_handler.spectrum_offsets.keys())
-        return []
+        return self.file_handler.spectrum_ids
 
     @property
     def chromatogram_ids(self) -> list[str]:
         """All chromatogram IDs from the file index."""
-        if hasattr(self.file_handler, "chromatogram_offsets"):
-            return list(self.file_handler.chromatogram_offsets.keys())
-        return []
+        return self.file_handler.chromatogram_ids
 
     @property
     def spectrum_count(self) -> int | None:

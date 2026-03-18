@@ -138,6 +138,16 @@ class StandardGzip(MzmlInterface):
         """Retrieve the Total Ion Chromatogram (TIC)."""
         return self.get_chromatogram_by_id("TIC")
 
+    @property
+    def spectrum_ids(self) -> list[str]:
+        """Spectrum IDs — not available for streaming gzip reader."""
+        return []
+
+    @property
+    def chromatogram_ids(self) -> list[str]:
+        """Chromatogram IDs — not available for streaming gzip reader."""
+        return []
+
     @cached_property
     def spectrum_count(self) -> int | None:
         """Count of spectra in the file, if determinable."""

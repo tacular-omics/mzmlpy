@@ -361,6 +361,16 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
         """Count of chromatograms in the file, if determinable."""
         return len(self.chromatogram_offsets) if self.chromatogram_offsets else None
 
+    @property
+    def spectrum_ids(self) -> list[str]:
+        """All spectrum IDs from the file index."""
+        return list(self.spectrum_offsets.keys())
+
+    @property
+    def chromatogram_ids(self) -> list[str]:
+        """All chromatogram IDs from the file index."""
+        return list(self.chromatogram_offsets.keys())
+
 
 class StandardMzml(AbstractRandomAccessMzml):
     """Random-access mzML file reader using binary searching and caching."""

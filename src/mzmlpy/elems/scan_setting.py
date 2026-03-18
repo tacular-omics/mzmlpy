@@ -24,6 +24,7 @@ class SourceFileRef:
 @dataclass(frozen=True, repr=False)
 class ScanSetting(_ParamGroup):
     """Scan acquisition settings including source file references and target m/z lists."""
+
     @property
     def id(self) -> str:
         id = self.get_attribute("id")

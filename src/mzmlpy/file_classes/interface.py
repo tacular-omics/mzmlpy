@@ -25,3 +25,9 @@ class MzmlInterface(Protocol):
 
     @cached_property
     def chromatogram_count(self) -> int | None: ...
+
+    @property
+    def spectrum_ids(self) -> list[str]: ...
+
+    @property
+    def chromatogram_ids(self) -> list[str]: ...

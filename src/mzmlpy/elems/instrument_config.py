@@ -41,6 +41,7 @@ class InstrumentConfiguration(_ParamGroup):
 
     Includes source, analyzer, and detector components.
     """
+
     @property
     def id(self) -> str:
         id = self.get_attribute("id")
