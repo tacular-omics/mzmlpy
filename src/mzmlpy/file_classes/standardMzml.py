@@ -1,3 +1,4 @@
+import io
 import logging
 import re
 from abc import ABC, abstractmethod
@@ -5,7 +6,7 @@ from collections import OrderedDict
 from functools import cached_property
 from io import BytesIO, TextIOWrapper
 from re import Pattern
-from typing import BinaryIO, TextIO
+from typing import BinaryIO, TextIO, cast
 from xml.etree.ElementTree import XML
 
 from .. import regex_patterns
@@ -13,6 +14,50 @@ from .interface import MzmlInterface
 from .xml_tuple import ChromatogramElement, MzmlXMLElement, SpectrumElement
 
 logger = logging.getLogger(__name__)
+
+
+class _MemoryViewReader(io.RawIOBase):
+    def __init__(self, mv: memoryview) -> None:
+        self._mv = mv
+        self._pos = 0
+
+    def read(self, size: int = -1) -> bytes:
+        if size == -1:
+            size = len(self._mv) - self._pos
+        n = min(size, len(self._mv) - self._pos)
+        data = bytes(self._mv[self._pos : self._pos + n])
+        self._pos += n
+        return data
+
+    def readinto(self, b: bytearray) -> int:  # type: ignore[override]
+        n = min(len(b), len(self._mv) - self._pos)
+        b[:n] = self._mv[self._pos : self._pos + n]
+        self._pos += n
+        return n
+
+    def readable(self) -> bool:
+        return True
+
+    def seekable(self) -> bool:
+        return True
+
+    def seek(self, pos: int, whence: int = 0) -> int:
+        size = len(self._mv)
+        if whence == 0:
+            self._pos = pos
+        elif whence == 1:
+            self._pos += pos
+        elif whence == 2:
+            self._pos = size + pos
+        self._pos = max(0, min(self._pos, size))
+        return self._pos
+
+    def tell(self) -> int:
+        return self._pos
+
+    def close(self) -> None:
+        self._mv.release()
+        super().close()
 
 
 class AbstractRandomAccessMzml(MzmlInterface, ABC):
@@ -402,7 +447,7 @@ class BytesMzml(AbstractRandomAccessMzml):
         super().__init__(encoding, build_index_from_scratch)
 
     def get_binary_file_handler(self) -> BinaryIO:
-        return BytesIO(self.binary.getbuffer())
+        return io.BufferedReader(cast(io.RawIOBase, _MemoryViewReader(self.binary.getbuffer())))
 
     def get_file_handler(self, encoding: str) -> TextIO:
-        return TextIOWrapper(self.get_binary_file_handler(), encoding=encoding)
+        return TextIOWrapper(BytesIO(self.binary.getbuffer()), encoding=encoding)
