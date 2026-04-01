@@ -13,6 +13,7 @@ from xml.etree import ElementTree as ET
 from .file_classes import (
     BytesMzml,
     ChromatogramElement,
+    IndexedGzip,
     MzmlInterface,
     MzmlXMLElement,
     SpectrumElement,
@@ -55,14 +56,14 @@ class FileInterface:
         encoding: str,
         build_index_from_scratch: bool = False,
         index_regex: Pattern[bytes] | None = None,
-        extract_gzip: bool = True,
+        gzip_mode: Literal["extract", "indexed", "stream"] = "extract",
         in_memory: bool = False,
     ) -> None:
         """Initialize FileInterface with path and encoding options."""
         self.build_index_from_scratch: bool = build_index_from_scratch
         self.encoding: str = encoding
         self.index_regex: Pattern[bytes] | None = index_regex
-        self.extract_gzip: bool = extract_gzip
+        self.gzip_mode: Literal["extract", "indexed", "stream"] = gzip_mode
         self.in_memory: bool = in_memory
         self.temp_file = None
         self.file_handler: MzmlInterface = self._open(path)
@@ -105,8 +106,7 @@ class FileInterface:
 
         # Handle gzipped files
         if path.endswith(".gz"):
-            # Extract gzip to temporary file if requested
-            if self.extract_gzip:
+            if self.gzip_mode == "extract":
                 self.temp_file = tempfile.NamedTemporaryFile(mode="w+b", suffix=".mzML", delete=False)
                 with gzip.open(path, "rb") as f_in:
                     self.temp_file.write(f_in.read())
@@ -114,6 +114,13 @@ class FileInterface:
 
                 return StandardMzml(
                     self.temp_file.name,
+                    self.encoding,
+                    self.build_index_from_scratch,
+                    index_regex=self.index_regex,
+                )
+            elif self.gzip_mode == "indexed":
+                return IndexedGzip(
+                    path,
                     self.encoding,
                     self.build_index_from_scratch,
                     index_regex=self.index_regex,

@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ElementTree
 from collections.abc import Iterator
 from pathlib import Path
 from re import Match
-from typing import Any, Self
+from typing import Any, Literal, Self
 
 from .content import CVElement, MzMLContentBuilder, _MzMLContent
 from .elems import (
@@ -58,7 +58,15 @@ class Mzml:
     Args:
         file: Path to the mzML file (str or Path) or a file-like object.
         build_index_from_scratch: Build the index from scratch instead of using an existing index.
-        extract_gzip: Extract gzip-compressed files before reading.
+        gzip_mode: Strategy for reading gzip-compressed (``.mzML.gz``) files:
+
+            - ``"extract"`` (default): Decompress to a temporary file on disk, then use
+              standard random-access reading.
+            - ``"indexed"``: Use the ``indexed_gzip`` library for seekable access to the
+              compressed file without extracting to disk. Requires
+              ``pip install mzmlpy[indexed-gzip]``.
+            - ``"stream"``: Stream the file sequentially without building an index.
+              Individual spectrum access re-scans the file from the beginning each time.
         in_memory: Load the entire file into memory for faster access.
         spectrum_id_regex: Optional regex applied to spectrum IDs to create a secondary lookup
             key. The first capture group (or full match if no groups) becomes the simplified key.
@@ -72,7 +80,7 @@ class Mzml:
         self,
         file: str | Path | Any,
         build_index_from_scratch: bool = False,
-        extract_gzip: bool = True,
+        gzip_mode: Literal["extract", "indexed", "stream"] = "extract",
         in_memory: bool = True,
         spectrum_id_regex: str | None = None,
         chromatogram_id_regex: str | None = None,
@@ -101,7 +109,7 @@ class Mzml:
             path=file_interface_arg,
             encoding=self._encoding,
             build_index_from_scratch=build_index_from_scratch,
-            extract_gzip=extract_gzip,
+            gzip_mode=gzip_mode,
             in_memory=in_memory,
         )
 
