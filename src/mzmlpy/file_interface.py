@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Interface for different mzML file formats."""
 
-import gzip
 import tempfile
 from collections.abc import Iterator
 from io import BytesIO
@@ -21,6 +20,7 @@ from .file_classes import (
     StandardMzml,
 )
 from .spectra import Chromatogram, Spectrum
+from .util import gzip_decompress
 
 
 @overload
@@ -91,8 +91,7 @@ class FileInterface:
         if self.in_memory:
             if path.endswith(".gz"):
                 # Decompress gzipped file into memory
-                with gzip.open(path, "rb") as f:
-                    content = f.read()
+                content = gzip_decompress(path)
             else:
                 # Read uncompressed file into memory
                 with open(path, "rb") as f:
@@ -108,8 +107,7 @@ class FileInterface:
         if path.endswith(".gz"):
             if self.gzip_mode == "extract":
                 self.temp_file = tempfile.NamedTemporaryFile(mode="w+b", suffix=".mzML", delete=False)
-                with gzip.open(path, "rb") as f_in:
-                    self.temp_file.write(f_in.read())
+                self.temp_file.write(gzip_decompress(path))
                 self.temp_file.flush()
 
                 return StandardMzml(

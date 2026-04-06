@@ -1,9 +1,9 @@
-import gzip
 from functools import cached_property
 from typing import TextIO
 from xml.etree.ElementTree import iterparse
 
 from .. import regex_patterns
+from ..util import gzip_open_text
 from .interface import MzmlInterface
 from .xml_tuple import ChromatogramElement, MzmlXMLElement, SpectrumElement
 
@@ -11,14 +11,14 @@ from .xml_tuple import ChromatogramElement, MzmlXMLElement, SpectrumElement
 class StandardGzip(MzmlInterface):
     def __init__(self, path: str, encoding: str) -> None:
         self.path: str = path
-        self.file_handler: TextIO = gzip.open(path, "rt", encoding=encoding)
+        self.file_handler: TextIO = gzip_open_text(path, encoding=encoding)
 
     def close(self) -> None:
         self.file_handler.close()
 
     def get_file_handler(self, encoding: str) -> TextIO:
         """Return a fresh decompressed text file handler."""
-        return gzip.open(self.path, "rt", encoding=encoding)
+        return gzip_open_text(self.path, encoding=encoding)
 
     def read(self, size: int = -1) -> str:
         """Read data from file. Default (-1) reads entire file."""

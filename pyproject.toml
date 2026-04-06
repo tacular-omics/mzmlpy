@@ -55,7 +55,7 @@ target-version = "py312"
 line-length = 120
 
 [tool.ty.src]
-exclude = ["src/mzmlpy/decoder.py", "src/mzmlpy/file_classes/indexedGzip.py"]
+exclude = ["src/mzmlpy/decoder.py", "src/mzmlpy/file_classes/indexedGzip.py", "src/mzmlpy/util.py"]
 
 [tool.ruff.lint]
 select = [

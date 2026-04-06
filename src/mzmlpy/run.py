@@ -2,7 +2,6 @@
 The class :py:class:`Reader` parses mzML files.
 """
 
-import gzip
 import os
 import xml.etree.ElementTree as ElementTree
 from collections.abc import Iterator
@@ -25,6 +24,7 @@ from .file_interface import FileInterface
 from .lookup import ChromatogramLookup, SpectrumLookup
 from .regex_patterns import FILE_ENCODING_PATTERN
 from .spectra import Chromatogram
+from .util import gzip_open_binary
 
 
 # Keep encoding detection methods
@@ -40,7 +40,7 @@ def _determine_file_encoding(path: str) -> str:
         return "utf-8"
 
     if path.endswith(".gz") or path.endswith(".igz"):
-        with gzip.open(path, "rb") as sniffer:
+        with gzip_open_binary(path) as sniffer:
             return _guess_encoding(sniffer)
     else:
         with open(path, "rb") as sniffer:
@@ -62,9 +62,9 @@ class Mzml:
 
             - ``"extract"`` (default): Decompress to a temporary file on disk, then use
               standard random-access reading.
-            - ``"indexed"``: Use the ``indexed_gzip`` library for seekable access to the
+            - ``"indexed"``: Use the ``rapidgzip`` library for seekable access to the
               compressed file without extracting to disk. Requires
-              ``pip install mzmlpy[indexed-gzip]``.
+              ``pip install mzmlpy[rapidgzip]``.
             - ``"stream"``: Stream the file sequentially without building an index.
               Individual spectrum access re-scans the file from the beginning each time.
         in_memory: Load the entire file into memory for faster access.
