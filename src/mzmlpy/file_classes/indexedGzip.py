@@ -9,7 +9,10 @@ from io import TextIOWrapper
 from re import Pattern
 from typing import BinaryIO, TextIO
 
-from rapidgzip import RapidgzipFile
+try:
+    from rapidgzip import RapidgzipFile
+except ImportError:
+    RapidgzipFile = None  # type: ignore[assignment, misc]
 
 from .standardMzml import AbstractRandomAccessMzml
 
@@ -87,6 +90,11 @@ class IndexedGzip(AbstractRandomAccessMzml):
         build_index_from_scratch: bool = False,
         index_regex: Pattern[bytes] | None = None,
     ) -> None:
+        if RapidgzipFile is None:
+            raise ImportError(
+                "rapidgzip is required for gzip_mode='indexed'. "
+                "Install it with: pip install mzmlpy[rapidgzip]"
+            )
         self.path: str = path
         self._gzip_index_path: str = path + "idx"  # e.g. data.mzML.gzidx
         self._mzml_index_path: str = path.removesuffix(".gz") + "idx"  # e.g. data.mzMLidx
