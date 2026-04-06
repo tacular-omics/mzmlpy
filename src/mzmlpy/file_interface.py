@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Interface for different mzML file formats."""
 
-import tempfile
+import logging
+import os
 from collections.abc import Iterator
 from io import BytesIO
 from pathlib import Path
@@ -21,6 +22,8 @@ from .file_classes import (
 )
 from .spectra import Chromatogram, Spectrum
 from .util import gzip_decompress
+
+logger = logging.getLogger(__name__)
 
 
 @overload
@@ -65,14 +68,11 @@ class FileInterface:
         self.index_regex: Pattern[bytes] | None = index_regex
         self.gzip_mode: Literal["extract", "indexed", "stream"] = gzip_mode
         self.in_memory: bool = in_memory
-        self.temp_file = None
         self.file_handler: MzmlInterface = self._open(path)
 
     def close(self) -> None:
         """Close the internal file handler."""
         self.file_handler.close()
-        if self.temp_file is not None:
-            self.temp_file.close()
 
     def _open(self, path_or_file: str | Path | BytesIO) -> MzmlInterface:
         """Open appropriate file handler based on file type and format."""
@@ -106,12 +106,16 @@ class FileInterface:
         # Handle gzipped files
         if path.endswith(".gz"):
             if self.gzip_mode == "extract":
-                self.temp_file = tempfile.NamedTemporaryFile(mode="w+b", suffix=".mzML", delete=False)
-                self.temp_file.write(gzip_decompress(path))
-                self.temp_file.flush()
+                extracted_path = path.removesuffix(".gz")
+                if not (os.path.exists(extracted_path) and os.path.getmtime(extracted_path) >= os.path.getmtime(path)):
+                    logger.debug("Extracting %s to %s", path, extracted_path)
+                    with open(extracted_path, "wb") as f_out:
+                        f_out.write(gzip_decompress(path))
+                else:
+                    logger.debug("Using cached extraction: %s", extracted_path)
 
                 return StandardMzml(
-                    self.temp_file.name,
+                    extracted_path,
                     self.encoding,
                     self.build_index_from_scratch,
                     index_regex=self.index_regex,
