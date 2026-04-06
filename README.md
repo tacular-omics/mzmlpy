@@ -22,6 +22,7 @@ Optional extras:
 ```bash
 pip install mzmlpy[numpress]   # MS-Numpress decoding
 pip install mzmlpy[zstd]       # Zstandard compression
+pip install mzmlpy[rapidgzip]  # Parallel gzip decompression (recommended for .gz files)
 ```
 
 ## Quick Start
@@ -39,6 +40,35 @@ with Mzml("path/to/file.mzML") as reader:
 ```
 
 Both `.mzML` and `.mzML.gz` files are supported. Metadata is parsed eagerly; binary data is decoded on demand.
+
+## Reading Gzipped Files
+
+When opening `.mzML.gz` files, the `gzip_mode` parameter controls how the file is accessed:
+
+| Mode | Description |
+|---|---|
+| `"extract"` (default) | Decompress to a cached temp file, then use random access. Fast on repeated opens. |
+| `"indexed"` | Seekable access to the compressed file using `rapidgzip`. No decompression to disk. Requires `pip install mzmlpy[rapidgzip]`. |
+| `"stream"` | Stream sequentially. Lowest startup cost but no efficient random access. |
+
+For most use cases, `"extract"` or `"indexed"` is recommended:
+
+```python
+# Default — extracts to tmp, cached across sessions
+with Mzml("data.mzML.gz") as reader:
+    spec = reader.spectra[0]
+
+# Indexed — no extraction, seekable access (requires rapidgzip)
+with Mzml("data.mzML.gz", gzip_mode="indexed") as reader:
+    spec = reader.spectra[0]
+```
+
+Extracted files are cached in a temporary directory. To clear the cache:
+
+```python
+from mzmlpy import clear_cache
+clear_cache()
+```
 
 For full usage examples see the **[Getting Started guide](https://tacular-omics.github.io/mzmlpy/getting-started/)** and **[API Reference](https://tacular-omics.github.io/mzmlpy/api/mzml/)**.
 

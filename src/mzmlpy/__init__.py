@@ -37,10 +37,12 @@ from .spectra import (
     SelectedIon,
     Spectrum,
 )
+from .util import clear_cache
 
 __all__ = [
     "__version__",
     "Mzml",
+    "clear_cache",
     "SpectrumLookup",
     "ChromatogramLookup",
     "DataProcessing",

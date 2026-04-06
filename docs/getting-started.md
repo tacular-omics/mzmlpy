@@ -28,6 +28,33 @@ with Mzml("tests/data/example.mzML") as reader:
 
 Both `.mzML` and `.mzML.gz` files are supported. The reader lazily parses the file, so metadata is available immediately while binary data is decoded only on access.
 
+## Reading Gzipped Files
+
+When working with `.mzML.gz` files, the `gzip_mode` parameter controls how the compressed file is accessed:
+
+- **`"extract"`** (default) — Decompress to a cached temporary file, then read with full random access. The extracted file is stored in a temp directory and reused on subsequent opens of the same file.
+- **`"indexed"`** — Use the `rapidgzip` library for seekable access to the compressed file without extracting to disk. Requires `pip install mzmlpy[rapidgzip]`. Builds a gzip seek index (`.gzidx`) and mzML offset index (`.mzMLidx`) on first open, cached alongside the file for instant startup on subsequent opens.
+- **`"stream"`** — Stream the file sequentially with no index. Lowest startup cost, but random access (e.g. `reader.spectra[0]`) scans from the beginning each time — a warning is emitted.
+
+For best performance with `.mzML.gz` files, use `"extract"` or `"indexed"`:
+
+```python
+from mzmlpy import Mzml
+
+# Indexed mode — no extraction, seekable (requires rapidgzip)
+with Mzml("tests/data/example.mzML.gz", gzip_mode="indexed", in_memory=False) as reader:
+    print(f"Spectra: {len(reader.spectra)}")
+    spec = reader.spectra[0]
+    print(spec.id)
+```
+
+Extracted files are cached in a temporary directory. To reclaim disk space:
+
+```python
+from mzmlpy import clear_cache
+clear_cache()
+```
+
 ## Iterating Spectra
 
 The `reader.spectra` property returns a lookup object that supports iteration, integer indexing, slicing, and string ID lookup:
