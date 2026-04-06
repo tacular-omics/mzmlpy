@@ -1,3 +1,4 @@
+import warnings
 from functools import cached_property
 from typing import TextIO
 from xml.etree.ElementTree import iterparse
@@ -7,10 +8,16 @@ from ..util import gzip_open_text
 from .interface import MzmlInterface
 from .xml_tuple import ChromatogramElement, MzmlXMLElement, SpectrumElement
 
+_STREAM_WARNING = (
+    "Random access on gzip_mode='stream' requires scanning the file from the beginning "
+    "for every access. Use gzip_mode='extract' or gzip_mode='indexed' for efficient random access."
+)
+
 
 class StandardGzip(MzmlInterface):
     def __init__(self, path: str, encoding: str) -> None:
         self.path: str = path
+        self._encoding: str = encoding
         self.file_handler: TextIO = gzip_open_text(path, encoding=encoding)
 
     def close(self) -> None:
@@ -27,17 +34,23 @@ class StandardGzip(MzmlInterface):
     def get_spectrum_by_id(self, identifier: str | int) -> SpectrumElement:
         """Retrieve spectrum by native ID.
 
+        Warning:
+            This scans the file from the beginning on every call.
+            Use ``gzip_mode='extract'`` or ``gzip_mode='indexed'`` for
+            efficient random access.
+
         Args:
             identifier: Spectrum ID (string) or integer.
 
         Raises:
             KeyError: If ID is not found.
         """
+        warnings.warn(_STREAM_WARNING, stacklevel=2)
         if isinstance(identifier, int):
             identifier = str(identifier)
 
         # Can't seek in gzip, so need fresh handle
-        fh = self.get_file_handler("utf-8")
+        fh = self.get_file_handler(self._encoding)
         mzml_iter = iterparse(fh, events=["end"])
 
         for event, element in mzml_iter:
@@ -60,14 +73,18 @@ class StandardGzip(MzmlInterface):
     def get_spectrum_by_index(self, index: int) -> SpectrumElement:
         """Retrieve spectrum by 0-based index.
 
+        Warning:
+            This scans the file from the beginning on every call.
+
         Args:
             index: 0-based index in spectrum list.
 
         Raises:
             IndexError: If index is out of range.
         """
+        warnings.warn(_STREAM_WARNING, stacklevel=2)
         # Can't seek in gzip, so need fresh handle
-        fh = self.get_file_handler("utf-8")
+        fh = self.get_file_handler(self._encoding)
         mzml_iter = iterparse(fh, events=["end"])
 
         current_index = 0
@@ -85,17 +102,21 @@ class StandardGzip(MzmlInterface):
     def get_chromatogram_by_id(self, identifier: str | int) -> ChromatogramElement:
         """Retrieve chromatogram by native ID.
 
+        Warning:
+            This scans the file from the beginning on every call.
+
         Args:
             identifier: Chromatogram ID (string) or integer.
 
         Raises:
             KeyError: If ID is not found.
         """
+        warnings.warn(_STREAM_WARNING, stacklevel=2)
         if isinstance(identifier, int):
             identifier = str(identifier)
 
         # Can't seek in gzip, so need fresh handle
-        fh = self.get_file_handler("utf-8")
+        fh = self.get_file_handler(self._encoding)
         mzml_iter = iterparse(fh, events=["end"])
 
         for event, element in mzml_iter:
@@ -111,14 +132,18 @@ class StandardGzip(MzmlInterface):
     def get_chromatogram_by_index(self, index: int) -> ChromatogramElement:
         """Retrieve chromatogram by 0-based index.
 
+        Warning:
+            This scans the file from the beginning on every call.
+
         Args:
             index: 0-based index in chromatogram list.
 
         Raises:
             IndexError: If index is out of range.
         """
+        warnings.warn(_STREAM_WARNING, stacklevel=2)
         # Can't seek in gzip, so need fresh handle
-        fh = self.get_file_handler("utf-8")
+        fh = self.get_file_handler(self._encoding)
         mzml_iter = iterparse(fh, events=["end"])
 
         current_index = 0
@@ -138,42 +163,42 @@ class StandardGzip(MzmlInterface):
         """Retrieve the Total Ion Chromatogram (TIC)."""
         return self.get_chromatogram_by_id("TIC")
 
+    @cached_property
+    def _ids(self) -> tuple[list[str], list[str]]:
+        """Scan the file once to build spectrum and chromatogram ID lists."""
+        spec_ids: list[str] = []
+        chrom_ids: list[str] = []
+        fh = self.get_file_handler(self._encoding)
+        for _, element in iterparse(fh, events=["end"]):
+            if element.tag.endswith("}spectrum"):
+                elem_id = element.get("id")
+                if elem_id:
+                    spec_ids.append(elem_id)
+                element.clear()
+            elif element.tag.endswith("}chromatogram"):
+                elem_id = element.get("id")
+                if elem_id:
+                    chrom_ids.append(elem_id)
+                element.clear()
+        fh.close()
+        return spec_ids, chrom_ids
+
     @property
     def spectrum_ids(self) -> list[str]:
-        """Spectrum IDs — not available for streaming gzip reader."""
-        return []
+        """All spectrum IDs (requires one full file scan, then cached)."""
+        return self._ids[0]
 
     @property
     def chromatogram_ids(self) -> list[str]:
-        """Chromatogram IDs — not available for streaming gzip reader."""
-        return []
+        """All chromatogram IDs (requires one full file scan, then cached)."""
+        return self._ids[1]
 
     @cached_property
     def spectrum_count(self) -> int | None:
-        """Count of spectra in the file, if determinable."""
-        count = 0
-        # Can't seek in gzip, so need fresh handle
-        fh = self.get_file_handler("utf-8")
-        mzml_iter = iterparse(fh, events=["end"])
-
-        for event, element in mzml_iter:
-            if event == "end" and element.tag.endswith("}spectrum"):
-                count += 1
-
-        fh.close()
-        return count
+        """Count of spectra in the file."""
+        return len(self.spectrum_ids)
 
     @cached_property
     def chromatogram_count(self) -> int | None:
-        """Count of chromatograms in the file, if determinable."""
-        count = 0
-        # Can't seek in gzip, so need fresh handle
-        fh = self.get_file_handler("utf-8")
-        mzml_iter = iterparse(fh, events=["end"])
-
-        for event, element in mzml_iter:
-            if event == "end" and element.tag.endswith("}chromatogram"):
-                count += 1
-
-        fh.close()
-        return count
+        """Count of chromatograms in the file."""
+        return len(self.chromatogram_ids)

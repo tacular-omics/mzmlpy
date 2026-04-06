@@ -1,6 +1,8 @@
 import gzip
 import io
 import os
+import shutil
+import tempfile
 import xml.etree.ElementTree as ElementTree
 from typing import BinaryIO, TextIO
 
@@ -37,3 +39,24 @@ def gzip_decompress(path: str) -> bytes:
     """Read and decompress an entire gzip file, using rapidgzip if available."""
     with gzip_open_binary(path) as f:
         return f.read()
+
+
+def _get_cache_dir() -> str:
+    """Return the mzmlpy cache directory path."""
+    return os.path.join(tempfile.gettempdir(), "mzmlpy")
+
+
+def clear_cache() -> None:
+    """Remove all cached files from the mzmlpy temporary directory.
+
+    Deletes the ``<tmpdir>/mzmlpy/`` directory and all its contents.
+    This includes extracted ``.mzML`` files created by ``gzip_mode='extract'``.
+
+    Example::
+
+        from mzmlpy import clear_cache
+        clear_cache()
+    """
+    cache_dir = _get_cache_dir()
+    if os.path.isdir(cache_dir):
+        shutil.rmtree(cache_dir)
