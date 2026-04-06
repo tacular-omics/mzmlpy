@@ -68,6 +68,11 @@ class Mzml:
             - ``"stream"``: Stream the file sequentially without building an index.
               Individual spectrum access re-scans the file from the beginning each time.
         in_memory: Load the entire file into memory for faster access.
+        extract_dir: Directory to store extracted ``.mzML`` files when using
+            ``gzip_mode='extract'``. If ``None`` (default), a system temp directory
+            is used (``<tmpdir>/mzmlpy/``). Set this to a custom path to manage
+            extracted files yourself — useful for batch processing where you want
+            to extract all files to one directory and clean up afterward.
         spectrum_id_regex: Optional regex applied to spectrum IDs to create a secondary lookup
             key. The first capture group (or full match if no groups) becomes the simplified key.
             For example, ``r"scan=(\\d+)"`` lets you look up spectra by scan number
@@ -82,6 +87,7 @@ class Mzml:
         build_index_from_scratch: bool = False,
         gzip_mode: Literal["extract", "indexed", "stream"] = "extract",
         in_memory: bool = True,
+        extract_dir: str | Path | None = None,
         spectrum_id_regex: str | None = None,
         chromatogram_id_regex: str | None = None,
     ) -> None:
@@ -111,6 +117,7 @@ class Mzml:
             build_index_from_scratch=build_index_from_scratch,
             gzip_mode=gzip_mode,
             in_memory=in_memory,
+            extract_dir=str(extract_dir) if extract_dir is not None else None,
         )
 
         # Parse metadata

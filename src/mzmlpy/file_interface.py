@@ -63,6 +63,7 @@ class FileInterface:
         index_regex: Pattern[bytes] | None = None,
         gzip_mode: Literal["extract", "indexed", "stream"] = "extract",
         in_memory: bool = False,
+        extract_dir: str | None = None,
     ) -> None:
         """Initialize FileInterface with path and encoding options."""
         self.build_index_from_scratch: bool = build_index_from_scratch
@@ -70,6 +71,7 @@ class FileInterface:
         self.index_regex: Pattern[bytes] | None = index_regex
         self.gzip_mode: Literal["extract", "indexed", "stream"] = gzip_mode
         self.in_memory: bool = in_memory
+        self._extract_dir: str | None = extract_dir
         self.file_handler: MzmlInterface = self._open(path)
 
     def close(self) -> None:
@@ -108,7 +110,7 @@ class FileInterface:
         # Handle gzipped files
         if path.endswith(".gz"):
             if self.gzip_mode == "extract":
-                extracted_path = self._get_cache_path(path)
+                extracted_path = self._get_extract_path(path)
                 if not (os.path.exists(extracted_path) and os.path.getmtime(extracted_path) >= os.path.getmtime(path)):
                     logger.debug("Extracting %s to %s", path, extracted_path)
                     with open(extracted_path, "wb") as f_out:
@@ -140,14 +142,18 @@ class FileInterface:
             index_regex=self.index_regex,
         )
 
-    @staticmethod
-    def _get_cache_path(gz_path: str) -> str:
-        """Return a persistent temp path for the extracted mzML file.
+    def _get_extract_path(self, gz_path: str) -> str:
+        """Return the path for the extracted mzML file.
 
-        Uses a hash of the absolute source path as the filename to avoid
-        collisions. Files live in ``<tmpdir>/mzmlpy/`` and persist across
-        sessions until the OS clears the temp directory.
+        If ``extract_dir`` was provided, uses that directory with the original
+        filename (minus ``.gz``). Otherwise, uses ``<tmpdir>/mzmlpy/`` with a
+        hash-based filename to avoid collisions.
         """
+        if self._extract_dir is not None:
+            os.makedirs(self._extract_dir, exist_ok=True)
+            filename = Path(gz_path).name.removesuffix(".gz")
+            return os.path.join(self._extract_dir, filename)
+
         cache_dir = os.path.join(tempfile.gettempdir(), "mzmlpy")
         os.makedirs(cache_dir, exist_ok=True)
         path_hash = hashlib.sha256(os.path.abspath(gz_path).encode()).hexdigest()[:16]
