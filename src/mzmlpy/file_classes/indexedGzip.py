@@ -1,4 +1,4 @@
-"""Random-access mzML reader for gzip-compressed files using indexed_gzip."""
+"""Random-access mzML reader for gzip-compressed files using rapidgzip."""
 
 import io
 import logging
@@ -7,7 +7,7 @@ from io import TextIOWrapper
 from re import Pattern
 from typing import BinaryIO, TextIO
 
-import indexed_gzip
+from rapidgzip import RapidgzipFile
 
 from .standardMzml import AbstractRandomAccessMzml
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class _NonClosingBinaryWrapper(io.RawIOBase):
     """Wrapper around a binary file handle that ignores close().
 
-    Used to share a single IndexedGzipFile across multiple callers that
+    Used to share a single RapidgzipFile across multiple callers that
     each expect to close their own handle.
     """
 
@@ -53,10 +53,11 @@ class _NonClosingBinaryWrapper(io.RawIOBase):
 
 
 class IndexedGzip(AbstractRandomAccessMzml):
-    """Random-access mzML reader for gzip files using indexed_gzip.
+    """Random-access mzML reader for gzip files using rapidgzip.
 
-    Uses the ``indexed_gzip`` library to provide seekable access to the
+    Uses the ``rapidgzip`` library to provide seekable access to the
     decompressed content of a ``.mzML.gz`` file without extracting to disk.
+    Rapidgzip supports parallel decompression for faster index building.
 
     On first open, the full gzip seek index is built and saved as a
     ``.gzidx`` file alongside the ``.gz`` file (e.g. ``data.mzML.gzidx``
@@ -87,7 +88,7 @@ class IndexedGzip(AbstractRandomAccessMzml):
         self._ensure_gzip_index()
 
         # Persistent binary handle reused by get_binary_file_handler().
-        self._binary_fh: indexed_gzip.IndexedGzipFile = self._open_indexed()
+        self._binary_fh: RapidgzipFile = self._open_indexed()
 
         super().__init__(encoding, build_index_from_scratch, index_regex)
 
@@ -98,7 +99,7 @@ class IndexedGzip(AbstractRandomAccessMzml):
             return
 
         logger.debug("Building gzip index for: %s", self.path)
-        with indexed_gzip.IndexedGzipFile(self.path) as f:
+        with RapidgzipFile(self.path, parallelization=os.cpu_count() or 1) as f:
             f.build_full_index()
             f.export_index(self._index_path)
         logger.debug("Saved gzip index to: %s", self._index_path)
@@ -109,9 +110,11 @@ class IndexedGzip(AbstractRandomAccessMzml):
             return False
         return os.path.getmtime(self._index_path) >= os.path.getmtime(self.path)
 
-    def _open_indexed(self) -> indexed_gzip.IndexedGzipFile:
-        """Open a new IndexedGzipFile with the cached seek index."""
-        return indexed_gzip.IndexedGzipFile(self.path, index_file=self._index_path)
+    def _open_indexed(self) -> RapidgzipFile:
+        """Open a new RapidgzipFile with the cached seek index."""
+        fh = RapidgzipFile(self.path, parallelization=os.cpu_count() or 1)
+        fh.import_index(self._index_path)
+        return fh
 
     def get_binary_file_handler(self) -> BinaryIO:
         """Return a seekable binary view over the persistent decompressed handle."""
