@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Interface for different mzML file formats."""
 
+import hashlib
 import logging
 import os
+import tempfile
 from collections.abc import Iterator
 from io import BytesIO
 from pathlib import Path
@@ -106,7 +108,7 @@ class FileInterface:
         # Handle gzipped files
         if path.endswith(".gz"):
             if self.gzip_mode == "extract":
-                extracted_path = path.removesuffix(".gz")
+                extracted_path = self._get_cache_path(path)
                 if not (os.path.exists(extracted_path) and os.path.getmtime(extracted_path) >= os.path.getmtime(path)):
                     logger.debug("Extracting %s to %s", path, extracted_path)
                     with open(extracted_path, "wb") as f_out:
@@ -137,6 +139,20 @@ class FileInterface:
             self.build_index_from_scratch,
             index_regex=self.index_regex,
         )
+
+    @staticmethod
+    def _get_cache_path(gz_path: str) -> str:
+        """Return a persistent temp path for the extracted mzML file.
+
+        Uses a hash of the absolute source path as the filename to avoid
+        collisions. Files live in ``<tmpdir>/mzmlpy/`` and persist across
+        sessions until the OS clears the temp directory.
+        """
+        cache_dir = os.path.join(tempfile.gettempdir(), "mzmlpy")
+        os.makedirs(cache_dir, exist_ok=True)
+        path_hash = hashlib.sha256(os.path.abspath(gz_path).encode()).hexdigest()[:16]
+        filename = Path(gz_path).stem + f"_{path_hash}.mzML"
+        return os.path.join(cache_dir, filename)
 
     def read(self, size: int = -1) -> bytes | str:
         """Read binary data from file handler (size=-1 reads to end)."""
