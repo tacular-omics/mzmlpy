@@ -1,8 +1,10 @@
 """Random-access mzML reader for gzip-compressed files using rapidgzip."""
 
 import io
+import json
 import logging
 import os
+from collections import OrderedDict
 from io import TextIOWrapper
 from re import Pattern
 from typing import BinaryIO, TextIO
@@ -59,10 +61,13 @@ class IndexedGzip(AbstractRandomAccessMzml):
     decompressed content of a ``.mzML.gz`` file without extracting to disk.
     Rapidgzip supports parallel decompression for faster index building.
 
-    On first open, the full gzip seek index is built and saved as a
-    ``.gzidx`` file alongside the ``.gz`` file (e.g. ``data.mzML.gzidx``
-    next to ``data.mzML.gz``). On subsequent opens the cached index is
-    loaded directly, making startup nearly instant.
+    Two index files are cached alongside the ``.gz`` file:
+
+    - ``.gzidx`` — the gzip seek-point index (for seeking in compressed data)
+    - ``.mzidx`` — the mzML spectrum/chromatogram byte-offset index
+
+    On first open both indices are built and saved. On subsequent opens they
+    are loaded directly, making startup nearly instant with no file parsing.
 
     A persistent binary file handle is reused for all random-access
     operations to avoid the overhead of repeatedly opening handles.
@@ -83,7 +88,8 @@ class IndexedGzip(AbstractRandomAccessMzml):
         index_regex: Pattern[bytes] | None = None,
     ) -> None:
         self.path: str = path
-        self._index_path: str = path + "idx"  # e.g. data.mzML.gzidx
+        self._gzip_index_path: str = path + "idx"  # e.g. data.mzML.gzidx
+        self._mzml_index_path: str = path.removesuffix(".gz") + "idx"  # e.g. data.mzMLidx
 
         self._ensure_gzip_index()
 
@@ -92,29 +98,72 @@ class IndexedGzip(AbstractRandomAccessMzml):
 
         super().__init__(encoding, build_index_from_scratch, index_regex)
 
+    # -- gzip seek index ---------------------------------------------------
+
     def _ensure_gzip_index(self) -> None:
         """Load existing .gzidx or build and save one."""
-        if self._is_index_current():
-            logger.debug("Using cached gzip index: %s", self._index_path)
+        if self._is_index_current(self._gzip_index_path):
+            logger.debug("Using cached gzip index: %s", self._gzip_index_path)
             return
 
         logger.debug("Building gzip index for: %s", self.path)
         with RapidgzipFile(self.path, parallelization=os.cpu_count() or 1) as f:
-            f.build_full_index()
-            f.export_index(self._index_path)
-        logger.debug("Saved gzip index to: %s", self._index_path)
+            # Seek to end to force full decompression and index building
+            f.seek(0, 2)
+            f.export_index(self._gzip_index_path)
+        logger.debug("Saved gzip index to: %s", self._gzip_index_path)
 
-    def _is_index_current(self) -> bool:
-        """Check whether a cached .gzidx exists and is newer than the .gz file."""
-        if not os.path.exists(self._index_path):
+    def _is_index_current(self, index_path: str) -> bool:
+        """Check whether a cached index exists and is newer than the .gz file."""
+        if not os.path.exists(index_path):
             return False
-        return os.path.getmtime(self._index_path) >= os.path.getmtime(self.path)
+        return os.path.getmtime(index_path) >= os.path.getmtime(self.path)
 
     def _open_indexed(self) -> RapidgzipFile:
         """Open a new RapidgzipFile with the cached seek index."""
         fh = RapidgzipFile(self.path, parallelization=os.cpu_count() or 1)
-        fh.import_index(self._index_path)
+        fh.import_index(self._gzip_index_path)
         return fh
+
+    # -- mzML spectrum/chromatogram index ----------------------------------
+
+    def _build_index(self, from_scratch: bool = False) -> None:
+        """Build or load the mzML spectrum/chromatogram offset index.
+
+        Overrides the base class to check for a cached ``.mzidx`` JSON file
+        first. If present and current, loads offsets directly. Otherwise
+        delegates to the base class to parse the file, then caches the result.
+        """
+        if not from_scratch and self._is_index_current(self._mzml_index_path):
+            self._load_mzml_index()
+            return
+
+        # Delegate to base class to parse offsets from the file
+        super()._build_index(from_scratch=from_scratch)
+        self._save_mzml_index()
+
+    def _load_mzml_index(self) -> None:
+        """Load cached mzML offsets from the .mzidx JSON file."""
+        logger.debug("Using cached mzML index: %s", self._mzml_index_path)
+        with open(self._mzml_index_path) as f:
+            data = json.load(f)
+
+        self.spectrum_offsets = OrderedDict(data["spectrum_offsets"])
+        self.chromatogram_offsets = OrderedDict(data["chromatogram_offsets"])
+        self._spectrum_keys = list(self.spectrum_offsets.keys())
+        self._chromatogram_keys = list(self.chromatogram_offsets.keys())
+
+    def _save_mzml_index(self) -> None:
+        """Save mzML offsets to the .mzidx JSON file."""
+        data = {
+            "spectrum_offsets": list(self.spectrum_offsets.items()),
+            "chromatogram_offsets": list(self.chromatogram_offsets.items()),
+        }
+        with open(self._mzml_index_path, "w") as f:
+            json.dump(data, f)
+        logger.debug("Saved mzML index to: %s", self._mzml_index_path)
+
+    # -- file handlers -----------------------------------------------------
 
     def get_binary_file_handler(self) -> BinaryIO:
         """Return a seekable binary view over the persistent decompressed handle."""

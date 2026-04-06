@@ -9,6 +9,7 @@ __pycache__/
 tmp.py
 paper/
 *.gzidx
+*.mzMLidx
 
 
 # Distribution / packaging

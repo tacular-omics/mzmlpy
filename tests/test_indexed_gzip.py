@@ -66,3 +66,36 @@ def test_iteration(indexed_reader, reference_reader):
     idx_ids = [s.id for s in indexed_reader.spectra]
     ref_ids = [s.id for s in reference_reader.spectra]
     assert idx_ids == ref_ids
+
+
+def test_cached_index_reuse(reference_reader):
+    """Opening the same file twice should use cached .gzidx and .mzidx on the second open."""
+    import os
+
+    gzidx_path = GZ_FILE + "idx"
+    mzidx_path = GZ_FILE.removesuffix(".gz") + "idx"
+
+    # Clean up any leftover index files
+    for p in (gzidx_path, mzidx_path):
+        if os.path.exists(p):
+            os.unlink(p)
+
+    # First open — builds and saves both indices
+    r1 = Mzml(GZ_FILE, gzip_mode="indexed", in_memory=False)
+    assert os.path.exists(gzidx_path)
+    assert os.path.exists(mzidx_path)
+    gzidx_mtime = os.path.getmtime(gzidx_path)
+    mzidx_mtime = os.path.getmtime(mzidx_path)
+
+    # Second open — should load from cache (no rebuild)
+    r2 = Mzml(GZ_FILE, gzip_mode="indexed", in_memory=False)
+    assert os.path.getmtime(gzidx_path) == gzidx_mtime
+    assert os.path.getmtime(mzidx_path) == mzidx_mtime
+
+    # Verify correctness from cached index
+    for i in range(len(reference_reader.spectra)):
+        assert r2.spectra[i].id == reference_reader.spectra[i].id
+
+    # Clean up
+    for p in (gzidx_path, mzidx_path):
+        os.unlink(p)
