@@ -21,7 +21,7 @@ class MSDecoder:
         """Decode MS-Numpress linear prediction compressed data."""
         import pynumpress
 
-        result = pynumpress.decodeLinear(fix_input(data))
+        result = pynumpress.decode_linear(fix_input(data))
         return np.asarray(result, dtype=np.float64)
 
     @classmethod
@@ -29,7 +29,7 @@ class MSDecoder:
         """Decode MS-Numpress positive integer compressed data."""
         import pynumpress
 
-        result = pynumpress.decodePic(fix_input(data))
+        result = pynumpress.decode_pic(fix_input(data))
         return np.asarray(result, dtype=np.float64)
 
     @classmethod
@@ -37,7 +37,7 @@ class MSDecoder:
         """Decode MS-Numpress short logged float compressed data."""
         import pynumpress
 
-        result = pynumpress.decodeSlof(fix_input(data))
+        result = pynumpress.decode_slof(fix_input(data))
         return np.asarray(result, dtype=np.float64)
 
     @classmethod
@@ -47,7 +47,7 @@ class MSDecoder:
 
         if isinstance(data, list):
             data = np.array(data, dtype=np.float64)
-        return pynumpress.encodeLinear(data)
+        return pynumpress.encode_linear(data)
 
     @classmethod
     def encode_pic(cls, data: NDArray[np.float64] | list[float]) -> bytearray:
@@ -56,7 +56,7 @@ class MSDecoder:
 
         if isinstance(data, list):
             data = np.array(data, dtype=np.float64)
-        return pynumpress.encodePic(data)
+        return pynumpress.encode_pic(data)
 
     @classmethod
     def encode_slof(cls, data: NDArray[np.float64] | list[float]) -> bytearray:
@@ -65,7 +65,7 @@ class MSDecoder:
 
         if isinstance(data, list):
             data = np.array(data, dtype=np.float64)
-        return pynumpress.encodeSlof(data)
+        return pynumpress.encode_slof(data)
 
     @classmethod
     def decode_zlib(cls, data: bytes) -> bytes:
