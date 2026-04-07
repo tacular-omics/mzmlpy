@@ -1,3 +1,4 @@
+from .indexedGzip import IndexedGzip
 from .interface import MzmlInterface
 from .standardGzip import StandardGzip
 from .standardMzml import AbstractRandomAccessMzml, BytesMzml, StandardMzml
@@ -7,6 +8,7 @@ __all__ = [
     "MzmlInterface",
     "AbstractRandomAccessMzml",
     "BytesMzml",
+    "IndexedGzip",
     "StandardGzip",
     "StandardMzml",
     "MzmlXMLElement",

@@ -1,4 +1,4 @@
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 from .content import CVElement
 from .elems import (
@@ -37,10 +37,12 @@ from .spectra import (
     SelectedIon,
     Spectrum,
 )
+from .util import clear_cache
 
 __all__ = [
     "__version__",
     "Mzml",
+    "clear_cache",
     "SpectrumLookup",
     "ChromatogramLookup",
     "DataProcessing",

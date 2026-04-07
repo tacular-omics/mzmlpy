@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Interface for different mzML file formats."""
 
-import gzip
+import hashlib
+import logging
+import os
 import tempfile
 from collections.abc import Iterator
 from io import BytesIO
@@ -13,6 +15,7 @@ from xml.etree import ElementTree as ET
 from .file_classes import (
     BytesMzml,
     ChromatogramElement,
+    IndexedGzip,
     MzmlInterface,
     MzmlXMLElement,
     SpectrumElement,
@@ -20,6 +23,9 @@ from .file_classes import (
     StandardMzml,
 )
 from .spectra import Chromatogram, Spectrum
+from .util import gzip_decompress
+
+logger = logging.getLogger(__name__)
 
 
 @overload
@@ -55,23 +61,22 @@ class FileInterface:
         encoding: str,
         build_index_from_scratch: bool = False,
         index_regex: Pattern[bytes] | None = None,
-        extract_gzip: bool = True,
+        gzip_mode: Literal["extract", "indexed", "stream"] = "extract",
         in_memory: bool = False,
+        extract_dir: str | None = None,
     ) -> None:
         """Initialize FileInterface with path and encoding options."""
         self.build_index_from_scratch: bool = build_index_from_scratch
         self.encoding: str = encoding
         self.index_regex: Pattern[bytes] | None = index_regex
-        self.extract_gzip: bool = extract_gzip
+        self.gzip_mode: Literal["extract", "indexed", "stream"] = gzip_mode
         self.in_memory: bool = in_memory
-        self.temp_file = None
+        self._extract_dir: str | None = extract_dir
         self.file_handler: MzmlInterface = self._open(path)
 
     def close(self) -> None:
         """Close the internal file handler."""
         self.file_handler.close()
-        if self.temp_file is not None:
-            self.temp_file.close()
 
     def _open(self, path_or_file: str | Path | BytesIO) -> MzmlInterface:
         """Open appropriate file handler based on file type and format."""
@@ -90,8 +95,7 @@ class FileInterface:
         if self.in_memory:
             if path.endswith(".gz"):
                 # Decompress gzipped file into memory
-                with gzip.open(path, "rb") as f:
-                    content = f.read()
+                content = gzip_decompress(path)
             else:
                 # Read uncompressed file into memory
                 with open(path, "rb") as f:
@@ -105,15 +109,24 @@ class FileInterface:
 
         # Handle gzipped files
         if path.endswith(".gz"):
-            # Extract gzip to temporary file if requested
-            if self.extract_gzip:
-                self.temp_file = tempfile.NamedTemporaryFile(mode="w+b", suffix=".mzML", delete=False)
-                with gzip.open(path, "rb") as f_in:
-                    self.temp_file.write(f_in.read())
-                self.temp_file.flush()
+            if self.gzip_mode == "extract":
+                extracted_path = self._get_extract_path(path)
+                if not (os.path.exists(extracted_path) and os.path.getmtime(extracted_path) >= os.path.getmtime(path)):
+                    logger.debug("Extracting %s to %s", path, extracted_path)
+                    with open(extracted_path, "wb") as f_out:
+                        f_out.write(gzip_decompress(path))
+                else:
+                    logger.debug("Using cached extraction: %s", extracted_path)
 
                 return StandardMzml(
-                    self.temp_file.name,
+                    extracted_path,
+                    self.encoding,
+                    self.build_index_from_scratch,
+                    index_regex=self.index_regex,
+                )
+            elif self.gzip_mode == "indexed":
+                return IndexedGzip(
+                    path,
                     self.encoding,
                     self.build_index_from_scratch,
                     index_regex=self.index_regex,
@@ -128,6 +141,24 @@ class FileInterface:
             self.build_index_from_scratch,
             index_regex=self.index_regex,
         )
+
+    def _get_extract_path(self, gz_path: str) -> str:
+        """Return the path for the extracted mzML file.
+
+        If ``extract_dir`` was provided, uses that directory with the original
+        filename (minus ``.gz``). Otherwise, uses ``<tmpdir>/mzmlpy/`` with a
+        hash-based filename to avoid collisions.
+        """
+        if self._extract_dir is not None:
+            os.makedirs(self._extract_dir, exist_ok=True)
+            filename = Path(gz_path).name.removesuffix(".gz")
+            return os.path.join(self._extract_dir, filename)
+
+        cache_dir = os.path.join(tempfile.gettempdir(), "mzmlpy")
+        os.makedirs(cache_dir, exist_ok=True)
+        path_hash = hashlib.sha256(os.path.abspath(gz_path).encode()).hexdigest()[:16]
+        filename = Path(gz_path).stem + f"_{path_hash}.mzML"
+        return os.path.join(cache_dir, filename)
 
     def read(self, size: int = -1) -> bytes | str:
         """Read binary data from file handler (size=-1 reads to end)."""
