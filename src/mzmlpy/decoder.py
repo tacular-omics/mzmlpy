@@ -90,3 +90,52 @@ class MSDecoder:
         import zstd
 
         return zstd.compress(data)
+
+    @staticmethod
+    def unshuffle(data: bytes, element_size: int) -> bytes:
+        """Reverse a byte-shuffle transform.
+
+        Byte shuffling groups bytes by their position within each element
+        (all byte-0s, then all byte-1s, etc.) to improve compression of
+        numeric arrays. This reverses that transform.
+        """
+        n_elements = len(data) // element_size
+        src = np.frombuffer(data, dtype=np.uint8)
+        dst = np.empty_like(src)
+        for i in range(element_size):
+            dst[i::element_size] = src[i * n_elements : (i + 1) * n_elements]
+        return dst.tobytes()
+
+    @classmethod
+    def decode_byte_shuffled_zstd(cls, data: bytes, element_size: int) -> bytes:
+        """Decompress byte-shuffled zstd data (MS:1003781)."""
+        return cls.unshuffle(cls.decode_ztsd(data), element_size)
+
+    @classmethod
+    def decode_dict_encoded_zstd(cls, data: bytes, element_size: int) -> NDArray[np.float64]:
+        """Decode dictionary-encoded zstd data (MS:1003782).
+
+        The decompressed layout is:
+        [16-byte header] [byte-shuffled value table] [byte-shuffled index table]
+
+        The header contains two uint64 values: a byte offset and the element count.
+        """
+        decompressed = cls.decode_ztsd(data)
+        header = np.frombuffer(decompressed[:16], dtype=np.uint64)
+        num_elements = int(header[1])
+        payload = decompressed[16:]
+
+        # Value table: num_elements * element_size bytes, byte-shuffled
+        value_data = cls.unshuffle(payload[: num_elements * element_size], element_size)
+        dtype = np.dtype(f"<f{element_size}") if element_size in (4, 8) else np.dtype(f"<i{element_size}")
+        values = np.frombuffer(value_data, dtype=dtype).astype(np.float64)
+
+        # Index table: remaining bytes, byte-shuffled by index element size
+        idx_data = payload[num_elements * element_size :]
+        idx_size = len(idx_data) // num_elements
+        if idx_size == 1:
+            indices = np.frombuffer(idx_data, dtype=np.uint8)
+        else:
+            indices = np.frombuffer(cls.unshuffle(idx_data, idx_size), dtype=np.dtype(f"<u{idx_size}"))
+
+        return values[indices]

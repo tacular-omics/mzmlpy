@@ -6,17 +6,14 @@ from mzmlpy import Mzml
 LOSSLESS_FILES = [
     "tests/data/zlib_20250806_ArgC_DDA_HCD-FT_01.mzML",
     "tests/data/zstd_20250806_ArgC_DDA_HCD-FT_01.mzML",
+    "tests/data/mzshufflezstd_20250806_ArgC_DDA_HCD-FT_01.mzML",
+    "tests/data/dictzstd_20250806_ArgC_DDA_HCD-FT_01.mzML",
 ]
 
 NUMPRESS_FILES = [
     "tests/data/numpresslinear_20250806_ArgC_DDA_HCD-FT_01.mzML",
     "tests/data/numpresspic_20250806_ArgC_DDA_HCD-FT_01.mzML",
     "tests/data/numpressslof_20250806_ArgC_DDA_HCD-FT_01.mzML",
-]
-
-NOT_IMPLEMENTED_FILES = [
-    "tests/data/mzshufflezstd_20250806_ArgC_DDA_HCD-FT_01.mzML",
-    "tests/data/dictzstd_20250806_ArgC_DDA_HCD-FT_01.mzML",
 ]
 
 EXPECTED_ID = "controllerType=0 controllerNumber=1 scan=339"
@@ -87,13 +84,3 @@ def test_numpress_values(filename):
     np.testing.assert_allclose(s.mz[:3], EXPECTED_MZ, rtol=1e-4)
     np.testing.assert_allclose(s.intensity[:3], EXPECTED_INT, rtol=1e-2)
 
-
-# --- Not-yet-implemented compression ---
-
-
-@pytest.mark.parametrize("filename", NOT_IMPLEMENTED_FILES)
-def test_not_implemented_raises(filename):
-    reader = Mzml(filename)
-    s = reader.spectra[0]
-    with pytest.raises(NotImplementedError):
-        _ = s.mz
