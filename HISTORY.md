@@ -1,5 +1,26 @@
 # History
 
+## 0.4.0 (2026-04-07)
+
+**New features:**
+
+* Added `gzip_mode` parameter to `Mzml` for controlling how `.mzML.gz` files are read:
+  * `"extract"` (default) — decompress to a cached file under `<tmpdir>/mzmlpy/` for full random access; cache persists across sessions.
+  * `"indexed"` — seekable access to the compressed file via `rapidgzip`, with no extraction. Requires `pip install mzmlpy[rapidgzip]`.
+  * `"stream"` — sequential streaming with no index; lowest startup cost, but random access scans from the beginning and emits a warning.
+* Added `rapidgzip` integration for parallel gzip decompression. New optional extra: `pip install mzmlpy[rapidgzip]`.
+* Cached gzip seek index (`.gzidx`) and mzML offset index (`.mzidx`) as sidecar files alongside `.gz` files for instant startup on subsequent opens.
+* Added `extract_dir` parameter to `Mzml` for choosing a custom extraction directory.
+* Added `clear_cache()` to the public API for reclaiming extracted-cache disk space before the OS clears the temp directory.
+* Added byte-shuffled zstd and dictionary-encoded zstd decompression support.
+* Verified compatibility with Bruker timsTOF mzML files; added a dedicated test suite covering them.
+
+**Bug fixes:**
+
+* Raise a clear `ImportError` when `rapidgzip` is missing for `gzip_mode="indexed"`.
+* Dictionary-encoded zstd now uses the actual dtype instead of guessing it from the buffer size.
+* Fixed several `pynumpress` API compatibility issues.
+
 ## 0.2.0 (2026-03-16)
 
 **Breaking changes:**
