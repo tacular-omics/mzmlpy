@@ -112,7 +112,7 @@ class MSDecoder:
         return cls.unshuffle(cls.decode_ztsd(data), element_size)
 
     @classmethod
-    def decode_dict_encoded_zstd(cls, data: bytes, element_size: int) -> NDArray[np.float64]:
+    def decode_dict_encoded_zstd(cls, data: bytes, dtype: np.dtype) -> NDArray[np.float64]:
         """Decode dictionary-encoded zstd data (MS:1003782).
 
         The decompressed layout is:
@@ -123,11 +123,11 @@ class MSDecoder:
         decompressed = cls.decode_ztsd(data)
         header = np.frombuffer(decompressed[:16], dtype=np.uint64)
         num_elements = int(header[1])
+        element_size = dtype.itemsize
         payload = decompressed[16:]
 
         # Value table: num_elements * element_size bytes, byte-shuffled
         value_data = cls.unshuffle(payload[: num_elements * element_size], element_size)
-        dtype = np.dtype(f"<f{element_size}") if element_size in (4, 8) else np.dtype(f"<i{element_size}")
         values = np.frombuffer(value_data, dtype=dtype).astype(np.float64)
 
         # Index table: remaining bytes, byte-shuffled by index element size

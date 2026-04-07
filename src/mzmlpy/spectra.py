@@ -43,12 +43,12 @@ def decode_to_numpy(data: bytes, data_type: str) -> NDArray[np.float64]:
     return np.frombuffer(data, dtype=_data_type).astype(np.float64)
 
 
-def _dtype_size(data_type: str) -> int:
-    """Return the byte size for a binary data type accession."""
-    _data_type = BINARY_DECODE_DTYPES.get(BinaryDataTypeAccession(data_type), None)
-    if _data_type is None:
+def _resolve_dtype(data_type: str) -> np.dtype:
+    """Resolve a binary data type accession to a NumPy dtype."""
+    dtype_str = BINARY_DECODE_DTYPES.get(BinaryDataTypeAccession(data_type), None)
+    if dtype_str is None:
         raise ValueError(f"Unsupported binary data type accession: {data_type}")
-    return int(np.dtype(_data_type).itemsize)
+    return np.dtype(dtype_str)
 
 
 @dataclass(frozen=True)
@@ -111,7 +111,7 @@ class BinaryDataArray(_ParamGroup):
         # Decompress based on compression type
         match compression_type:
             case CompressionTypeAccessions.BYTE_SHUFFLED_ZSTD:
-                unshuffled = MSDecoder.decode_byte_shuffled_zstd(out_data, _dtype_size(binary_data_type))
+                unshuffled = MSDecoder.decode_byte_shuffled_zstd(out_data, _resolve_dtype(binary_data_type).itemsize)
                 return decode_to_numpy(unshuffled, binary_data_type)
             case CompressionTypeAccessions.MS_NUMPRESS_SHORT_LOGGED_FLOAT:
                 return MSDecoder.decode_slof(out_data)
@@ -122,7 +122,7 @@ class BinaryDataArray(_ParamGroup):
             case CompressionTypeAccessions.NO_COMPRESSION:
                 return decode_to_numpy(out_data, binary_data_type)
             case CompressionTypeAccessions.DICTIONARY_ENCODED_ZSTD:
-                return MSDecoder.decode_dict_encoded_zstd(out_data, _dtype_size(binary_data_type))
+                return MSDecoder.decode_dict_encoded_zstd(out_data, _resolve_dtype(binary_data_type))
             case CompressionTypeAccessions.MS_NUMPRESS_LINEAR_PREDICTION_ZLIB:
                 return MSDecoder.decode_linear(MSDecoder.decode_zlib(out_data))
             case CompressionTypeAccessions.TRUNCATION_ZLIB:
