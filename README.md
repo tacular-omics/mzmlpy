@@ -86,6 +86,18 @@ Benchmarked on a real-world DDA file (33,535 spectra, first-open cold start, wit
 
 `"extract"` pays a one-time decompression cost (~1s for a large file) then matches plain `.mzML` speed. `"stream"` is sequential-only — random access requires re-scanning from the start.
 
+### mzmlpy vs pymzml
+
+Compared against pymzml 2.6.0 on a Bruker timsTOF file with ion mobility (10 spectra, 6.7 MB):
+
+| Benchmark | mzmlpy | pymzml | Ratio |
+|---|---|---|---|
+| Startup | 0.012s | 0.092s | **8.0x faster** |
+| Iterate (decode) | 0.039s | 0.228s | **5.8x faster** |
+| Random access | 0.012s | 0.110s | **9.2x faster** |
+
+Both libraries produce identical m/z and intensity arrays. The gap narrows on smaller files (~1.1--1.3x) and widens on larger, more complex files. See the full results in the **[Benchmarks](https://tacular-omics.github.io/mzmlpy/benchmarks/)** page or run `benchmarks/bench_vs_pymzml.py` yourself.
+
 For full usage examples see the **[Getting Started guide](https://tacular-omics.github.io/mzmlpy/getting-started/)** and **[API Reference](https://tacular-omics.github.io/mzmlpy/api/mzml/)**.
 
 

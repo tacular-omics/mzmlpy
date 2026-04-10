@@ -36,9 +36,11 @@ The `Mzml` reader lazily loads data, meaning binary arrays and metadata are only
 - **Flexible access** -- look up spectra and chromatograms by index, slice, or string ID.
 - **Ion mobility support** -- detect and retrieve IM binary arrays.
 - **Comprehensive compression** -- zlib, zstd, and MS-Numpress decoders built in.
+- **Fast** -- [5--9x faster than pymzml](benchmarks.md) on complex files, ~1.2x on small files.
 - **Context manager** -- use `with` for safe file handling.
 
 ## Next Steps
 
 - [Getting Started](getting-started.md) -- installation details, basic usage patterns, and working with binary data.
+- [Benchmarks](benchmarks.md) -- performance comparison against pymzml and gzip mode timings.
 - [API Reference](api/mzml.md) -- full auto-generated documentation for every public class and method.
