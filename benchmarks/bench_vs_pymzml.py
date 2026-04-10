@@ -3,6 +3,11 @@
 Compares startup, iteration (with and without binary data decoding),
 metadata access, and random-access performance across both libraries.
 
+Both libraries use their default settings for a fair comparison:
+- pymzml: build_index_from_scratch=False (uses embedded index),
+  skip_chromatogram=True (default, matches mzmlpy's reader.spectra).
+- mzmlpy: default constructor (no in_memory, no gzip_mode override).
+
 Usage:
     uv run python benchmarks/bench_vs_pymzml.py
     uv run python benchmarks/bench_vs_pymzml.py --file path/to/file.mzML
@@ -10,6 +15,8 @@ Usage:
 
 Requires: pip install pymzml
 """
+
+from __future__ import annotations
 
 import argparse
 import gc
@@ -78,7 +85,7 @@ def ratio_str(mzmlpy_times: list[float], pymzml_times: list[float]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Benchmarks
+# Benchmarks — startup (file open + index build only)
 # ---------------------------------------------------------------------------
 
 def bench_startup_mzmlpy(path: str) -> None:
@@ -91,20 +98,25 @@ def bench_startup_pymzml(path: str) -> None:
     del run
 
 
-def bench_iterate_mzmlpy(path: str, *, max_spectra: int | None, decode: bool) -> None:
-    """Iterate spectra. If *decode* is True, also access mz/intensity arrays."""
-    with Mzml(path) as reader:
-        for i, s in enumerate(reader.spectra):
-            _ = s.id
-            _ = s.ms_level
-            if decode:
-                _ = s.mz
-                _ = s.intensity
-            if max_spectra is not None and i + 1 >= max_spectra:
-                break
+# ---------------------------------------------------------------------------
+# Benchmarks — iteration (reader is pre-opened, timing covers only the loop)
+# ---------------------------------------------------------------------------
+
+def bench_iterate_mzmlpy(reader: Mzml, *, max_spectra: int | None, decode: bool) -> None:
+    """Iterate spectra from an already-opened reader."""
+    for i, s in enumerate(reader.spectra):
+        _ = s.id
+        _ = s.ms_level
+        if decode:
+            _ = s.mz
+            _ = s.intensity
+        if max_spectra is not None and i + 1 >= max_spectra:
+            break
 
 
 def bench_iterate_pymzml(path: str, *, max_spectra: int | None, decode: bool) -> None:
+    """pymzml re-opens the file on each iteration (no way to re-seek), so
+    Reader creation is included.  This mirrors real-world usage."""
     run = pymzml.run.Reader(path)
     for i, spec in enumerate(run):
         _ = spec.ID
@@ -116,24 +128,30 @@ def bench_iterate_pymzml(path: str, *, max_spectra: int | None, decode: bool) ->
             break
 
 
-def bench_metadata_mzmlpy(path: str, max_spectra: int | None) -> None:
+# ---------------------------------------------------------------------------
+# Benchmarks — metadata access
+# ---------------------------------------------------------------------------
+
+def bench_metadata_mzmlpy(reader: Mzml, max_spectra: int | None) -> None:
     """Access common metadata fields per spectrum."""
-    with Mzml(path) as reader:
-        for i, s in enumerate(reader.spectra):
-            _ = s.id
-            _ = s.ms_level
-            _ = s.scan_start_time
-            _ = s.TIC
-            if s.has_precursors:
-                for p in s.precursors:
-                    for ion in p.selected_ions:
-                        _ = ion.selected_ion_mz
-                        _ = ion.charge_state
-            if max_spectra is not None and i + 1 >= max_spectra:
-                break
+    for i, s in enumerate(reader.spectra):
+        _ = s.id
+        _ = s.ms_level
+        _ = s.scan_start_time
+        _ = s.TIC
+        if s.has_precursors:
+            for p in s.precursors:
+                for ion in p.selected_ions:
+                    _ = ion.selected_ion_mz
+                    _ = ion.charge_state
+        if max_spectra is not None and i + 1 >= max_spectra:
+            break
 
 
 def bench_metadata_pymzml(path: str, max_spectra: int | None) -> None:
+    """Access the same metadata fields via pymzml.  Some properties raise on
+    certain files, so we guard with try/except (this reflects real-world API
+    robustness, not extra overhead — the fast path doesn't enter except)."""
     run = pymzml.run.Reader(path)
     for i, spec in enumerate(run):
         _ = spec.ID
@@ -157,23 +175,22 @@ def bench_metadata_pymzml(path: str, max_spectra: int | None) -> None:
             break
 
 
-def bench_random_access_mzmlpy(path: str, indices: list[int]) -> None:
-    with Mzml(path) as reader:
-        for idx in indices:
-            s = reader.spectra[idx]
-            _ = s.mz
-            _ = s.intensity
+# ---------------------------------------------------------------------------
+# Benchmarks — random access (reader is pre-opened)
+# ---------------------------------------------------------------------------
+
+def bench_random_access_mzmlpy(reader: Mzml, indices: list[int]) -> None:
+    for idx in indices:
+        s = reader.spectra[idx]
+        _ = s.mz
+        _ = s.intensity
 
 
-def bench_random_access_pymzml(path: str, ids: list[int]) -> None:
-    run = pymzml.run.Reader(path)
+def bench_random_access_pymzml(run: pymzml.run.Reader, ids: list[int]) -> None:
     for sid in ids:
-        try:
-            spec = run[sid]
-            _ = spec.mz
-            _ = spec.i
-        except Exception:
-            pass
+        spec = run[sid]
+        _ = spec.mz
+        _ = spec.i
 
 
 # ---------------------------------------------------------------------------
@@ -225,6 +242,31 @@ def verify_accuracy(path: str, max_spectra: int | None) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Warmup
+# ---------------------------------------------------------------------------
+
+def warmup(path: str) -> None:
+    """Prime both libraries so one-time costs (OBO loading, JIT warmup, OS
+    page-cache population) don't skew the timed benchmarks."""
+    # mzmlpy
+    with Mzml(path) as reader:
+        for s in reader.spectra:
+            _ = s.mz
+            _ = s.intensity
+            break
+
+    # pymzml — triggers OBO ontology loading (cached globally after first call)
+    run = pymzml.run.Reader(path)
+    for spec in run:
+        _ = spec.ms_level
+        _ = spec.mz
+        _ = spec.i
+        break
+
+    gc.collect()
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -264,15 +306,24 @@ def run_benchmarks(path: str, repeats: int, max_spectra: int | None, n_accesses:
     else:
         access_ids = scan_ids_pymzml
 
-    # Verify pymzml random access actually works for this file.
+    # Verify pymzml random access actually works for this file by testing
+    # every selected ID.  Keep only IDs that pymzml can resolve, and trim
+    # access_indices to match so both libraries access the same spectra.
     pymzml_random_ok = False
     if access_ids:
-        try:
-            run = pymzml.run.Reader(path)
-            _ = run[access_ids[0]]
+        run = pymzml.run.Reader(path)
+        valid_pairs: list[tuple[int, int]] = []
+        for idx, sid in zip(access_indices, access_ids, strict=True):
+            try:
+                _ = run[sid]
+                valid_pairs.append((idx, sid))
+            except Exception:
+                pass
+        if valid_pairs:
+            access_indices = [p[0] for p in valid_pairs]
+            access_ids = [p[1] for p in valid_pairs]
             pymzml_random_ok = True
-        except Exception:
-            pass
+        del run
 
     iterate_n = min(max_spectra, n_spectra) if max_spectra else n_spectra
 
@@ -292,6 +343,11 @@ def run_benchmarks(path: str, repeats: int, max_spectra: int | None, n_accesses:
     verify_accuracy(path, max_spectra)
     print()
 
+    # Warm up both libraries (OBO loading, page cache, etc.)
+    print("Warming up...")
+    warmup(path)
+    print()
+
     # Results table
     col_time = 24
     col_ratio = 16
@@ -302,33 +358,63 @@ def run_benchmarks(path: str, repeats: int, max_spectra: int | None, n_accesses:
 
     results: list[tuple[str, list[float], list[float]]] = []
 
-    # 1. Startup
+    # 1. Startup — measures file open + index build only
     t_mzmlpy = _run(lambda: bench_startup_mzmlpy(path), repeats)
     t_pymzml = _run(lambda: bench_startup_pymzml(path), repeats)
     results.append(("Startup", t_mzmlpy, t_pymzml))
 
-    # 2. Iterate (no decode)
-    t_mzmlpy = _run(lambda: bench_iterate_mzmlpy(path, max_spectra=max_spectra, decode=False), repeats)
+    # 2. Iterate (no decode) — open file, iterate spectra, access ID + ms_level
+    #    mzmlpy: reader supports re-iteration over spectra from a single open.
+    #    pymzml: Reader must be re-created per iteration (no re-seek support),
+    #    so Reader creation is included.  This reflects real-world usage for both.
+    def _iter_no_decode_mzmlpy():
+        with Mzml(path) as r:
+            bench_iterate_mzmlpy(r, max_spectra=max_spectra, decode=False)
+
+    t_mzmlpy = _run(_iter_no_decode_mzmlpy, repeats)
     t_pymzml = _run(lambda: bench_iterate_pymzml(path, max_spectra=max_spectra, decode=False), repeats)
     results.append(("Iterate (no decode)", t_mzmlpy, t_pymzml))
 
-    # 3. Iterate (decode)
-    t_mzmlpy = _run(lambda: bench_iterate_mzmlpy(path, max_spectra=max_spectra, decode=True), repeats)
+    # 3. Iterate (decode) — same but also decode m/z + intensity arrays
+    def _iter_decode_mzmlpy():
+        with Mzml(path) as r:
+            bench_iterate_mzmlpy(r, max_spectra=max_spectra, decode=True)
+
+    t_mzmlpy = _run(_iter_decode_mzmlpy, repeats)
     t_pymzml = _run(lambda: bench_iterate_pymzml(path, max_spectra=max_spectra, decode=True), repeats)
     results.append(("Iterate (decode)", t_mzmlpy, t_pymzml))
 
-    # 4. Metadata
-    t_mzmlpy = _run(lambda: bench_metadata_mzmlpy(path, max_spectra), repeats)
+    # 4. Metadata — access all common metadata fields per spectrum
+    def _meta_mzmlpy():
+        with Mzml(path) as r:
+            bench_metadata_mzmlpy(r, max_spectra)
+
+    t_mzmlpy = _run(_meta_mzmlpy, repeats)
     t_pymzml = _run(lambda: bench_metadata_pymzml(path, max_spectra), repeats)
     results.append(("Metadata", t_mzmlpy, t_pymzml))
 
-    # 5. Random access
+    # 5. Random access — seek to N random spectra and decode arrays.
+    #    Both libraries use their indexed random-access path:
+    #    mzmlpy: reader.spectra[index] (positional offset lookup)
+    #    pymzml: run[scan_id] (ID-based offset lookup)
     if access_indices and access_ids and pymzml_random_ok:
-        t_mzmlpy = _run(lambda: bench_random_access_mzmlpy(path, access_indices), repeats)
-        t_pymzml = _run(lambda: bench_random_access_pymzml(path, access_ids), repeats)
+        def _ra_mzmlpy():
+            with Mzml(path) as r:
+                bench_random_access_mzmlpy(r, access_indices)
+
+        def _ra_pymzml():
+            run = pymzml.run.Reader(path)
+            bench_random_access_pymzml(run, access_ids)
+
+        t_mzmlpy = _run(_ra_mzmlpy, repeats)
+        t_pymzml = _run(_ra_pymzml, repeats)
         results.append(("Random access", t_mzmlpy, t_pymzml))
     elif access_indices:
-        t_mzmlpy = _run(lambda: bench_random_access_mzmlpy(path, access_indices), repeats)
+        def _ra_mzmlpy_only():
+            with Mzml(path) as r:
+                bench_random_access_mzmlpy(r, access_indices)
+
+        t_mzmlpy = _run(_ra_mzmlpy_only, repeats)
         results.append(("Random access", t_mzmlpy, []))
     else:
         results.append(("Random access", [], []))
@@ -342,6 +428,8 @@ def run_benchmarks(path: str, repeats: int, max_spectra: int | None, n_accesses:
     print()
     print("Note: 'N.Nx faster' means mzmlpy is N.N times faster than pymzml.")
     print("      'N.Nx slower' means mzmlpy is N.N times slower than pymzml.")
+    if not pymzml_random_ok and access_ids:
+        print(f"      pymzml random access failed for this file (scan IDs {access_ids[:3]}...).")
 
 
 def main() -> None:
