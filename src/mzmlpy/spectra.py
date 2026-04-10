@@ -98,14 +98,12 @@ class BinaryDataArray(_ParamGroup):
         # Get binary data from element
         binary_element = self.element.find(f"./{self.ns}binary")
         if binary_element is None or binary_element.text is None:
-            warnings.warn("Binary data array does not contain binary data.", UserWarning, stacklevel=2)
             return np.array([], dtype=np.float64)
 
         # Decode base64
         out_data = base64.b64decode(binary_element.text)
 
         if len(out_data) == 0:
-            warnings.warn("Decoded binary data is empty.", UserWarning, stacklevel=2)
             return np.array([], dtype=np.float64)
 
         # Decompress based on compression type
