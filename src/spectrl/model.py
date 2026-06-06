@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 
 
 @dataclass
-class MzxCvParam:
+class SpectrlCvParam:
     """A CV parameter for use within mzx, mirroring mzML cvParam semantics.
 
     Accession and unit_accession use 'ONTOLOGY:NNNNNNN' format (e.g. 'MS:1000511', 'UO:0000031').
@@ -22,56 +22,56 @@ class MzxCvParam:
 
 
 @dataclass
-class MzxScanWindow:
+class SpectrlScanWindow:
     """A scan window with lower/upper m/z limits as CV params."""
 
-    params: list[MzxCvParam] = field(default_factory=list)
+    params: list[SpectrlCvParam] = field(default_factory=list)
 
 
 @dataclass
-class MzxScan:
+class SpectrlScan:
     """A single scan event with timing and window metadata."""
 
-    params: list[MzxCvParam] = field(default_factory=list)
-    windows: list[MzxScanWindow] = field(default_factory=list)
+    params: list[SpectrlCvParam] = field(default_factory=list)
+    windows: list[SpectrlScanWindow] = field(default_factory=list)
 
 
 @dataclass
-class MzxIsolationWindow:
+class SpectrlIsolationWindow:
     """An isolation window with target m/z and offset params."""
 
-    params: list[MzxCvParam] = field(default_factory=list)
+    params: list[SpectrlCvParam] = field(default_factory=list)
 
 
 @dataclass
-class MzxSelectedIon:
+class SpectrlSelectedIon:
     """A selected ion with m/z, charge, intensity params."""
 
-    params: list[MzxCvParam] = field(default_factory=list)
+    params: list[SpectrlCvParam] = field(default_factory=list)
 
 
 @dataclass
-class MzxActivation:
+class SpectrlActivation:
     """Activation method params (method as flag + energy as value)."""
 
-    params: list[MzxCvParam] = field(default_factory=list)
+    params: list[SpectrlCvParam] = field(default_factory=list)
 
 
 @dataclass
-class MzxPrecursor:
+class SpectrlPrecursor:
     """A precursor entry with isolation window, selected ions, and activation."""
 
-    isolation_window: MzxIsolationWindow | None = None
-    selected_ions: list[MzxSelectedIon] = field(default_factory=list)
-    activation: MzxActivation | None = None
+    isolation_window: SpectrlIsolationWindow | None = None
+    selected_ions: list[SpectrlSelectedIon] = field(default_factory=list)
+    activation: SpectrlActivation | None = None
     spectrum_ref: str | None = None
 
 
 @dataclass
-class MzxProduct:
+class SpectrlProduct:
     """A product entry with an isolation window."""
 
-    isolation_window: MzxIsolationWindow | None = None
+    isolation_window: SpectrlIsolationWindow | None = None
 
 
 @dataclass
@@ -101,17 +101,17 @@ class InlineSpectrum:
     ion_mobility: NDArray[np.float64] | None = None
     ion_mobility_type: str | None = None
     id: str | None = None
-    params: list[MzxCvParam] = field(default_factory=list)
-    scans: list[MzxScan] = field(default_factory=list)
-    scan_combination: MzxCvParam | None = None
-    precursors: list[MzxPrecursor] = field(default_factory=list)
-    products: list[MzxProduct] = field(default_factory=list)
+    params: list[SpectrlCvParam] = field(default_factory=list)
+    scans: list[SpectrlScan] = field(default_factory=list)
+    scan_combination: SpectrlCvParam | None = None
+    precursors: list[SpectrlPrecursor] = field(default_factory=list)
+    products: list[SpectrlProduct] = field(default_factory=list)
     interp: str | None = None
 
 
 @dataclass
 class DecodedSpectrum:
-    """Output model from mzx decoding.
+    """Output model from spectrl decoding.
 
     Mirrors InlineSpectrum but represents what was recovered from the token.
     The hash field (if present) is verified during decode.
@@ -124,11 +124,11 @@ class DecodedSpectrum:
     ion_mobility: NDArray[np.float64] | None = None
     ion_mobility_type: str | None = None
     id: str | None = None
-    params: list[MzxCvParam] = field(default_factory=list)
-    scans: list[MzxScan] = field(default_factory=list)
-    scan_combination: MzxCvParam | None = None
-    precursors: list[MzxPrecursor] = field(default_factory=list)
-    products: list[MzxProduct] = field(default_factory=list)
+    params: list[SpectrlCvParam] = field(default_factory=list)
+    scans: list[SpectrlScan] = field(default_factory=list)
+    scan_combination: SpectrlCvParam | None = None
+    precursors: list[SpectrlPrecursor] = field(default_factory=list)
+    products: list[SpectrlProduct] = field(default_factory=list)
     interp: str | None = None
     hash: str | None = None
     format_version: int = 1

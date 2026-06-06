@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from mzx import decode_token, encode_spectrum
-from mzx.model import InlineSpectrum, MzxCvParam
+from spectrl import decode_token, encode_spectrum
+from spectrl.model import InlineSpectrum, SpectrlCvParam
 
 
 def _assert_arrays_close(a, b, rtol=1e-4, atol=1e-4):
@@ -84,8 +84,8 @@ def test_flag_params_roundtrip():
     spec = InlineSpectrum(
         default_array_length=0,
         params=[
-            MzxCvParam(accession="MS:1000130"),  # positive (flag)
-            MzxCvParam(accession="MS:1000127"),  # centroid (flag)
+            SpectrlCvParam(accession="MS:1000130"),  # positive (flag)
+            SpectrlCvParam(accession="MS:1000127"),  # centroid (flag)
         ],
     )
     token = encode_spectrum(spec)
@@ -108,7 +108,7 @@ def test_oversize_raises():
 
 
 def test_top_n_reduces_spectrum():
-    from mzx import top_n
+    from spectrl import top_n
     rng = np.random.default_rng(2)
     n = 100
     mz = np.sort(rng.uniform(100.0, 1000.0, n))
@@ -140,4 +140,4 @@ def test_with_charge_array():
 
 def test_token_starts_with_magic(simple_spectrum):
     token = encode_spectrum(simple_spectrum)
-    assert token.startswith("mzx1.")
+    assert token.startswith("spectrl1.")

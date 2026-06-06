@@ -1,6 +1,6 @@
-"""mzx — Inline Spectrum URL Encoder.
+"""spectrl — Inline Spectrum URL Encoder.
 
-Encodes a single mass spectrum into a compact, URL-safe token (mzx1.…) so it can be
+Encodes a single mass spectrum into a compact, URL-safe token (spectrl1.…) so it can be
 shared with no backend. The entire spectrum lives in the token.
 
 Public API::
@@ -22,7 +22,7 @@ from urllib.parse import parse_qs, urlparse, urlunparse
 
 from .cv import ARRAY_CHARGE, ARRAY_INTENSITY, ARRAY_MZ, ION_MOBILITY_ARRAY_TAILS
 from .header import build_header, extract_descriptors, parse_header
-from .model import DecodedSpectrum, InlineSpectrum, MzxCvParam
+from .model import DecodedSpectrum, InlineSpectrum, SpectrlCvParam
 from .peaks import _validate_arrays, build_array_blobs, canonical_sort, compute_hash, decode_array_blobs, top_n
 from .proforma import validate_interp
 from .token import build_token, parse_token
@@ -38,12 +38,12 @@ __all__ = [
     "extract_token",
     "InlineSpectrum",
     "DecodedSpectrum",
-    "MzxCvParam",
+    "SpectrlCvParam",
 ]
 
 _SIZE_WARN = 8192   # bytes — warn past this
-_MAGIC_PREFIX = "mzx1."
-_DATA_URI_PREFIX = "data:application/vnd.mzx;v=1,"
+_MAGIC_PREFIX = "spectrl1."
+_DATA_URI_PREFIX = "data:application/vnd.spectrl;v=1,"
 
 
 def encode_spectrum(
@@ -52,7 +52,7 @@ def encode_spectrum(
     lossless: bool = False,
     max_len: int | None = None,
 ) -> str:
-    """Encode an InlineSpectrum to a mzx1 token string.
+    """Encode an InlineSpectrum to a spectrl1 token string.
 
     Args:
         spec: The spectrum to encode.
@@ -63,7 +63,7 @@ def encode_spectrum(
             repository-resident spectra.
 
     Returns:
-        A ``mzx1.`` token string.
+        A ``spectrl1.`` token string.
 
     Raises:
         OverflowError: If max_len is set and the encoded length exceeds it.
@@ -91,7 +91,7 @@ def encode_spectrum(
 
     if len(token) > _SIZE_WARN:
         warnings.warn(
-            f"mzx token length {len(token)} bytes exceeds recommended maximum of {_SIZE_WARN} bytes. "
+            f"spectrl token length {len(token)} bytes exceeds recommended maximum of {_SIZE_WARN} bytes. "
             "Consider using top_n() to reduce peak count, or fall back to a USI reference.",
             UserWarning,
             stacklevel=2,
@@ -99,7 +99,7 @@ def encode_spectrum(
 
     if max_len is not None and len(token) > max_len:
         raise OverflowError(
-            f"Encoded mzx token is {len(token)} bytes, which exceeds max_len={max_len}. "
+            f"Encoded spectrl token is {len(token)} bytes, which exceeds max_len={max_len}. "
             "Use top_n(spec, n) to reduce peak count before encoding, "
             "or use a USI reference for repository-resident spectra."
         )
@@ -108,12 +108,12 @@ def encode_spectrum(
 
 
 def decode_token(token: str) -> DecodedSpectrum:
-    """Decode a mzx1 token string into a DecodedSpectrum.
+    """Decode a spectrl1 token string into a DecodedSpectrum.
 
     Verifies the stored hash if present, raising ValueError on mismatch.
 
     Args:
-        token: A ``mzx1.`` token string.
+        token: A ``spectrl1.`` token string.
 
     Returns:
         DecodedSpectrum with all metadata and peak arrays populated.
@@ -138,7 +138,7 @@ def decode_token(token: str) -> DecodedSpectrum:
         expected = b64url_encode(h.digest()[:HASH_BYTES])
         if expected != decoded.hash:
             raise ValueError(
-                f"mzx token hash mismatch: stored={decoded.hash!r}, computed={expected!r}. "
+                f"spectrl token hash mismatch: stored={decoded.hash!r}, computed={expected!r}. "
                 "Token may be corrupted."
             )
 
@@ -209,7 +209,7 @@ def to_data_uri(token: str) -> str:
 
 
 def extract_token(url_or_uri: str) -> str:
-    """Extract a mzx1 token from a URL fragment, query string, or data: URI.
+    """Extract a spectrl1 token from a URL fragment, query string, or data: URI.
 
     Raises ValueError if no token is found.
     """
@@ -221,11 +221,11 @@ def extract_token(url_or_uri: str) -> str:
     if parsed.fragment.startswith(_MAGIC_PREFIX):
         return parsed.fragment
 
-    # Check query params for any value starting with mzx1.
+    # Check query params for any value starting with spectrl1.
     qs = parse_qs(parsed.query)
     for vals in qs.values():
         for v in vals:
             if v.startswith(_MAGIC_PREFIX):
                 return v
 
-    raise ValueError(f"No mzx1 token found in: {url_or_uri!r}")
+    raise ValueError(f"No spectrl1 token found in: {url_or_uri!r}")

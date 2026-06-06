@@ -15,19 +15,19 @@ from mzmlpy.elems.params import CvParam
 
 from .model import (
     InlineSpectrum,
-    MzxActivation,
-    MzxCvParam,
-    MzxIsolationWindow,
-    MzxPrecursor,
-    MzxProduct,
-    MzxScan,
-    MzxScanWindow,
-    MzxSelectedIon,
+    SpectrlActivation,
+    SpectrlCvParam,
+    SpectrlIsolationWindow,
+    SpectrlPrecursor,
+    SpectrlProduct,
+    SpectrlScan,
+    SpectrlScanWindow,
+    SpectrlSelectedIon,
 )
 
 
-def _convert_cvparam(cv: CvParam) -> MzxCvParam:
-    """Convert a mzmlpy CvParam to MzxCvParam.
+def _convert_cvparam(cv: CvParam) -> SpectrlCvParam:
+    """Convert a mzmlpy CvParam to SpectrlCvParam.
 
     Numeric string values are coerced to float/int where possible.
     """
@@ -38,16 +38,16 @@ def _convert_cvparam(cv: CvParam) -> MzxCvParam:
             value = int(f) if f == int(f) else f
         except (ValueError, OverflowError):
             value = cv.value
-    return MzxCvParam(
+    return SpectrlCvParam(
         accession=cv.accession,
         value=value,
         unit_accession=cv.unit_accession if cv.unit_accession else None,
     )
 
 
-def _expand_ref_params(obj, ref_groups: dict | None) -> list[MzxCvParam]:
+def _expand_ref_params(obj, ref_groups: dict | None) -> list[SpectrlCvParam]:
     """Resolve ref_params on an mzmlpy _ParamGroup object and return converted cvParams."""
-    extra: list[MzxCvParam] = []
+    extra: list[SpectrlCvParam] = []
     if ref_groups is None:
         return extra
     for rp in obj.ref_params:
@@ -58,7 +58,7 @@ def _expand_ref_params(obj, ref_groups: dict | None) -> list[MzxCvParam]:
     return extra
 
 
-def _collect_cvparams(obj, ref_groups: dict | None) -> list[MzxCvParam]:
+def _collect_cvparams(obj, ref_groups: dict | None) -> list[SpectrlCvParam]:
     """Return all cvParams from obj (including expanded ref_params)."""
     direct = [_convert_cvparam(cv) for cv in obj.cv_params]
     expanded = _expand_ref_params(obj, ref_groups)
@@ -82,46 +82,46 @@ def from_mzmlpy(spec, ref_groups: dict | None = None) -> InlineSpectrum:
     spectrum_params = _collect_cvparams(spec, ref_groups)
 
     # ─── Scan list ───────────────────────────────────────────────────────────
-    scans_out: list[MzxScan] = []
+    scans_out: list[SpectrlScan] = []
     scan_combination_out = None
 
     if spec._has_scan_list and spec._scan_list is not None:
         sl = spec._scan_list
         combo = sl.spectra_combination
         if combo is not None:
-            scan_combination_out = MzxCvParam(accession=str(combo))
+            scan_combination_out = SpectrlCvParam(accession=str(combo))
 
         for scan in sl.scans:
             scan_params = _collect_cvparams(scan, ref_groups)
-            windows_out: list[MzxScanWindow] = []
+            windows_out: list[SpectrlScanWindow] = []
             if scan._has_scan_windows_list and scan._scan_window_list is not None:
                 for w in scan._scan_window_list.scan_windows:
                     w_params = _collect_cvparams(w, ref_groups)
-                    windows_out.append(MzxScanWindow(params=w_params))
-            scans_out.append(MzxScan(params=scan_params, windows=windows_out))
+                    windows_out.append(SpectrlScanWindow(params=w_params))
+            scans_out.append(SpectrlScan(params=scan_params, windows=windows_out))
 
     # ─── Precursor list ──────────────────────────────────────────────────────
-    precursors_out: list[MzxPrecursor] = []
+    precursors_out: list[SpectrlPrecursor] = []
     if spec.has_precursors:
         for pre in spec.precursors:
             iw_out = None
             if pre.isolation_window is not None:
-                iw_out = MzxIsolationWindow(params=_collect_cvparams(pre.isolation_window, ref_groups))
+                iw_out = SpectrlIsolationWindow(params=_collect_cvparams(pre.isolation_window, ref_groups))
 
-            selected_ions_out: list[MzxSelectedIon] = []
+            selected_ions_out: list[SpectrlSelectedIon] = []
             for si_elem in pre.element.findall(f"./{pre.ns}selectedIonList/{pre.ns}selectedIon"):
                 from mzmlpy.spectra import SelectedIon
                 si = SelectedIon(si_elem)
-                selected_ions_out.append(MzxSelectedIon(params=_collect_cvparams(si, ref_groups)))
+                selected_ions_out.append(SpectrlSelectedIon(params=_collect_cvparams(si, ref_groups)))
 
             act_out = None
             if pre.activation is not None:
-                act_out = MzxActivation(params=_collect_cvparams(pre.activation, ref_groups))
+                act_out = SpectrlActivation(params=_collect_cvparams(pre.activation, ref_groups))
 
             # @spectrumRef → USI back-link
             spectrum_ref = pre.spectrum_ref
 
-            precursors_out.append(MzxPrecursor(
+            precursors_out.append(SpectrlPrecursor(
                 isolation_window=iw_out,
                 selected_ions=selected_ions_out,
                 activation=act_out,
@@ -129,13 +129,13 @@ def from_mzmlpy(spec, ref_groups: dict | None = None) -> InlineSpectrum:
             ))
 
     # ─── Product list ────────────────────────────────────────────────────────
-    products_out: list[MzxProduct] = []
+    products_out: list[SpectrlProduct] = []
     if spec.has_products:
         for prod in spec.products:
             iw_out = None
             if prod.isolation_window is not None:
-                iw_out = MzxIsolationWindow(params=_collect_cvparams(prod.isolation_window, ref_groups))
-            products_out.append(MzxProduct(isolation_window=iw_out))
+                iw_out = SpectrlIsolationWindow(params=_collect_cvparams(prod.isolation_window, ref_groups))
+            products_out.append(SpectrlProduct(isolation_window=iw_out))
 
     # ─── Peak arrays ─────────────────────────────────────────────────────────
     mz = spec.mz

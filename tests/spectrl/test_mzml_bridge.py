@@ -5,8 +5,8 @@ import pytest
 
 from mzmlpy.run import Mzml
 
-from mzx import decode_token, encode_spectrum, from_mzmlpy
-from mzx.model import InlineSpectrum
+from spectrl import decode_token, encode_spectrum, from_mzmlpy
+from spectrl.model import InlineSpectrum
 
 MZML_PATH = "tests/data/example.mzML"
 

@@ -28,21 +28,21 @@ from .cv import (
 from .model import (
     DecodedSpectrum,
     InlineSpectrum,
-    MzxActivation,
-    MzxCvParam,
-    MzxIsolationWindow,
-    MzxPrecursor,
-    MzxProduct,
-    MzxScan,
-    MzxScanWindow,
-    MzxSelectedIon,
+    SpectrlActivation,
+    SpectrlCvParam,
+    SpectrlIsolationWindow,
+    SpectrlPrecursor,
+    SpectrlProduct,
+    SpectrlScan,
+    SpectrlScanWindow,
+    SpectrlSelectedIon,
 )
 from .token import FORMAT_VERSION
 
 # ─── CvParam encoding ───────────────────────────────────────────────────────
 
-def _encode_cvparam(p: MzxCvParam) -> tuple[int, object]:
-    """Encode a MzxCvParam into (tail_key, value) suitable for a msgpack map."""
+def _encode_cvparam(p: SpectrlCvParam) -> tuple[int, object]:
+    """Encode a SpectrlCvParam into (tail_key, value) suitable for a msgpack map."""
     onto = accession_ontology(p.accession)
     tail = accession_tail(p.accession)
 
@@ -61,7 +61,7 @@ def _encode_cvparam(p: MzxCvParam) -> tuple[int, object]:
     return tail_key, val
 
 
-def _encode_param_map(params: list[MzxCvParam]) -> dict:
+def _encode_param_map(params: list[SpectrlCvParam]) -> dict:
     """Encode a list of CvParams into an integer-keyed map."""
     m: dict = {}
     for p in params:
@@ -70,8 +70,8 @@ def _encode_param_map(params: list[MzxCvParam]) -> dict:
     return m
 
 
-def _decode_param_map(m: dict) -> list[MzxCvParam]:
-    """Decode an integer-keyed param map into a list of MzxCvParam."""
+def _decode_param_map(m: dict) -> list[SpectrlCvParam]:
+    """Decode an integer-keyed param map into a list of SpectrlCvParam."""
     params = []
     for raw_key, raw_val in m.items():
         if isinstance(raw_key, list):
@@ -80,50 +80,50 @@ def _decode_param_map(m: dict) -> list[MzxCvParam]:
             accession = decode_tail(raw_key)
 
         if raw_val is None:
-            params.append(MzxCvParam(accession=accession))
+            params.append(SpectrlCvParam(accession=accession))
         elif isinstance(raw_val, list):
             value = raw_val[0]
             unit_accession = decode_unit_tail(raw_val[1])
-            params.append(MzxCvParam(accession=accession, value=value, unit_accession=unit_accession))
+            params.append(SpectrlCvParam(accession=accession, value=value, unit_accession=unit_accession))
         else:
-            params.append(MzxCvParam(accession=accession, value=raw_val))
+            params.append(SpectrlCvParam(accession=accession, value=raw_val))
     return params
 
 
 # ─── Scan/ScanWindow encoding ────────────────────────────────────────────────
 
-def _encode_scan_window(w: MzxScanWindow) -> dict:
+def _encode_scan_window(w: SpectrlScanWindow) -> dict:
     return _encode_param_map(w.params)
 
 
-def _decode_scan_window(d: dict) -> MzxScanWindow:
-    return MzxScanWindow(params=_decode_param_map(d))
+def _decode_scan_window(d: dict) -> SpectrlScanWindow:
+    return SpectrlScanWindow(params=_decode_param_map(d))
 
 
-def _encode_scan(s: MzxScan) -> dict:
+def _encode_scan(s: SpectrlScan) -> dict:
     d: dict = {0: _encode_param_map(s.params)}
     if s.windows:
         d[1] = [_encode_scan_window(w) for w in s.windows]
     return d
 
 
-def _decode_scan(d: dict) -> MzxScan:
+def _decode_scan(d: dict) -> SpectrlScan:
     params = _decode_param_map(d.get(0, {}))
     windows = [_decode_scan_window(w) for w in d.get(1, [])]
-    return MzxScan(params=params, windows=windows)
+    return SpectrlScan(params=params, windows=windows)
 
 
 # ─── Precursor/Product encoding ──────────────────────────────────────────────
 
-def _encode_isolation_window(iw: MzxIsolationWindow) -> dict:
+def _encode_isolation_window(iw: SpectrlIsolationWindow) -> dict:
     return _encode_param_map(iw.params)
 
 
-def _decode_isolation_window(d: dict) -> MzxIsolationWindow:
-    return MzxIsolationWindow(params=_decode_param_map(d))
+def _decode_isolation_window(d: dict) -> SpectrlIsolationWindow:
+    return SpectrlIsolationWindow(params=_decode_param_map(d))
 
 
-def _encode_precursor(p: MzxPrecursor) -> dict:
+def _encode_precursor(p: SpectrlPrecursor) -> dict:
     d: dict = {}
     if p.isolation_window is not None:
         d[0] = _encode_isolation_window(p.isolation_window)
@@ -136,26 +136,26 @@ def _encode_precursor(p: MzxPrecursor) -> dict:
     return d
 
 
-def _decode_precursor(d: dict) -> MzxPrecursor:
+def _decode_precursor(d: dict) -> SpectrlPrecursor:
     iw = _decode_isolation_window(d[0]) if 0 in d else None
-    selected_ions = [MzxSelectedIon(params=_decode_param_map(si)) for si in d.get(1, [])]
-    activation = MzxActivation(params=_decode_param_map(d[2])) if 2 in d else None
+    selected_ions = [SpectrlSelectedIon(params=_decode_param_map(si)) for si in d.get(1, [])]
+    activation = SpectrlActivation(params=_decode_param_map(d[2])) if 2 in d else None
     spectrum_ref = d.get("us")
-    return MzxPrecursor(
+    return SpectrlPrecursor(
         isolation_window=iw, selected_ions=selected_ions, activation=activation, spectrum_ref=spectrum_ref
     )
 
 
-def _encode_product(p: MzxProduct) -> dict:
+def _encode_product(p: SpectrlProduct) -> dict:
     d: dict = {}
     if p.isolation_window is not None:
         d[0] = _encode_isolation_window(p.isolation_window)
     return d
 
 
-def _decode_product(d: dict) -> MzxProduct:
+def _decode_product(d: dict) -> SpectrlProduct:
     iw = _decode_isolation_window(d[0]) if 0 in d else None
-    return MzxProduct(isolation_window=iw)
+    return SpectrlProduct(isolation_window=iw)
 
 
 # ─── Full header build/parse ─────────────────────────────────────────────────
@@ -201,14 +201,14 @@ def parse_header(header_bytes: bytes) -> DecodedSpectrum:
     id_ = h.get(2)
     params = _decode_param_map(h.get(3, {}))
 
-    scans: list[MzxScan] = []
-    scan_combination: MzxCvParam | None = None
+    scans: list[SpectrlScan] = []
+    scan_combination: SpectrlCvParam | None = None
     scan_entry = h.get(4, {})
     if scan_entry:
         scans = [_decode_scan(s) for s in scan_entry.get("s", [])]
         if "c" in scan_entry:
             combo_tail = scan_entry["c"]
-            scan_combination = MzxCvParam(accession=decode_tail(combo_tail))
+            scan_combination = SpectrlCvParam(accession=decode_tail(combo_tail))
 
     precursors = [_decode_precursor(p) for p in h.get(5, [])]
     products = [_decode_product(p) for p in h.get(6, [])]

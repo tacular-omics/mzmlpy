@@ -1,8 +1,8 @@
-"""Base64url encoding/decoding (no padding) and segment framing for mzx tokens."""
+"""Base64url encoding/decoding (no padding) and segment framing for spectrl tokens."""
 
 import base64
 
-MAGIC = "mzx1"
+MAGIC = "spectrl1"
 FORMAT_VERSION = 1
 
 
@@ -18,14 +18,14 @@ def b64url_decode(s: str) -> bytes:
 
 
 def build_token(header_bytes: bytes, array_blobs: list[bytes]) -> str:
-    """Assemble a mzx1 token from a msgpack header and per-array blobs."""
+    """Assemble a spectrl1 token from a msgpack header and per-array blobs."""
     parts = [MAGIC, b64url_encode(header_bytes)]
     parts.extend(b64url_encode(blob) for blob in array_blobs)
     return ".".join(parts)
 
 
 def parse_token(token: str) -> tuple[bytes, list[bytes]]:
-    """Split a mzx1 token into (header_bytes, [array_blob, ...]).
+    """Split a spectrl1 token into (header_bytes, [array_blob, ...]).
 
     Raises ValueError on bad magic or version.
     """

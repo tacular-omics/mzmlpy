@@ -6,8 +6,8 @@ import msgpack
 import numpy as np
 
 from mzmlpy.run import Mzml
-from mzx import encode_spectrum, from_mzmlpy
-from mzx.token import b64url_encode
+from spectrl import encode_spectrum, from_mzmlpy
+from spectrl.token import b64url_encode
 
 results = []
 

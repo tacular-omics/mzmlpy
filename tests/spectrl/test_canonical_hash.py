@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from mzx import decode_token, encode_spectrum
-from mzx.model import InlineSpectrum
+from spectrl import decode_token, encode_spectrum
+from spectrl.model import InlineSpectrum
 
 
 def _make_spec(seed=42, n=20):

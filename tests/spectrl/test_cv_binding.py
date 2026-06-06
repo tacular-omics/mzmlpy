@@ -11,7 +11,7 @@ from mzmlpy.constants import (
     SpectrumType,
 )
 
-from mzx.cv import (
+from spectrl.cv import (
     ARRAY_CHARGE,
     ARRAY_INTENSITY,
     ARRAY_MZ,
@@ -68,7 +68,7 @@ def test_non_uo_unit_tail_uses_list():
 
 def test_no_hardcoded_integers_in_codecs():
     """Codec registry keys match mzmlpy enum tails — not bare integer literals."""
-    from mzx.codecs import _REGISTRY
+    from spectrl.codecs import _REGISTRY
     expected_keys = {
         accession_tail(CompressionTypeAccessions.MS_NUMPRESS_LINEAR_PREDICTION_ZLIB),
         accession_tail(CompressionTypeAccessions.MS_NUMPRESS_SHORT_LOGGED_FLOAT_ZLIB),
