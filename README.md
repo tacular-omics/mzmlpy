@@ -88,6 +88,8 @@ Benchmarked on a real-world DDA file (33,535 spectra, first-open cold start, wit
 
 For full usage examples see the **[Getting Started guide](https://tacular-omics.github.io/mzmlpy/getting-started/)** and **[API Reference](https://tacular-omics.github.io/mzmlpy/api/mzml/)**.
 
+Using an AI coding assistant? Point it at **[`llms.txt`](llms.txt)** — a compact, accurate API guide for generating correct mzmlpy code.
+
 
 ## Benchmarks
 

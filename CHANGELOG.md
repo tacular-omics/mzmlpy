@@ -11,6 +11,8 @@ affect existing code (see **Changed**), hence the major version bump.
 
 ### Added
 
+- **`llms.txt`** — a compact, accurate usage guide for AI coding assistants (installation, core
+  API, gotchas, and the meaning of error messages), so LLMs generate correct mzmlpy code.
 - **`referenceableParamGroupRef` resolution.** CV terms a spectrum or scan inherits from a
   referenced parameter group (e.g. polarity via `MS:1000130`) are now resolved onto the element,
   so `spectrum.polarity`, `ms_level`, etc. reflect grouped terms. Previously these returned `None`.
