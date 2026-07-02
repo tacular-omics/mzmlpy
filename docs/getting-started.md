@@ -36,17 +36,13 @@ When working with `.mzML.gz` files, the `gzip_mode` parameter controls how the c
 - **`"indexed"`** — Use the `rapidgzip` library for seekable access to the compressed file without extracting to disk. Requires `pip install mzmlpy[rapidgzip]`. Builds a gzip seek index (`.gzidx`) and mzML offset index (`.mzMLidx`) on first open, cached alongside the file for instant startup on subsequent opens.
 - **`"stream"`** — Stream the file sequentially with no index. Lowest startup cost, but random access (e.g. `reader.spectra[0]`) scans from the beginning each time — a warning is emitted.
 
-**Performance comparison** (33,535-spectrum DDA file, cold start, with rapidgzip):
-
-| Mode | Startup | Iterate (500 spectra) | Random access (5 reads) |
-|---|---|---|---|
-| plain `.mzML` | 0.042s | 0.087s | 0.001s |
-| `in_memory=True` | 1.499s | 0.362s | 0.002s |
-| `gzip_mode="extract"` | 0.957s | 0.083s | 0.001s |
-| `gzip_mode="indexed"` ¹ | 6.850s | 0.135s | 0.074s |
-| `gzip_mode="stream"` | 0.089s | 0.155s | 22.8s |
-
-¹ Startup includes building the gzip seek index (`.gzidx`) and mzML offset index (`.mzMLidx`) on first open. Both are cached alongside the file — subsequent opens are fast.
+`"extract"` pays a one-time decompression cost then matches plain `.mzML` speed on later opens of
+the same file (the extracted copy is cached). `"indexed"` pays a one-time index-build cost for
+seekable access with no disk copy, then fast random access on later opens (the index is cached
+alongside the file). `"stream"` has the lowest startup cost, but random access re-scans from the
+start each time. For a reproducible benchmark with real numbers — including a comparison against
+pyteomics and pymzml — see [`benchmarks/`](https://github.com/tacular-omics/mzmlpy/tree/main/benchmarks)
+in the repository.
 
 For best performance with `.mzML.gz` files, use `"extract"` or `"indexed"`:
 
@@ -90,6 +86,31 @@ with Mzml("tests/data/example.mzML") as reader:
 
     # Filter with a list comprehension
     ms2_spectra = [s for s in reader.spectra if s.ms_level == 2]
+```
+
+## Native IDs and Summary Values
+
+The native `id` string encodes vendor-specific components (e.g. Thermo's `controllerType=0 controllerNumber=1 scan=19`); `id_dict` parses it into a dict with numeric components coerced to `int`. Common summary values and the instrument scan filter are also exposed directly, instead of requiring a manual `get_cvparm` lookup:
+
+```python
+from mzmlpy import Mzml
+
+with Mzml("tests/data/example.mzML") as reader:
+    spec = reader.spectra[0]
+
+    print(spec.id_dict)  # e.g. {"scan": 19}
+
+    print(spec.base_peak_mz, spec.base_peak_intensity)
+    print(spec.lowest_observed_mz, spec.highest_observed_mz)
+    print(spec.filter_string)  # e.g. Thermo scan filter string
+```
+
+To cheaply check how many spectra a file contains without opening it fully -- no reader is constructed and no random-access index is built, so this is much cheaper than `len(Mzml(path).spectra)` when you only need the count -- use the standalone `peek_spectrum_count` function:
+
+```python
+from mzmlpy import peek_spectrum_count
+
+count = peek_spectrum_count("tests/data/example.mzML")  # int | None
 ```
 
 ## Accessing Binary Data

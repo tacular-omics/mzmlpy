@@ -72,19 +72,12 @@ clear_cache()
 
 ### Performance
 
-Benchmarked on a real-world DDA file (33,535 spectra, first-open cold start, with rapidgzip):
-
-| Mode | Startup | Iterate (500 spectra) | Random access (5 reads) |
-|---|---|---|---|
-| plain `.mzML` | 0.042s | 0.087s | 0.001s |
-| `in_memory=True` | 1.499s | 0.362s | 0.002s |
-| `gzip_mode="extract"` | 0.957s | 0.083s | 0.001s |
-| `gzip_mode="indexed"` ¹ | 6.850s | 0.135s | 0.074s |
-| `gzip_mode="stream"` | 0.089s | 0.155s | 22.8s |
-
-¹ `"indexed"` startup includes building the gzip seek index and mzML offset index on first open — both are cached alongside the file, so subsequent opens are fast.
-
-`"extract"` pays a one-time decompression cost (~1s for a large file) then matches plain `.mzML` speed. `"stream"` is sequential-only — random access requires re-scanning from the start.
+`"extract"` pays a one-time decompression cost then matches plain `.mzML` speed on later opens
+(the extracted copy is cached). `"indexed"` pays a one-time index-build cost for seekable access
+with no disk copy. `"stream"` has the lowest startup cost but random access re-scans from the
+start, so it's sequential-only in practice. See **[`benchmarks/`](benchmarks/)** for a
+reproducible harness with real numbers on real files, including a head-to-head against
+pyteomics and pymzml.
 
 For full usage examples see the **[Getting Started guide](https://tacular-omics.github.io/mzmlpy/getting-started/)** and **[API Reference](https://tacular-omics.github.io/mzmlpy/api/mzml/)**.
 

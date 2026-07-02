@@ -77,6 +77,14 @@ MkDocs + Material theme + mkdocstrings. Deployed to GitHub Pages via `mkdocs gh-
 
 ## Tests
 
-Test data: `tests/data/example.mzML` and `tests/data/example.mzML.gz` (4 spectra, 2 chromatograms).
-Tests are parametrized over both files. No mocking — tests run against real XML.
+Test data: `tests/data/example.mzML` and `tests/data/example.mzML.gz` (4 spectra, 2 chromatograms),
+plus real Thermo/Bruker/re-encoded files under `tests/data/` for format and edge-case coverage.
+Tests are parametrized over both example files. No mocking — tests run against real XML.
 `tests/test_docs.py` uses `pytest-examples` to execute every Python code block in `docs/getting-started.md`.
+
+## Other resources
+
+- `benchmarks/` — reproducible harness comparing mzmlpy against pyteomics/pymzml (format support,
+  throughput, gzip handling); see `benchmarks/README.md` for current results.
+- `llms.txt` — compact, verified API guide for AI coding assistants.
+- `CHANGELOG.md` — Keep-a-Changelog format, updated per release.
