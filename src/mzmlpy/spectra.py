@@ -664,7 +664,15 @@ class _PrecursorListMixin(_DataTreeWrapperProtocol):
 
 @dataclass(frozen=True, repr=False)
 class Product(_ParamGroup):
-    """A product ion selection element containing CV parameters describing the product."""
+    """A product ion selection element containing an isolation window and CV parameters."""
+
+    @property
+    def isolation_window(self) -> IsolationWindow | None:
+        """Get the isolation window for this product, if present."""
+        iso_window = self.element.find(f"./{self.ns}{MzMLElement.ISOLATION_WINDOW}")
+        if iso_window is not None:
+            return IsolationWindow(iso_window)
+        return None
 
 
 @dataclass(frozen=True, repr=False)

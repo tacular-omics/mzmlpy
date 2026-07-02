@@ -59,7 +59,7 @@ class MSDecoder:
 
         if isinstance(data, list):
             data = np.array(data, dtype=np.float64)
-        return pynumpress.encode_linear(data)
+        return pynumpress.encode_linear(data, pynumpress.optimal_linear_fixed_point(data))
 
     @classmethod
     def encode_pic(cls, data: NDArray[np.float64] | list[float]) -> bytearray:
@@ -77,7 +77,7 @@ class MSDecoder:
 
         if isinstance(data, list):
             data = np.array(data, dtype=np.float64)
-        return pynumpress.encode_slof(data)
+        return pynumpress.encode_slof(data, pynumpress.optimal_slof_fixed_point(data))
 
     @classmethod
     def decode_zlib(cls, data: bytes) -> bytes:

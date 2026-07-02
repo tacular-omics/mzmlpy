@@ -13,6 +13,7 @@ affect existing code (see **Changed**), hence the major version bump.
 
 - **`llms.txt`** — a compact, accurate usage guide for AI coding assistants (installation, core
   API, gotchas, and the meaning of error messages), so LLMs generate correct mzmlpy code.
+- **`Product.isolation_window`** — products now expose their isolation window (like precursors).
 - **`referenceableParamGroupRef` resolution.** CV terms a spectrum or scan inherits from a
   referenced parameter group (e.g. polarity via `MS:1000130`) are now resolved onto the element,
   so `spectrum.polarity`, `ms_level`, etc. reflect grouped terms. Previously these returned `None`.
@@ -60,5 +61,9 @@ affect existing code (see **Changed**), hence the major version bump.
   (now returns an empty array).
 - **Caches** are written atomically and validated against a source size+mtime signature, so an
   interrupted write or a restored (older) source no longer yields a stale/corrupt cache.
+- **`FileDescription.get_source_file(id)`** now matches the source file's `id` attribute (it
+  previously matched CV params, returning `None` for a valid id).
+- **`MSDecoder.encode_linear` / `encode_slof`** now pass the required numpress fixed point (they
+  raised `TypeError` before); encoding is functional.
 
 [5.0.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v5.0.0

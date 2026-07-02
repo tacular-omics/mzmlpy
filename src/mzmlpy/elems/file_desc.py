@@ -159,9 +159,9 @@ class FileDescription(_DataTreeWrapper):
         return []
 
     def get_source_file(self, id: str) -> SourceFile | None:
-        """Get a source file by ID (Accession or name)."""
+        """Get a source file by its ``id`` attribute."""
         for sf in self.source_files:
-            if sf.has_cvparm(id):
+            if sf.id == id:
                 return sf
         return None
 
