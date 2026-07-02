@@ -13,6 +13,9 @@ affect existing code (see **Changed**), hence the major version bump.
 
 - **`llms.txt`** — a compact, accurate usage guide for AI coding assistants (installation, core
   API, gotchas, and the meaning of error messages), so LLMs generate correct mzmlpy code.
+- **`Spectrum.id_dict` / `Chromatogram.id_dict`** — parse the native id into its `key=value`
+  components (integers coerced to `int`), so `spectrum.id_dict["scan"]` gives the scan number
+  directly across vendor formats (Thermo, Bruker, SCIEX).
 - **Scan-level ion mobility** — `Scan.inverse_reduced_ion_mobility` / `Scan.ion_mobility_drift_time`
   and a spectrum-level `Spectrum.ion_mobility`. `has_im` now also detects scan-level mobility
   (Bruker timsTOF PASEF MS2), which previously reported `has_im=False` despite mobility being present.

@@ -47,6 +47,7 @@ for s in reader.spectra: ... # iterate (memory-bounded; safe to collect into a l
 | Property | Type | Notes |
 |---|---|---|
 | `id` | `str` | native id, e.g. `"controllerType=0 controllerNumber=1 scan=1"` |
+| `id_dict` | `dict[str, int\|str]` | native id parsed into components, e.g. `{"scan": 1}`; use `spectrum.id_dict["scan"]` for the scan number |
 | `mz` | `NDArray[float64] \| None` | decoded m/z array |
 | `intensity` | `NDArray[float64] \| None` | decoded intensity array |
 | `charge` | `NDArray[float64] \| None` | charge array if present |

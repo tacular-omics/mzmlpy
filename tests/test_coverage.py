@@ -118,6 +118,17 @@ def test_ion_mobility_faims_ccs_and_products(tmp_path):
 
 
 # ------------------------------------------------------------------ decoder encode round-trips
+def test_id_dict_parses_native_ids():
+    with Mzml(EXAMPLE) as r:
+        d = r.spectra[0].id_dict
+        assert d == {"scan": 19}
+        assert isinstance(d["scan"], int)
+        assert r.spectra[3].id_dict == {"sample": 1, "period": 1, "cycle": 22, "experiment": 1}
+        assert r.chromatograms["tic"].id_dict == {}  # plain id, no key=value tokens
+    with Mzml("tests/data/bruker_ms2_im.mzML") as r:
+        assert r.spectra[0].id_dict == {"frame": 1016, "scan": 1}
+
+
 def test_scan_level_ion_mobility_bruker():
     """timsTOF PASEF MS2 stores ion mobility as a scan cvParam (MS:1002815), not a binary array.
     has_im and ion_mobility must reflect it (has_im previously returned False for such spectra)."""

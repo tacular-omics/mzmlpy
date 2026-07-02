@@ -62,6 +62,27 @@ def _resolve_dtype(data_type: str) -> np.dtype:
     return np.dtype(dtype_str)
 
 
+def _parse_native_id(identifier: str) -> dict[str, int | str]:
+    """Parse a native spectrum/chromatogram id into its space-separated ``key=value`` components.
+
+    Integer values are coerced to ``int``; everything else stays a ``str``. Tokens without an
+    ``=`` are skipped. Example::
+
+        _parse_native_id("controllerType=0 controllerNumber=1 scan=19")
+        # {"controllerType": 0, "controllerNumber": 1, "scan": 19}
+    """
+    result: dict[str, int | str] = {}
+    for token in identifier.split():
+        key, sep, value = token.partition("=")
+        if not sep:
+            continue
+        try:
+            result[key] = int(value)
+        except ValueError:
+            result[key] = value
+    return result
+
+
 @dataclass(frozen=True)
 class BinaryDataArray(_ParamGroup):
     """Wraps a single `binaryDataArray` XML element, handling base64 decoding and decompression.
@@ -733,6 +754,17 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
         return id
 
     @property
+    def id_dict(self) -> dict[str, int | str]:
+        """Parse the native id into its ``key=value`` components (e.g. ``{"scan": 19}``).
+
+        Vendor native ids are space-separated ``key=value`` tokens, e.g. Thermo
+        ``"controllerType=0 controllerNumber=1 scan=19"`` or Bruker ``"frame=1016 scan=1"``.
+        Integer components are returned as ints, so ``spectrum.id_dict["scan"]`` gives the scan
+        number without manual parsing.
+        """
+        return _parse_native_id(self.id)
+
+    @property
     def spot_id(self) -> str | None:
         """Get spectrum spot id, or None if not present."""
         return self.get_attribute("spotID")
@@ -864,6 +896,11 @@ class Chromatogram(_ParamGroup, _BinaryDataArrayMixin):
         if id is None:
             raise ValueError("Chromatogram ID is missing")
         return id
+
+    @property
+    def id_dict(self) -> dict[str, int | str]:
+        """Parse the native id into its ``key=value`` components (integer values coerced to int)."""
+        return _parse_native_id(self.id)
 
     @property
     def default_array_length(self) -> int | None:
