@@ -14,6 +14,7 @@ try:
 except ImportError:
     RapidgzipFile = None  # type: ignore[assignment, misc]
 
+from ..util import atomic_write_path, cache_is_current, write_cache_signature
 from .standardMzml import AbstractRandomAccessMzml
 
 logger = logging.getLogger(__name__)
@@ -104,28 +105,32 @@ class IndexedGzip(AbstractRandomAccessMzml):
         # Persistent binary handle reused by get_binary_file_handler().
         self._binary_fh: RapidgzipFile = self._open_indexed()
 
-        super().__init__(encoding, build_index_from_scratch, index_regex)
+        # If base construction (opening the text handle / building the index) fails, close the
+        # persistent binary handle so its rapidgzip worker threads do not linger until shutdown.
+        try:
+            super().__init__(encoding, build_index_from_scratch, index_regex)
+        except BaseException:
+            self._binary_fh.close()
+            raise
 
     # -- gzip seek index ---------------------------------------------------
 
     def _ensure_gzip_index(self) -> None:
         """Load existing .gzidx or build and save one."""
-        if self._is_index_current(self._gzip_index_path):
+        if cache_is_current(self._gzip_index_path, self.path):
             logger.debug("Using cached gzip index: %s", self._gzip_index_path)
             return
 
         logger.debug("Building gzip index for: %s", self.path)
-        with RapidgzipFile(self.path, parallelization=os.cpu_count() or 1) as f:
-            # Seek to end to force full decompression and index building
-            f.seek(0, 2)
-            f.export_index(self._gzip_index_path)
+        # Atomic write so an interrupted build never leaves a truncated index that the currency
+        # check would later trust.
+        with atomic_write_path(self._gzip_index_path) as tmp_path:
+            with RapidgzipFile(self.path, parallelization=os.cpu_count() or 1) as f:
+                # Seek to end to force full decompression and index building
+                f.seek(0, 2)
+                f.export_index(tmp_path)
+        write_cache_signature(self._gzip_index_path, self.path)
         logger.debug("Saved gzip index to: %s", self._gzip_index_path)
-
-    def _is_index_current(self, index_path: str) -> bool:
-        """Check whether a cached index exists and is newer than the .gz file."""
-        if not os.path.exists(index_path):
-            return False
-        return os.path.getmtime(index_path) >= os.path.getmtime(self.path)
 
     def _open_indexed(self) -> RapidgzipFile:
         """Open a new RapidgzipFile with the cached seek index."""
@@ -142,7 +147,7 @@ class IndexedGzip(AbstractRandomAccessMzml):
         first. If present and current, loads offsets directly. Otherwise
         delegates to the base class to parse the file, then caches the result.
         """
-        if not from_scratch and self._is_index_current(self._mzml_index_path):
+        if not from_scratch and cache_is_current(self._mzml_index_path, self.path):
             self._load_mzml_index()
             return
 
@@ -167,8 +172,9 @@ class IndexedGzip(AbstractRandomAccessMzml):
             "spectrum_offsets": list(self.spectrum_offsets.items()),
             "chromatogram_offsets": list(self.chromatogram_offsets.items()),
         }
-        with open(self._mzml_index_path, "w") as f:
+        with atomic_write_path(self._mzml_index_path) as tmp_path, open(tmp_path, "w") as f:
             json.dump(data, f)
+        write_cache_signature(self._mzml_index_path, self.path)
         logger.debug("Saved mzML index to: %s", self._mzml_index_path)
 
     # -- file handlers -----------------------------------------------------

@@ -16,10 +16,12 @@ class _Param:
         if self.value is None or self.unit_name is None:
             return None
 
-        time_val = float(self.value)
-        time_unit = self.unit_name.lower()
+        try:
+            time_val = float(self.value)
+        except (TypeError, ValueError):
+            return None
 
-        match time_unit:
+        match self.unit_name.lower():
             case "millisecond":
                 return timedelta(milliseconds=time_val)
             case "second":
@@ -29,7 +31,9 @@ class _Param:
             case "hour":
                 return timedelta(hours=time_val)
             case _:
-                raise ValueError(f"Unknown time unit: {self.unit_name}")
+                # Not a time-valued parameter (e.g. an m/z or intensity unit) — the property is
+                # documented to return None in that case rather than raising.
+                return None
 
 
 @dataclass(frozen=True)

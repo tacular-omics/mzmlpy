@@ -37,17 +37,28 @@ from .elems.dtree_wrapper import _DataTreeWrapper, _DataTreeWrapperProtocol, _Pa
 
 
 def decode_to_numpy(data: bytes, data_type: str) -> NDArray[np.float64]:
-    _data_type = BINARY_DECODE_DTYPES.get(BinaryDataTypeAccession(data_type), None)
-    if _data_type is None:
-        raise ValueError(f"Unsupported binary data type accession: {_data_type}")
-    return np.frombuffer(data, dtype=_data_type).astype(np.float64)
+    dtype = _resolve_dtype(data_type)
+    if len(data) % dtype.itemsize != 0:
+        raise ValueError(
+            f"Cannot decode binary array: {len(data)} bytes is not a multiple of the "
+            f"{dtype.itemsize}-byte element size for data type {data_type!r}. The data may be "
+            f"corrupt, truncated, or use a truncation encoding that mzmlpy does not support."
+        )
+    return np.frombuffer(data, dtype=dtype).astype(np.float64)
 
 
 def _resolve_dtype(data_type: str) -> np.dtype:
     """Resolve a binary data type accession to a NumPy dtype."""
-    dtype_str = BINARY_DECODE_DTYPES.get(BinaryDataTypeAccession(data_type), None)
+    try:
+        accession = BinaryDataTypeAccession(data_type)
+    except ValueError:
+        accession = None
+    dtype_str = BINARY_DECODE_DTYPES.get(accession) if accession is not None else None
     if dtype_str is None:
-        raise ValueError(f"Unsupported binary data type accession: {data_type}")
+        raise ValueError(
+            f"Unsupported or unknown binary data type accession {data_type!r}; mzmlpy can decode "
+            f"32-/64-bit float and 32-/64-bit integer arrays."
+        )
     return np.dtype(dtype_str)
 
 
@@ -102,7 +113,12 @@ class BinaryDataArray(_ParamGroup):
             return np.array([], dtype=np.float64)
 
         # Decode base64
-        out_data = base64.b64decode(binary_element.text)
+        try:
+            out_data = base64.b64decode(binary_element.text)
+        except ValueError as e:  # binascii.Error subclasses ValueError
+            raise ValueError(
+                f"Failed to base64-decode binary data array (data type {binary_data_type}): {e}"
+            ) from e
 
         if len(out_data) == 0:
             warnings.warn("Decoded binary data is empty.", UserWarning, stacklevel=2)
@@ -227,20 +243,14 @@ class ScanWindow(_ParamGroup):
     @property
     def lower_mz(self) -> float | None:
         """Get scan window lower limit for this spectrum."""
-        for cv in self.cv_params:
-            if cv.accession == SpectrumMSAccession.SCAN_WINDOW_LOWER_LIMIT and cv.unit_name == "m/z":
-                if cv.value is not None:
-                    return float(cv.value)
-        return None
+        # The accession (MS:1000501) already identifies this as an m/z limit, so the value is
+        # taken regardless of how the unit is expressed (unitName, unitAccession only, or absent).
+        return self.cv_float(SpectrumMSAccession.SCAN_WINDOW_LOWER_LIMIT)
 
     @property
     def upper_mz(self) -> float | None:
         """Get scan window upper limit for this spectrum."""
-        for cv in self.cv_params:
-            if cv.accession == SpectrumMSAccession.SCAN_WINDOW_UPPER_LIMIT and cv.unit_name == "m/z":
-                if cv.value is not None:
-                    return float(cv.value)
-        return None
+        return self.cv_float(SpectrumMSAccession.SCAN_WINDOW_UPPER_LIMIT)
 
 
 @dataclass(frozen=True)
@@ -409,71 +419,49 @@ class _ScanListMixin(_DataTreeWrapperProtocol):
     Properties to grab from scan list
     """
 
+    def _first_scan(self, quantity: str) -> "Scan | None":
+        """Return the first scan for delegating a single-scan property.
+
+        Returns None when there is no scan list or it is empty (a valid case, e.g. an empty
+        ``<scanList count="0">``). Warns only when there is genuinely more than one scan — not
+        for zero scans.
+        """
+        if self._scan_list is None:
+            return None
+        scans = self.scans
+        if not scans:
+            return None
+        if len(scans) > 1:
+            warnings.warn(
+                f"This spectrum has multiple scans. Returning {quantity} of the first scan.",
+                UserWarning,
+                stacklevel=3,
+            )
+        return scans[0]
+
     @property
     def lower_mz(self) -> float | None:
         """Get scan window lower limit for this spectrum, if it has a single scan with a single scan window."""
-        if self._scan_list is not None:
-            if not self.is_single_scan:
-                warnings.warn(
-                    "This spectrum has multiple scans. Returning lower limit of the first scan.",
-                    UserWarning,
-                    stacklevel=2,
-                )
-            if self.scans is None or len(self.scans) == 0:
-                raise RuntimeError("Scan list is present but contains no scans.")
-            return self.scans[0].lower_mz
-        return None
+        scan = self._first_scan("lower limit")
+        return scan.lower_mz if scan is not None else None
 
     @property
     def upper_mz(self) -> float | None:
         """Get scan window upper limit for this spectrum, if it has a single scan with a single scan window."""
-        if self._scan_list is not None:
-            if not self.is_single_scan:
-                warnings.warn(
-                    "This spectrum has multiple scans. Returning upper limit of the first scan.",
-                    UserWarning,
-                    stacklevel=2,
-                )
-
-            if self.scans is None or len(self.scans) == 0:
-                raise RuntimeError("Scan list is present but contains no scans.")
-
-            return self.scans[0].upper_mz
-        return None
+        scan = self._first_scan("upper limit")
+        return scan.upper_mz if scan is not None else None
 
     @property
     def scan_start_time(self) -> timedelta | None:
         """Get scan start time for this spectrum, if it has a single scan."""
-        if self._scan_list is not None:
-            if not self.is_single_scan:
-                warnings.warn(
-                    "This spectrum has multiple scans. Returning scan start time of the first scan.",
-                    UserWarning,
-                    stacklevel=2,
-                )
-
-            if self.scans is None or len(self.scans) == 0:
-                raise RuntimeError("Scan list is present but contains no scans.")
-
-            return self.scans[0].scan_start_time
-        return None
+        scan = self._first_scan("scan start time")
+        return scan.scan_start_time if scan is not None else None
 
     @property
     def ion_injection_time(self) -> timedelta | None:
         """Get ion injection time for this spectrum, if it has a single scan."""
-        if self._scan_list is not None:
-            if not self.is_single_scan:
-                warnings.warn(
-                    "This spectrum has multiple scans. Returning ion injection time of the first scan.",
-                    UserWarning,
-                    stacklevel=2,
-                )
-
-            if self.scans is None or len(self.scans) == 0:
-                raise RuntimeError("Scan list is present but contains no scans.")
-
-            return self.scans[0].ion_injection_time
-        return None
+        scan = self._first_scan("ion injection time")
+        return scan.ion_injection_time if scan is not None else None
 
 
 @dataclass(frozen=True, repr=False)
@@ -486,26 +474,17 @@ class IsolationWindow(_ParamGroup):
     @property
     def target_mz(self) -> float | None:
         """Get isolation window target m/z for this precursor."""
-        cv = self.get_cvparm("MS:1000827")
-        if cv is not None and cv.value is not None:
-            return float(cv.value)
-        return None
+        return self.cv_float("MS:1000827")
 
     @property
     def lower_offset(self) -> float | None:
         """Get isolation window lower offset for this precursor."""
-        cv = self.get_cvparm("MS:1000828")
-        if cv is not None and cv.value is not None:
-            return float(cv.value)
-        return None
+        return self.cv_float("MS:1000828")
 
     @property
     def upper_offset(self) -> float | None:
         """Get isolation window upper offset for this precursor."""
-        cv = self.get_cvparm("MS:1000829")
-        if cv is not None and cv.value is not None:
-            return float(cv.value)
-        return None
+        return self.cv_float("MS:1000829")
 
 
 @dataclass(frozen=True, repr=False)
@@ -519,66 +498,42 @@ class SelectedIon(_ParamGroup):
     @property
     def selected_ion_mz(self) -> float | None:
         """Get selected ion m/z for this precursor."""
-        cv = self.get_cvparm("MS:1000744")
-        if cv is not None and cv.value is not None:
-            return float(cv.value)
-        return None
+        return self.cv_float("MS:1000744")
 
     @property
     def peak_intensity(self) -> float | None:
         """Get peak intensity for this precursor."""
-        cv = self.get_cvparm("MS:1000042")
-        if cv is not None and cv.value is not None:
-            return float(cv.value)
-        return None
+        return self.cv_float("MS:1000042")
 
     @property
     def charge_state(self) -> int | None:
         """Get charge state for this precursor."""
-        cv = self.get_cvparm("MS:1000041")
-        if cv is not None and cv.value is not None:
-            return int(cv.value)
-        return None
+        return self.cv_int("MS:1000041")
 
     @property
     def ir_im(self) -> float | None:
         """Get inversion reduced ion mobility for this precursor."""
-        cv = self.get_cvparm("MS:1002815")
-        if cv is not None and cv.value is not None:
-            return float(cv.value)
-        return None
+        return self.cv_float("MS:1002815")
 
     @property
     def im_drift_time(self) -> float | None:
         """Get ion mobility drift time for this precursor."""
-        cv = self.get_cvparm("MS:1002476")
-        if cv is not None and cv.value is not None:
-            return float(cv.value)
-        return None
+        return self.cv_float("MS:1002476")
 
     @property
     def faims_voltage_start(self) -> float | None:
         """Get FAIMS voltage start for this precursor."""
-        cv = self.get_cvparm("MS:1003450")
-        if cv is not None and cv.value is not None:
-            return float(cv.value)
-        return None
+        return self.cv_float("MS:1003450")
 
     @property
     def faims_voltage_end(self) -> float | None:
         """Get FAIMS voltage end for this precursor."""
-        cv = self.get_cvparm("MS:1003451")
-        if cv is not None and cv.value is not None:
-            return float(cv.value)
-        return None
+        return self.cv_float("MS:1003451")
 
     @property
     def ccs(self) -> float | None:
         """Get collisional cross section for this precursor."""
-        cv = self.get_cvparm("MS:1002954")
-        if cv is not None and cv.value is not None:
-            return float(cv.value)
-        return None
+        return self.cv_float("MS:1002954")
 
 
 @dataclass(frozen=True, repr=False)
@@ -600,26 +555,17 @@ class Activation(_ParamGroup):
     @property
     def activation_energy(self) -> float | None:
         """Get activation energy for this precursor."""
-        cv = self.get_cvparm("MS:1000509")
-        if cv is not None and cv.value is not None:
-            return float(cv.value)
-        return None
+        return self.cv_float("MS:1000509")
 
     @property
     def ce(self) -> float | None:
         """Get collision energy for this precursor."""
-        cv = self.get_cvparm("MS:1000045")
-        if cv is not None and cv.value is not None:
-            return float(cv.value)
-        return None
+        return self.cv_float("MS:1000045")
 
     @property
     def supplemental_ce(self) -> float | None:
         """Get supplemental collision energy for this precursor."""
-        cv = self.get_cvparm("MS:1002680")
-        if cv is not None and cv.value is not None:
-            return float(cv.value)
-        return None
+        return self.cv_float("MS:1002680")
 
     @property
     def collision_gas(self) -> str | None:
@@ -632,10 +578,7 @@ class Activation(_ParamGroup):
     @property
     def collision_gas_pressure(self) -> float | None:
         """Get collision gas pressure for this precursor."""
-        cv = self.get_cvparm("MS:1000869")
-        if cv is not None and cv.value is not None:
-            return float(cv.value)
-        return None
+        return self.cv_float("MS:1000869")
 
 
 @dataclass(frozen=True, repr=False)
@@ -864,18 +807,12 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
     def TIC(self) -> float | None:
         """Get total ion current (TIC) for this spectrum."""
 
-        cv = self.get_cvparm(SpectrumMSAccession.TOTAL_ION_CURRENT)
-        if cv is None or cv.value is None:
-            return None
-
-        return float(cv.value)
+        return self.cv_float(SpectrumMSAccession.TOTAL_ION_CURRENT)
 
     @cached_property
     def ms_level(self) -> int | None:
         """Get MS level for this spectrum."""
-        cv = self.get_cvparm(SpectrumMSAccession.MS_LEVEL)
-        if cv is not None and cv.value is not None:
-            return int(cv.value)
+        return self.cv_int(SpectrumMSAccession.MS_LEVEL)
 
 
 @dataclass(frozen=True)

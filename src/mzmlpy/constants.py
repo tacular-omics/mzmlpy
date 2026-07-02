@@ -248,10 +248,12 @@ ISOTOPE_AVERAGE_DIFFERENCE = 1.002
 
 # Data type to numpy dtype mapping
 BINARY_DECODE_DTYPES: dict[BinaryDataTypeAccession, str] = {
-    BinaryDataTypeAccession.FLOAT_32: "float32",
-    BinaryDataTypeAccession.FLOAT_64: "float64",
-    BinaryDataTypeAccession.INT_32: "int32",
-    BinaryDataTypeAccession.INT_64: "int64",
+    # mzML binary arrays are always little-endian; pin byte order so decoding is correct on
+    # big-endian hosts too (native "float64" etc. would silently byte-swap there).
+    BinaryDataTypeAccession.FLOAT_32: "<f4",
+    BinaryDataTypeAccession.FLOAT_64: "<f8",
+    BinaryDataTypeAccession.INT_32: "<i4",
+    BinaryDataTypeAccession.INT_64: "<i8",
 }
 
 

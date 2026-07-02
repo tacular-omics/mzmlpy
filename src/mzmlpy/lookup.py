@@ -15,6 +15,7 @@ class BaseLookup[T: (Spectrum, Chromatogram)](ABC):
         self.file_object = file_object
         self._count = count
         self._id_regex = id_regex
+        self._cursor: Iterator[T] | None = None
 
     @cached_property
     def _id_map(self) -> dict[str, str]:
@@ -36,9 +37,14 @@ class BaseLookup[T: (Spectrum, Chromatogram)](ABC):
         ...
 
     def get_by_index(self, index: int | str) -> T:
-        """Get item by index."""
+        """Get item by index. Negative indices count from the end, like a list."""
         if isinstance(index, str):
             index = int(index)
+        if index < 0:
+            # Normalize against the count so lookup[-1] mirrors slice behavior (lookup[-1:]).
+            count = self.count
+            if count is not None:
+                index += count
         return self._get_by_index_impl(index)
 
     def get_by_id(self, identifier: str) -> T:
@@ -81,8 +87,18 @@ class BaseLookup[T: (Spectrum, Chromatogram)](ABC):
         return self.get_by_id(index)
 
     def next(self) -> T:
-        """Get next item using iterator."""
-        return next(iter(self))
+        """Advance a persistent cursor and return the next item.
+
+        The cursor is created on first call and advances on each subsequent call, raising
+        ``StopIteration`` once every item has been returned. Call :meth:`reset` to start over.
+        """
+        if self._cursor is None:
+            self._cursor = iter(self)
+        return next(self._cursor)
+
+    def reset(self) -> None:
+        """Reset the cursor used by :meth:`next` so the next call starts from the first item."""
+        self._cursor = None
 
     # Abstract methods to be implemented by subclasses
     @abstractmethod

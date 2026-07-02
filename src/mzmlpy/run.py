@@ -3,6 +3,7 @@ The class :py:class:`Reader` parses mzML files.
 """
 
 import os
+import warnings
 import xml.etree.ElementTree as ElementTree
 from collections.abc import Iterator
 from pathlib import Path
@@ -34,6 +35,20 @@ def _guess_encoding(mzml_file: Any) -> str:
     return bytes.decode(match.group("encoding")) if match else "utf-8"
 
 
+def _index_by_id(items: Any, kind: str) -> dict[str, Any]:
+    """Build an ``{id: item}`` dict, warning if two items share an id instead of silently
+    dropping the earlier one."""
+    result: dict[str, Any] = {}
+    for item in items:
+        if item.id in result:
+            warnings.warn(
+                f"Duplicate {kind} id {item.id!r}; keeping the last occurrence.",
+                stacklevel=3,
+            )
+        result[item.id] = item
+    return result
+
+
 def _determine_file_encoding(path: str) -> str:
     """Determine the encoding used for the file in path."""
     if not os.path.exists(path):
@@ -54,6 +69,11 @@ class Mzml:
     The actual data and properties of objects are only parsed when accessed. Use the
     context manager to ensure proper file handling. The ``spectra`` and ``chromatograms``
     properties return lookup objects that support iteration, indexing, and ID-based access.
+
+    Note:
+        A reader is **not thread-safe**: random access shares a single underlying file handle,
+        so concurrent access from multiple threads on the same ``Mzml`` instance will interleave
+        seeks and reads and return corrupt or wrong data. Use one reader per thread.
 
     Args:
         file: Path to the mzML file (str or Path) or a file-like object.
@@ -120,30 +140,42 @@ class Mzml:
             extract_dir=str(extract_dir) if extract_dir is not None else None,
         )
 
-        # Parse metadata
-        self._root, self.iter, builder = self._parse_metadata()
-        # Extract parsed content
-        self._content: _MzMLContent = builder.build()
-        self.obo_version = builder.obo_version
+        # Parse metadata. If parsing fails, close the file object so a half-constructed
+        # reader does not leak extracted temp files or rapidgzip worker threads — the caller
+        # never receives the object, so it can never call close() itself.
+        try:
+            self._root, self.iter, builder = self._parse_metadata()
+            # Extract parsed content
+            self._content: _MzMLContent = builder.build()
+            self.obo_version = builder.obo_version
+        except BaseException:
+            self._file_object.close()
+            raise
 
     def _parse_metadata(
         self,
     ) -> tuple[ElementTree.Element, Iterator[tuple[str, ElementTree.Element]], MzMLContentBuilder]:
         """Parse metadata and return root, iterator, and builder."""
         file_handle = self._file_object.file_handler.get_file_handler(self._encoding)
+        try:
+            mzml_iter: Iterator[tuple[str, ElementTree.Element]] = iter(
+                ElementTree.iterparse(file_handle, events=("end", "start"))
+            )
 
-        mzml_iter: Iterator[tuple[str, ElementTree.Element]] = iter(
-            ElementTree.iterparse(file_handle, events=("end", "start"))
-        )
+            _, root = next(mzml_iter)
 
-        _, root = next(mzml_iter)
+            # Build metadata
+            builder = MzMLContentBuilder()
+            builder.parse_from_iterator(mzml_iter)
 
-        # Build metadata
-        builder = MzMLContentBuilder()
-        builder.parse_from_iterator(mzml_iter)
-
-        root.clear()
-        return root, mzml_iter, builder
+            root.clear()
+            return root, mzml_iter, builder
+        finally:
+            # Metadata is fully extracted into the builder above, so this transient handle is
+            # no longer needed. Closing it matters for gzip_mode="indexed", where the handle is a
+            # RapidgzipFile with worker threads that otherwise linger until interpreter shutdown
+            # (triggering rapidgzip's "close all RapidgzipFile objects" warning / abort).
+            file_handle.close()
 
     @property
     def file_path(self) -> Path | None:
@@ -197,7 +229,7 @@ class Mzml:
     @property
     def cvs(self) -> dict[str, CVElement]:
         """Access controlled vocabularies."""
-        return {cv.id: cv for cv in self._content.cv_list}
+        return _index_by_id(self._content.cv_list, "controlled vocabulary")
 
     @property
     def file_description(self) -> FileDescription | None:
@@ -212,7 +244,7 @@ class Mzml:
     @property
     def softwares(self) -> dict[str, Software]:
         """Access software list."""
-        return {s.id: s for s in self._content.softwares}
+        return _index_by_id(self._content.softwares, "software")
 
     @property
     def instrument_configurations(self) -> dict[str, InstrumentConfiguration]:
@@ -227,7 +259,7 @@ class Mzml:
     @property
     def samples(self) -> dict[str, Sample]:
         """Access sample list."""
-        return {s.id: s for s in self._content.samples}
+        return _index_by_id(self._content.samples, "sample")
 
     @property
     def scan_settings(self) -> dict[str, ScanSetting]:

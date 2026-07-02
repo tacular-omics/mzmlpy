@@ -49,25 +49,21 @@ class StandardGzip(MzmlInterface):
         if isinstance(identifier, int):
             identifier = str(identifier)
 
-        # Can't seek in gzip, so need fresh handle
-        fh = self.get_file_handler(self._encoding)
-        mzml_iter = iterparse(fh, events=["end"])
+        # Can't seek in gzip, so need fresh handle. Use a context manager so the handle (and its
+        # rapidgzip worker threads) is closed even if iterparse raises on malformed XML.
+        with self.get_file_handler(self._encoding) as fh:
+            for event, element in iterparse(fh, events=["end"]):
+                if event == "end" and element.tag.endswith("}spectrum"):
+                    elem_id = element.get("id")
+                    if elem_id:
+                        # Direct string match
+                        if elem_id == identifier:
+                            return MzmlXMLElement(element=element, element_type="spectrum")
+                        # Try numeric ID extraction (pattern works on strings)
+                        match = regex_patterns.SPECTRUM_ID_PATTERN.search(elem_id)
+                        if match and match.group(1) == identifier:
+                            return MzmlXMLElement(element=element, element_type="spectrum")
 
-        for event, element in mzml_iter:
-            if event == "end" and element.tag.endswith("}spectrum"):
-                elem_id = element.get("id")
-                if elem_id:
-                    # Direct string match
-                    if elem_id == identifier:
-                        fh.close()
-                        return MzmlXMLElement(element=element, element_type="spectrum")
-                    # Try numeric ID extraction (pattern works on strings)
-                    match = regex_patterns.SPECTRUM_ID_PATTERN.search(elem_id)
-                    if match and match.group(1) == identifier:
-                        fh.close()
-                        return MzmlXMLElement(element=element, element_type="spectrum")
-
-        fh.close()
         raise KeyError(f"Spectrum ID {identifier} not found in file")
 
     def get_spectrum_by_index(self, index: int) -> SpectrumElement:
@@ -83,20 +79,15 @@ class StandardGzip(MzmlInterface):
             IndexError: If index is out of range.
         """
         warnings.warn(_STREAM_WARNING, stacklevel=2)
-        # Can't seek in gzip, so need fresh handle
-        fh = self.get_file_handler(self._encoding)
-        mzml_iter = iterparse(fh, events=["end"])
-
+        # Can't seek in gzip, so need fresh handle. Context manager guarantees close on error.
         current_index = 0
+        with self.get_file_handler(self._encoding) as fh:
+            for event, element in iterparse(fh, events=["end"]):
+                if event == "end" and element.tag.endswith("}spectrum"):
+                    if current_index == index:
+                        return MzmlXMLElement(element=element, element_type="spectrum")
+                    current_index += 1
 
-        for event, element in mzml_iter:
-            if event == "end" and element.tag.endswith("}spectrum"):
-                if current_index == index:
-                    fh.close()
-                    return MzmlXMLElement(element=element, element_type="spectrum")
-                current_index += 1
-
-        fh.close()
         raise IndexError(f"Spectrum index {index} out of range [0, {current_index})")
 
     def get_chromatogram_by_id(self, identifier: str | int) -> ChromatogramElement:
@@ -115,18 +106,14 @@ class StandardGzip(MzmlInterface):
         if isinstance(identifier, int):
             identifier = str(identifier)
 
-        # Can't seek in gzip, so need fresh handle
-        fh = self.get_file_handler(self._encoding)
-        mzml_iter = iterparse(fh, events=["end"])
+        # Can't seek in gzip, so need fresh handle. Context manager guarantees close on error.
+        with self.get_file_handler(self._encoding) as fh:
+            for event, element in iterparse(fh, events=["end"]):
+                if event == "end" and element.tag.endswith("}chromatogram"):
+                    elem_id = element.get("id")
+                    if elem_id and elem_id == identifier:
+                        return MzmlXMLElement(element=element, element_type="chromatogram")
 
-        for event, element in mzml_iter:
-            if event == "end" and element.tag.endswith("}chromatogram"):
-                elem_id = element.get("id")
-                if elem_id and elem_id == identifier:
-                    fh.close()
-                    return MzmlXMLElement(element=element, element_type="chromatogram")
-
-        fh.close()
         raise KeyError(f"Chromatogram ID {identifier} not found in file")
 
     def get_chromatogram_by_index(self, index: int) -> ChromatogramElement:
@@ -142,20 +129,15 @@ class StandardGzip(MzmlInterface):
             IndexError: If index is out of range.
         """
         warnings.warn(_STREAM_WARNING, stacklevel=2)
-        # Can't seek in gzip, so need fresh handle
-        fh = self.get_file_handler(self._encoding)
-        mzml_iter = iterparse(fh, events=["end"])
-
+        # Can't seek in gzip, so need fresh handle. Context manager guarantees close on error.
         current_index = 0
+        with self.get_file_handler(self._encoding) as fh:
+            for event, element in iterparse(fh, events=["end"]):
+                if event == "end" and element.tag.endswith("}chromatogram"):
+                    if current_index == index:
+                        return MzmlXMLElement(element=element, element_type="chromatogram")
+                    current_index += 1
 
-        for event, element in mzml_iter:
-            if event == "end" and element.tag.endswith("}chromatogram"):
-                if current_index == index:
-                    fh.close()
-                    return MzmlXMLElement(element=element, element_type="chromatogram")
-                current_index += 1
-
-        fh.close()
         raise IndexError(f"Chromatogram index {index} out of range [0, {current_index})")
 
     @property
@@ -168,19 +150,18 @@ class StandardGzip(MzmlInterface):
         """Scan the file once to build spectrum and chromatogram ID lists."""
         spec_ids: list[str] = []
         chrom_ids: list[str] = []
-        fh = self.get_file_handler(self._encoding)
-        for _, element in iterparse(fh, events=["end"]):
-            if element.tag.endswith("}spectrum"):
-                elem_id = element.get("id")
-                if elem_id:
-                    spec_ids.append(elem_id)
-                element.clear()
-            elif element.tag.endswith("}chromatogram"):
-                elem_id = element.get("id")
-                if elem_id:
-                    chrom_ids.append(elem_id)
-                element.clear()
-        fh.close()
+        with self.get_file_handler(self._encoding) as fh:
+            for _, element in iterparse(fh, events=["end"]):
+                if element.tag.endswith("}spectrum"):
+                    elem_id = element.get("id")
+                    if elem_id:
+                        spec_ids.append(elem_id)
+                    element.clear()
+                elif element.tag.endswith("}chromatogram"):
+                    elem_id = element.get("id")
+                    if elem_id:
+                        chrom_ids.append(elem_id)
+                    element.clear()
         return spec_ids, chrom_ids
 
     @property
