@@ -118,6 +118,17 @@ def test_ion_mobility_faims_ccs_and_products(tmp_path):
 
 
 # ------------------------------------------------------------------ decoder encode round-trips
+def test_scan_level_ion_mobility_bruker():
+    """timsTOF PASEF MS2 stores ion mobility as a scan cvParam (MS:1002815), not a binary array.
+    has_im and ion_mobility must reflect it (has_im previously returned False for such spectra)."""
+    with Mzml("tests/data/bruker_ms2_im.mzML") as r:
+        s = r.spectra[0]
+        assert s.has_im is True
+        assert s.ion_mobility == 1.595546371847
+        assert s.scans[0].inverse_reduced_ion_mobility == 1.595546371847
+        assert s.scans[0].ion_mobility_drift_time is None
+
+
 def test_numpress_encode_decode_roundtrip():
     """encode_* previously crashed (missing fixed-point arg); verify each round-trips within the
     precision its encoding provides (linear ~exact, pic integer-only, slof low-precision)."""

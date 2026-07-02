@@ -33,7 +33,10 @@ def test_bruker_im_empty_spectra():
     assert len(s.mz) == 0
     assert s.intensity is not None
     assert len(s.intensity) == 0
-    assert s.has_im is False
+    # This timsTOF PASEF MS2 spectrum has ion mobility as a scan-level cvParam (MS:1002815),
+    # so has_im is True even though there is no ion-mobility binary array.
+    assert s.has_im is True
+    assert s.ion_mobility == 1.595546371847
 
 
 def test_bruker_im_scan_metadata():

@@ -343,6 +343,16 @@ class Scan(_ParamGroup):
         cv = self.get_cvparm(SpectrumMSAccession.ION_INJECTION_TIME)
         return cv.to_timedelta if cv is not None else None
 
+    @property
+    def inverse_reduced_ion_mobility(self) -> float | None:
+        """Inverse reduced ion mobility (1/K0) for this scan (MS:1002815), e.g. Bruker timsTOF."""
+        return self.cv_float("MS:1002815")
+
+    @property
+    def ion_mobility_drift_time(self) -> float | None:
+        """Ion mobility drift time for this scan (MS:1002476)."""
+        return self.cv_float("MS:1002476")
+
 
 @dataclass(frozen=True)
 class _ScanList(_ParamGroup):
@@ -462,6 +472,18 @@ class _ScanListMixin(_DataTreeWrapperProtocol):
         """Get ion injection time for this spectrum, if it has a single scan."""
         scan = self._first_scan("ion injection time")
         return scan.ion_injection_time if scan is not None else None
+
+    @property
+    def ion_mobility(self) -> float | None:
+        """Scan-level ion mobility for this spectrum: inverse reduced ion mobility (preferred) or
+        drift time. Common for Bruker timsTOF PASEF MS2, where mobility is a scan cvParam rather
+        than a binary array. Returns None if the spectrum has no single scan or no mobility term.
+        """
+        scan = self._first_scan("ion mobility")
+        if scan is None:
+            return None
+        irim = scan.inverse_reduced_ion_mobility
+        return irim if irim is not None else scan.ion_mobility_drift_time
 
 
 @dataclass(frozen=True, repr=False)
@@ -777,9 +799,13 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
 
     @property
     def has_im(self) -> bool:
-        """Return True if any ion mobility binary array is present in this spectrum."""
+        """Return True if this spectrum carries ion mobility data — either as a binary array
+        (e.g. combined-IM frames) or as a scan-level cvParam (e.g. Bruker timsTOF PASEF MS2)."""
         for barray in self.binary_arrays:
             if barray.binary_array_type in ION_MOBILITIES:
+                return True
+        for scan in self.scans:
+            if scan.inverse_reduced_ion_mobility is not None or scan.ion_mobility_drift_time is not None:
                 return True
         return False
 

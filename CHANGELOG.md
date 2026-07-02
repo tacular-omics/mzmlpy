@@ -13,6 +13,9 @@ affect existing code (see **Changed**), hence the major version bump.
 
 - **`llms.txt`** — a compact, accurate usage guide for AI coding assistants (installation, core
   API, gotchas, and the meaning of error messages), so LLMs generate correct mzmlpy code.
+- **Scan-level ion mobility** — `Scan.inverse_reduced_ion_mobility` / `Scan.ion_mobility_drift_time`
+  and a spectrum-level `Spectrum.ion_mobility`. `has_im` now also detects scan-level mobility
+  (Bruker timsTOF PASEF MS2), which previously reported `has_im=False` despite mobility being present.
 - **`Product.isolation_window`** — products now expose their isolation window (like precursors).
 - **`referenceableParamGroupRef` resolution.** CV terms a spectrum or scan inherits from a
   referenced parameter group (e.g. polarity via `MS:1000130`) are now resolved onto the element,
