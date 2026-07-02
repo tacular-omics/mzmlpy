@@ -43,7 +43,7 @@ in `tests/data/`. The throughput and gzip groups need a large file, which is not
 ## Results
 
 Measured on Python 3.12 / Linux with:
-`mzmlpy==0.4.0`, `pyteomics==5.0`, `pymzml==2.6.1`, `psims==1.3.6`, `lxml==6.1.1`,
+`mzmlpy==0.5.0`, `pyteomics==5.0`, `pymzml==2.6.1`, `psims==1.3.6`, `lxml==6.1.1`,
 `numpy==2.4.2`, `pynumpress==0.0.9`, `rapidgzip==0.16.0`.
 
 ### Format support & correctness (`tests/data` corpus)
@@ -68,17 +68,19 @@ peaks with no error.
 
 | operation | mzmlpy | pyteomics | pymzml |
 |---|---|---|---|
-| index + count | **0.076 s** | 0.96 s | n/a¹ |
-| full decode (all spectra) | 1.01 s | 1.69 s | **0.75 s** |
-| random 8 reads (non-monotonic) | **0.079 s** | 0.57 s | n/a¹ |
+| index + count | **0.077 s** | 0.54 s | n/a¹ |
+| full decode (all spectra) | 0.96 s | 1.88 s | **0.85 s** |
+| random 5 reads | **0.098 s** | 0.14 s | n/a¹ |
 
 ¹ pymzml decodes binary during iteration and exposes no cheap index-only / by-index path.
 
-All three agree to the last digit on peak count and intensity sum. mzmlpy indexes **~13×**
-faster than pyteomics and does random access **~7×** faster (its lazy-loading design), while
-full-decode throughput is competitive — ~1.7× faster than pyteomics, ~25% behind pymzml's
-sequential-streaming path. (Exact ratios vary run to run with system load; the ordering is
-stable.)
+All three agree to the last digit on peak count and intensity sum. mzmlpy indexes **~7×** faster
+than pyteomics (its lazy design counts/indexes without decoding), full decode is competitive
+(~2× faster than pyteomics, ~15% behind pymzml's sequential-streaming path), and random access is
+modestly faster than pyteomics once both readers' indices are warm. (Ratios vary run to run with
+system load and cache warmth — an early cold run showed pyteomics random access ~1 s; the fair
+min-of-3 figure above is ~0.14 s. Ordering is stable; the decisive differences are format
+coverage and gzip handling below, not raw speed.)
 
 ### Gzip handling
 
