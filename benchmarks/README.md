@@ -68,19 +68,30 @@ peaks with no error.
 
 | operation | mzmlpy | pyteomics | pymzml |
 |---|---|---|---|
-| index + count | **0.077 s** | 0.54 s | n/a¹ |
-| full decode (all spectra) | 0.96 s | 1.88 s | **0.85 s** |
-| random 5 reads | **0.098 s** | 0.14 s | n/a¹ |
+| index + count | 0.066 s | 0.57 s | **0.006 s**¹ |
+| full decode (all spectra) | 0.82 s | 1.59 s | **0.70 s** |
+| random 8 reads | **0.090 s** | 0.56 s | ❌ crash² |
 
-¹ pymzml decodes binary during iteration and exposes no cheap index-only / by-index path.
+¹ pymzml reads the `spectrumList count="N"` attribute directly — genuinely the cheapest of the
+three for a bare count, since it doesn't even build a byte-offset index. mzmlpy's "index + count"
+does build its random-access index as part of opening, which is why the plain count is a bit more
+expensive but random access afterward is fast (see next row).
 
-All three agree to the last digit on peak count and intensity sum. mzmlpy indexes **~7×** faster
-than pyteomics (its lazy design counts/indexes without decoding), full decode is competitive
-(~2× faster than pyteomics, ~15% behind pymzml's sequential-streaming path), and random access is
-modestly faster than pyteomics once both readers' indices are warm. (Ratios vary run to run with
-system load and cache warmth — an early cold run showed pyteomics random access ~1 s; the fair
-min-of-3 figure above is ~0.14 s. Ordering is stable; the decisive differences are format
-coverage and gzip handling below, not raw speed.)
+² pymzml **does** support indexed random access (`run[native_id]`) and worked correctly on the
+small canonical `tests/data/example.mzML` file. On this real 48 MB file (produced by
+ThermoRawFileParser) every indexed lookup raised
+`AttributeError: 'NoneType' object has no attribute 'obo_translator'` — its internal index/offset
+lookup returned `None` for a native id it had itself just listed as present, reproducibly, even
+after forcing `build_index_from_scratch=True`. This looks like a pymzml bug parsing its offset
+index for this file's id/index format, not a missing feature — flagging it rather than hiding it
+as "n/a" is the honest result.
+
+All three agree to the last digit on peak count and intensity sum where pymzml could decode at
+all. Full-decode throughput is close across all three (mzmlpy competitive with pymzml's
+sequential-streaming path, both faster than pyteomics); mzmlpy's random access is fast and
+reliable, pyteomics's is slower but reliable, and pymzml's crashed on this real-world file.
+(Absolute numbers vary run to run with system load; ordering is stable. The decisive
+differentiators remain format coverage and gzip handling below, not raw speed.)
 
 ### Gzip handling
 

@@ -175,6 +175,27 @@ def pymzml_decode(path: str) -> tuple[int, float]:
     return _summ(pairs(pymzml.run.Reader(path)))
 
 
+def pymzml_index(path: str) -> int:
+    import pymzml
+
+    run = pymzml.run.Reader(path)
+    return run.get_spectrum_count()
+
+
+def pymzml_random(path: str) -> int:
+    # pymzml supports indexed random access via run[native_id] (native_id is the integer scan
+    # number for typical vendor ids, read from the file's built-in index or rebuilt from scratch).
+    import pymzml
+
+    run = pymzml.run.Reader(path)
+    ids = sorted(k for k in run.info["file_object"].offset_dict if isinstance(k, int))
+    c = 0
+    for i in _random_order(len(ids)):
+        mz = run[ids[i]].mz
+        c += 0 if mz is None else len(mz)
+    return c
+
+
 # --------------------------------------------------------------------- table render
 def fmt_secs(dt: float | None, payload: Any) -> str:
     if dt is None:
@@ -230,6 +251,7 @@ def group_throughput(plain: Path, libs: set[str], repeats: int) -> None:
             {
                 "mzmlpy": lambda: mzmlpy_index(str(plain)),
                 "pyteomics": lambda: pyteomics_index(str(plain)),
+                "pymzml": lambda: pymzml_index(str(plain)),
             },
         ),
         (
@@ -241,10 +263,11 @@ def group_throughput(plain: Path, libs: set[str], repeats: int) -> None:
             },
         ),
         (
-            "random 5 reads",
+            f"random {len(_random_order(999))} reads",
             {
                 "mzmlpy": lambda: mzmlpy_random(str(plain)),
                 "pyteomics": lambda: pyteomics_random(str(plain)),
+                "pymzml": lambda: pymzml_random(str(plain)),
             },
         ),
     ]
