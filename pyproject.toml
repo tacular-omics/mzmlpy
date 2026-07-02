@@ -1,6 +1,6 @@
 [project]
 name = "mzmlpy"
-version = "0.4.0"
+version = "5.0.0"
 description = "A lightweight Python library for parsing mzML mass spectrometry files."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -14,7 +14,7 @@ maintainers = [
     { name = "Patrick Garrett", email = "pgarrett@scripps.edu" }
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
     "Programming Language :: Python :: 3.12",

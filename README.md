@@ -89,6 +89,14 @@ Benchmarked on a real-world DDA file (33,535 spectra, first-open cold start, wit
 For full usage examples see the **[Getting Started guide](https://tacular-omics.github.io/mzmlpy/getting-started/)** and **[API Reference](https://tacular-omics.github.io/mzmlpy/api/mzml/)**.
 
 
+## Benchmarks
+
+`benchmarks/` contains a reproducible harness comparing mzmlpy against
+[pyteomics](https://github.com/levitsky/pyteomics) and [pymzml](https://github.com/pymzml/pymzML)
+on compression-format support, throughput, and gzip handling. See
+[`benchmarks/README.md`](benchmarks/README.md) for how to run it and current results.
+
+
 ## Development
 
 ```bash
