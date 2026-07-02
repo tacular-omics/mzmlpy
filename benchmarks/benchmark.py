@@ -124,6 +124,14 @@ def mzmlpy_index(path: str, gzip_mode: str = "extract", in_memory: bool = True) 
         return len(r.spectra)
 
 
+def mzmlpy_peek_count(path: str) -> int | None:
+    # Cheap count with no random-access index built (mirrors pymzml's get_spectrum_count
+    # technique: stream to the <spectrumList count="N"> opening tag and stop).
+    from mzmlpy import peek_spectrum_count
+
+    return peek_spectrum_count(path)
+
+
 def mzmlpy_random(path: str, gzip_mode: str = "extract", in_memory: bool = True) -> int:
     from mzmlpy import Mzml
 
@@ -247,11 +255,17 @@ def group_throughput(plain: Path, libs: set[str], repeats: int) -> None:
     size_mb = plain.stat().st_size / 1048576
     ops = [
         (
-            "index + count",
+            "peek count only (no index)",
+            {
+                "mzmlpy": lambda: mzmlpy_peek_count(str(plain)),
+                "pymzml": lambda: pymzml_index(str(plain)),
+            },
+        ),
+        (
+            "index + count (random-access ready)",
             {
                 "mzmlpy": lambda: mzmlpy_index(str(plain)),
                 "pyteomics": lambda: pyteomics_index(str(plain)),
-                "pymzml": lambda: pymzml_index(str(plain)),
             },
         ),
         (

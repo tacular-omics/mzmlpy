@@ -10,6 +10,7 @@ from pathlib import Path
 from re import Match
 from typing import Any, Literal, Self
 
+from .constants import MzMLElement
 from .content import CVElement, MzMLContentBuilder, _MzMLContent
 from .elems import (
     DataProcessing,
@@ -25,7 +26,7 @@ from .file_interface import FileInterface
 from .lookup import ChromatogramLookup, SpectrumLookup
 from .regex_patterns import FILE_ENCODING_PATTERN
 from .spectra import Chromatogram
-from .util import gzip_open_binary
+from .util import get_tag, gzip_open_binary
 
 
 # Keep encoding detection methods
@@ -60,6 +61,35 @@ def _determine_file_encoding(path: str) -> str:
     else:
         with open(path, "rb") as sniffer:
             return _guess_encoding(sniffer)
+
+
+def peek_spectrum_count(file: str | Path) -> int | None:
+    """Return a file's spectrum count without building a random-access index.
+
+    Unlike ``Mzml(file).spectrum_count``, this does not construct a reader or index every
+    spectrum's byte offset — it streams forward just far enough to read the
+    ``<spectrumList count="N">`` opening tag's ``count`` attribute (typically a few KB into the
+    file, well before the header content is complete) and stops. Useful for cheaply checking many
+    files (e.g. before deciding which to open fully). Returns ``None`` if the file has no
+    ``spectrumList`` or the tag has no ``count`` attribute.
+
+    Note:
+        There is no equally cheap ``peek_chromatogram_count``: per the mzML schema,
+        ``chromatogramList`` follows ``spectrumList``, so reaching its opening tag requires
+        streaming past the entire spectrum list first — at that point building the full index
+        via :class:`Mzml` is a better fit than a "peek."
+    """
+    path_str = str(file)
+    is_gz = path_str.endswith(".gz") or path_str.endswith(".igz")
+    file_handle = gzip_open_binary(path_str) if is_gz else open(path_str, "rb")
+    try:
+        for _event, element in ElementTree.iterparse(file_handle, events=("start",)):
+            if get_tag(element) == MzMLElement.SPECTRUM_LIST:
+                count = element.attrib.get("count")
+                return int(count) if count is not None else None
+        return None
+    finally:
+        file_handle.close()
 
 
 class Mzml:

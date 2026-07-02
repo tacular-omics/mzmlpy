@@ -11,6 +11,10 @@ affect existing code (see **Changed**).
 
 ### Added
 
+- **`peek_spectrum_count(file)`** — a standalone function that returns a file's spectrum count
+  without constructing a reader or building a random-access index: it streams to the
+  `<spectrumList count="N">` opening tag and stops. Useful for cheaply checking many files.
+  Works for `.mzML` and `.mzML.gz`. Returns `None` if there is no `spectrumList`.
 - **`llms.txt`** — a compact, accurate usage guide for AI coding assistants (installation, core
   API, gotchas, and the meaning of error messages), so LLMs generate correct mzmlpy code.
 - **`Spectrum.id_dict` / `Chromatogram.id_dict`** — parse the native id into its `key=value`

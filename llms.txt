@@ -31,6 +31,15 @@ with Mzml("run.mzML") as reader:
             print(spectrum.id, f"MS{spectrum.ms_level}", len(mz), "peaks")
 ```
 
+To cheaply check a spectrum count across many files without opening each fully (no index built,
+no random access needed), use the standalone function instead of constructing a reader:
+
+```python
+from mzmlpy import peek_spectrum_count
+
+n = peek_spectrum_count("run.mzML")  # int | None; works for .mzML and .mzML.gz
+```
+
 `reader.spectra` and `reader.chromatograms` are lookup objects supporting:
 
 ```python

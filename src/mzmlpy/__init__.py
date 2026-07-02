@@ -24,7 +24,7 @@ from .elems import (
     UserParam,
 )
 from .lookup import ChromatogramLookup, SpectrumLookup
-from .run import Mzml
+from .run import Mzml, peek_spectrum_count
 from .spectra import (
     Activation,
     BinaryDataArray,
@@ -42,6 +42,7 @@ from .util import clear_cache
 __all__ = [
     "__version__",
     "Mzml",
+    "peek_spectrum_count",
     "clear_cache",
     "SpectrumLookup",
     "ChromatogramLookup",

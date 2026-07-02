@@ -68,16 +68,23 @@ peaks with no error.
 
 | operation | mzmlpy | pyteomics | pymzml |
 |---|---|---|---|
-| index + count | 0.066 s | 0.57 s | **0.006 s**¹ |
-| full decode (all spectra) | 0.82 s | 1.59 s | **0.70 s** |
-| random 8 reads | **0.090 s** | 0.56 s | ❌ crash² |
+| peek count only (no index) | **0.000 s**¹ | n/a² | 0.007 s |
+| index + count (random-access ready) | 0.076 s | 0.78 s | n/a² |
+| full decode (all spectra) | 0.86 s | 1.74 s | **0.74 s** |
+| random 8 reads | **0.092 s** | 0.74 s | ❌ crash³ |
 
-¹ pymzml reads the `spectrumList count="N"` attribute directly — genuinely the cheapest of the
-three for a bare count, since it doesn't even build a byte-offset index. mzmlpy's "index + count"
-does build its random-access index as part of opening, which is why the plain count is a bit more
-expensive but random access afterward is fast (see next row).
+¹ pymzml's `get_spectrum_count()` reads the `spectrumList count="N"` attribute directly — no
+byte-offset index, no reader construction — and is genuinely the cheapest way to *just* get a
+count. mzmlpy replicates the same trick via the standalone `peek_spectrum_count(path)` function
+(not the `Mzml` class): stream to the same opening tag and stop. It comes out at least as fast
+here. This is a different operation from the row below — it does not leave you with any way to
+access a spectrum afterward.
 
-² pymzml **does** support indexed random access (`run[native_id]`) and worked correctly on the
+² pyteomics has no cheap count-only path (opening a reader is essentially as expensive as
+building the index below); pymzml has no cheap way to also get random-access-ready indexing
+without hitting the bug in note 3.
+
+³ pymzml **does** support indexed random access (`run[native_id]`) and worked correctly on the
 small canonical `tests/data/example.mzML` file. On this real 48 MB file (produced by
 ThermoRawFileParser) every indexed lookup raised
 `AttributeError: 'NoneType' object has no attribute 'obo_translator'` — its internal index/offset

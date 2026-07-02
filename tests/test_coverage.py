@@ -6,7 +6,7 @@ import warnings
 import numpy as np
 import pytest
 
-from mzmlpy import Mzml
+from mzmlpy import Mzml, peek_spectrum_count
 
 EXAMPLE = "tests/data/example.mzML"
 EXAMPLE_GZ = "tests/data/example.mzML.gz"
@@ -118,6 +118,29 @@ def test_ion_mobility_faims_ccs_and_products(tmp_path):
 
 
 # ------------------------------------------------------------------ decoder encode round-trips
+@pytest.mark.parametrize("filename", [EXAMPLE, EXAMPLE_GZ])
+def test_peek_spectrum_count_matches_real_count(filename):
+    """peek_spectrum_count must agree with the fully-indexed reader's count, for both plain and
+    gzipped files, without building a Mzml reader at all."""
+    with Mzml(filename) as r:
+        real_count = len(r.spectra)
+    assert peek_spectrum_count(filename) == real_count == 4
+
+
+def test_peek_spectrum_count_missing_spectrum_list(tmp_path):
+    """A file with no spectrumList (e.g. chromatogram-only) returns None, not an error."""
+    doc = (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<indexedmzML xmlns="http://psi.hupo.org/ms/mzml"><mzML><run id="r">'
+        '<chromatogramList count="1"><chromatogram index="0" id="tic" defaultArrayLength="0">'
+        '<cvParam cvRef="MS" accession="MS:1000235" name="total ion current chromatogram" value=""/>'
+        "</chromatogram></chromatogramList></run></mzML></indexedmzML>"
+    )
+    path = tmp_path / "no_spectra.mzML"
+    path.write_text(doc, encoding="utf-8")
+    assert peek_spectrum_count(str(path)) is None
+
+
 def test_id_dict_parses_native_ids():
     with Mzml(EXAMPLE) as r:
         d = r.spectra[0].id_dict
