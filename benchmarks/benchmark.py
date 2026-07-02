@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import gc
 import gzip
+import os
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -35,6 +36,27 @@ import numpy as np
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CORPUS = REPO_ROOT / "tests" / "data"
+
+
+def purge_mzmlpy_caches(gz: Path) -> None:
+    """Remove *all* mzmlpy on-disk caches so a 'cold start' is genuinely cold.
+
+    ``clear_cache()`` only clears the tmp extract directory; the ``indexed`` mode also writes
+    ``.gzidx`` / ``.mzidx`` seek/offset indices (and their ``.src`` signature sidecars) next to the
+    ``.gz`` file, which would otherwise make a re-run's "cold" startup actually warm.
+    """
+    from mzmlpy import clear_cache
+
+    clear_cache()
+    p = str(gz)
+    sidecars = [p + "idx", p.removesuffix(".gz") + "idx"]  # X.mzML.gzidx, X.mzMLidx
+    for base in list(sidecars):
+        sidecars.append(base + ".src")
+    for sidecar in sidecars:
+        try:
+            os.remove(sidecar)
+        except FileNotFoundError:
+            pass
 
 # The re-encoded corpus: same spectra, different binary encodings. Reference sum is
 # the lossless zlib value; numpress-slof is lossy and only expected to match closely.
@@ -252,11 +274,9 @@ def group_gzip(gz: Path, libs: set[str], repeats: int) -> None:
     # These differences only appear with in_memory=False: the default in_memory=True buffers the
     # whole file in RAM after open, so all three modes then behave identically. We benchmark the
     # memory-constrained case, which is the only one where the mode choice actually matters.
-    from mzmlpy import clear_cache
-
     mode_rows = []
     for mode in ("extract", "indexed", "stream"):
-        clear_cache()
+        purge_mzmlpy_caches(gz)  # genuinely cold: also removes gzidx/mzidx sidecars, not just tmp
         startup, _ = best_of(lambda m=mode: mzmlpy_index(str(gz), gzip_mode=m, in_memory=False), repeats=1)
         rnd, _ = best_of(lambda m=mode: mzmlpy_random(str(gz), gzip_mode=m, in_memory=False), repeats=1)
         dec, out = best_of(lambda m=mode: mzmlpy_decode(str(gz), gzip_mode=m, in_memory=False), repeats=1)

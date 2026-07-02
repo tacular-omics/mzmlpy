@@ -109,9 +109,9 @@ memory-constrained case — measured here on a 232 MB `.mzML.gz` (76,501 spectra
   each read rescans from the top (49 s for 8 reads), and mzmlpy emits a warning telling you so.
 
 Full *sequential* decode is ~20 s regardless of mode — the mode differences live entirely in
-startup and random access. (Note: the harness's `clear_cache()` clears only the `extract` temp
-dir, not rapidgzip's on-disk seek index, so re-running shows `indexed`'s *cached* startup;
-delete the `*.index`/rapidgzip cache next to the file to re-measure its cold build.)
+startup and random access. Before each mode the harness purges **all** mzmlpy caches — the tmp
+`extract` directory *and* the `.gzidx`/`.mzidx` (+`.src`) index sidecars written next to the
+`.gz` file — so every startup figure is a genuine cold build, not a re-used index.
 
 ## Notes on fairness
 
