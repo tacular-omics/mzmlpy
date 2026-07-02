@@ -57,7 +57,11 @@ for s in reader.spectra: ... # iterate (memory-bounded; safe to collect into a l
 | `scan_start_time` | `timedelta \| None` | |
 | `ion_injection_time` | `timedelta \| None` | |
 | `lower_mz` / `upper_mz` | `float \| None` | scan-window limits |
+| `filter_string` | `str \| None` | instrument scan filter (e.g. Thermo) |
+| `ion_mobility` | `float \| None` | scan-level ion mobility (e.g. timsTOF 1/K0) |
 | `TIC` | `float \| None` | total ion current value for the spectrum |
+| `base_peak_mz` / `base_peak_intensity` | `float \| None` | base peak summary |
+| `lowest_observed_mz` / `highest_observed_mz` | `float \| None` | observed m/z range |
 | `precursors` | `list[Precursor]` | MSn precursor info |
 | `products` | `list[Product]` | |
 | `scans` | `list[Scan]` | |

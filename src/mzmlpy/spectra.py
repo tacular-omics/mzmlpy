@@ -367,12 +367,18 @@ class Scan(_ParamGroup):
     @property
     def inverse_reduced_ion_mobility(self) -> float | None:
         """Inverse reduced ion mobility (1/K0) for this scan (MS:1002815), e.g. Bruker timsTOF."""
-        return self.cv_float("MS:1002815")
+        return self.cv_float(SpectrumMSAccession.INVERSE_REDUCED_ION_MOBILITY)
 
     @property
     def ion_mobility_drift_time(self) -> float | None:
         """Ion mobility drift time for this scan (MS:1002476)."""
-        return self.cv_float("MS:1002476")
+        return self.cv_float(SpectrumMSAccession.ION_MOBILITY_DRIFT_TIME)
+
+    @property
+    def filter_string(self) -> str | None:
+        """Instrument filter string for this scan (MS:1000512), e.g. a Thermo scan filter."""
+        cv = self.get_cvparm(SpectrumMSAccession.FILTER_STRING)
+        return cv.value if cv is not None else None
 
 
 @dataclass(frozen=True)
@@ -505,6 +511,12 @@ class _ScanListMixin(_DataTreeWrapperProtocol):
             return None
         irim = scan.inverse_reduced_ion_mobility
         return irim if irim is not None else scan.ion_mobility_drift_time
+
+    @property
+    def filter_string(self) -> str | None:
+        """Scan filter string for this spectrum (from its single scan), if present."""
+        scan = self._first_scan("filter string")
+        return scan.filter_string if scan is not None else None
 
 
 @dataclass(frozen=True, repr=False)
@@ -879,6 +891,26 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
     def ms_level(self) -> int | None:
         """Get MS level for this spectrum."""
         return self.cv_int(SpectrumMSAccession.MS_LEVEL)
+
+    @property
+    def base_peak_mz(self) -> float | None:
+        """Base peak m/z for this spectrum (MS:1000504)."""
+        return self.cv_float(SpectrumMSAccession.BASE_PEAK_MZ)
+
+    @property
+    def base_peak_intensity(self) -> float | None:
+        """Base peak intensity for this spectrum (MS:1000505)."""
+        return self.cv_float(SpectrumMSAccession.BASE_PEAK_INTENSITY)
+
+    @property
+    def lowest_observed_mz(self) -> float | None:
+        """Lowest observed m/z for this spectrum (MS:1000528)."""
+        return self.cv_float(SpectrumMSAccession.LOWEST_OBSERVED_MZ)
+
+    @property
+    def highest_observed_mz(self) -> float | None:
+        """Highest observed m/z for this spectrum (MS:1000527)."""
+        return self.cv_float(SpectrumMSAccession.HIGHEST_OBSERVED_MZ)
 
 
 @dataclass(frozen=True)

@@ -16,6 +16,9 @@ affect existing code (see **Changed**).
 - **`Spectrum.id_dict` / `Chromatogram.id_dict`** — parse the native id into its `key=value`
   components (integers coerced to `int`), so `spectrum.id_dict["scan"]` gives the scan number
   directly across vendor formats (Thermo, Bruker, SCIEX).
+- **Spectrum/scan summary accessors** — `Spectrum.base_peak_mz`, `base_peak_intensity`,
+  `lowest_observed_mz`, `highest_observed_mz`, and `filter_string` (also `Scan.filter_string`),
+  exposing common cvParams that previously required manual `get_cvparm` lookups.
 - **Scan-level ion mobility** — `Scan.inverse_reduced_ion_mobility` / `Scan.ion_mobility_drift_time`
   and a spectrum-level `Spectrum.ion_mobility`. `has_im` now also detects scan-level mobility
   (Bruker timsTOF PASEF MS2), which previously reported `has_im=False` despite mobility being present.

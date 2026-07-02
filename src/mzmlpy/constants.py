@@ -136,6 +136,17 @@ class SpectrumMSAccession(StrEnum):
     SCAN_WINDOW_LOWER_LIMIT = "MS:1000501"
     SCAN_WINDOW_UPPER_LIMIT = "MS:1000500"
 
+    # spectrum summary values
+    BASE_PEAK_MZ = "MS:1000504"
+    BASE_PEAK_INTENSITY = "MS:1000505"
+    LOWEST_OBSERVED_MZ = "MS:1000528"
+    HIGHEST_OBSERVED_MZ = "MS:1000527"
+
+    # scan properties
+    FILTER_STRING = "MS:1000512"
+    INVERSE_REDUCED_ION_MOBILITY = "MS:1002815"
+    ION_MOBILITY_DRIFT_TIME = "MS:1002476"
+
 
 class BinaryDataArrayAccession(StrEnum):
     """Enumeration of binary data array accessions."""

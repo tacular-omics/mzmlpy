@@ -129,6 +129,17 @@ def test_id_dict_parses_native_ids():
         assert r.spectra[0].id_dict == {"frame": 1016, "scan": 1}
 
 
+def test_spectrum_summary_and_filter_accessors():
+    with Mzml(EXAMPLE) as r:
+        s = r.spectra[0]
+        assert s.base_peak_mz == 445.347
+        assert s.base_peak_intensity == 120053.0
+        assert s.lowest_observed_mz == 400.39
+        assert s.highest_observed_mz == 1795.56
+        assert s.filter_string == "+ c NSI Full ms [ 400.00-1800.00]"
+        assert s.scans[0].filter_string == s.filter_string
+
+
 def test_scan_level_ion_mobility_bruker():
     """timsTOF PASEF MS2 stores ion mobility as a scan cvParam (MS:1002815), not a binary array.
     has_im and ion_mobility must reflect it (has_im previously returned False for such spectra)."""
