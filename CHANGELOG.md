@@ -4,10 +4,10 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [5.0.0] - 2026-07-02
+## [0.5.0] - 2026-07-02
 
 A large correctness, robustness, and diagnostics release. Some behavior changed in ways that can
-affect existing code (see **Changed**), hence the major version bump.
+affect existing code (see **Changed**).
 
 ### Added
 
@@ -37,7 +37,7 @@ affect existing code (see **Changed**), hence the major version bump.
 
 ### Changed
 
-- **Version 5.0.0** and `Development Status :: 5 - Production/Stable`.
+- **Version 0.5.0.**
 - **`TIC`** is now located by its CV accession (`MS:1000235`) when the id is not literally `"TIC"`
   (e.g. `"tic"`); previously `reader.TIC` returned `None` for such files.
 - **Empty files** report a spectrum/chromatogram count of `0`; `len(reader.spectra)` no longer
@@ -72,4 +72,4 @@ affect existing code (see **Changed**), hence the major version bump.
 - **`MSDecoder.encode_linear` / `encode_slof`** now pass the required numpress fixed point (they
   raised `TypeError` before); encoding is functional.
 
-[5.0.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v5.0.0
+[0.5.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.5.0

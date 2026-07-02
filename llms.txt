@@ -3,7 +3,7 @@
 > mzmlpy is a lightweight, type-safe, lazy-loading Python library (3.12+) for reading mzML mass
 > spectrometry files. This file is written for AI coding assistants: it is a compact, accurate
 > reference for generating correct mzmlpy code. Everything below matches the public API as of
-> version 5.0.0. Only `numpy` is required at runtime.
+> version 0.5.0. Only `numpy` is required at runtime.
 
 ## Install
 

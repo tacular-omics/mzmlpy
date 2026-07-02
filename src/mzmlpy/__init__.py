@@ -1,4 +1,4 @@
-__version__ = "5.0.0"
+__version__ = "0.5.0"
 
 from .content import CVElement
 from .elems import (
