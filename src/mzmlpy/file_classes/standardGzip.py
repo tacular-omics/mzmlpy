@@ -3,7 +3,6 @@ from functools import cached_property
 from typing import TextIO
 from xml.etree.ElementTree import iterparse
 
-from .. import regex_patterns
 from ..util import gzip_open_text
 from .interface import MzmlInterface
 from .xml_tuple import ChromatogramElement, MzmlXMLElement, SpectrumElement
@@ -44,6 +43,12 @@ class StandardGzip(MzmlInterface):
 
         Raises:
             KeyError: If ID is not found.
+
+        Note:
+            Matching is on the full native id, consistent with every other reader mode. To look up
+            by a component such as the scan number, pass ``Mzml(spectrum_id_regex=r"scan=(\\d+)")``
+            and index with the extracted key (e.g. ``reader.spectra["19"]``), which resolves
+            identically across all modes.
         """
         warnings.warn(_STREAM_WARNING, stacklevel=2)
         if isinstance(identifier, int):
@@ -54,15 +59,8 @@ class StandardGzip(MzmlInterface):
         with self.get_file_handler(self._encoding) as fh:
             for event, element in iterparse(fh, events=["end"]):
                 if event == "end" and element.tag.endswith("}spectrum"):
-                    elem_id = element.get("id")
-                    if elem_id:
-                        # Direct string match
-                        if elem_id == identifier:
-                            return MzmlXMLElement(element=element, element_type="spectrum")
-                        # Try numeric ID extraction (pattern works on strings)
-                        match = regex_patterns.SPECTRUM_ID_PATTERN.search(elem_id)
-                        if match and match.group(1) == identifier:
-                            return MzmlXMLElement(element=element, element_type="spectrum")
+                    if element.get("id") == identifier:
+                        return MzmlXMLElement(element=element, element_type="spectrum")
 
         raise KeyError(f"Spectrum ID {identifier} not found in file")
 

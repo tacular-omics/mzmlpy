@@ -326,11 +326,26 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
                 for m in chromexp.finditer(chunk):
                     key = m.group(1).decode("utf-8")
                     value = offset + m.start()
+                    # A different offset for the same id is a genuine duplicate (not just the same
+                    # match re-seen across the overlapping lookback window), so warn rather than
+                    # silently drop it — mirroring the footer-index path's duplicate handling.
+                    if key in chrom_positions and chrom_positions[key] != value:
+                        warnings.warn(
+                            f"Duplicate chromatogram id {key!r} while building index from scratch; "
+                            "keeping the last occurrence.",
+                            stacklevel=2,
+                        )
                     chrom_positions[key] = value
 
                 for m in specexp.finditer(chunk):
                     key = m.group(1).decode("utf-8")
                     value = offset + m.start()
+                    if key in spec_positions and spec_positions[key] != value:
+                        warnings.warn(
+                            f"Duplicate spectrum id {key!r} while building index from scratch; "
+                            "keeping the last occurrence.",
+                            stacklevel=2,
+                        )
                     spec_positions[key] = value
 
                 m = chromcntexp.search(chunk)

@@ -57,6 +57,21 @@ affect existing code (see **Changed**).
 - **`_Param.to_timedelta`** returns `None` for non-time / non-numeric parameters instead of raising.
 - Scan-list accessors (`scan_start_time`, `lower_mz`, `upper_mz`, `ion_injection_time`) warn only
   for genuinely multiple scans, and return `None` (not raise) for an empty scan list.
+- **`reader.spectra` / `reader.chromatograms`** now return the same lookup instance across accesses,
+  so `reader.spectra.next()` in a loop advances the cursor (instead of restarting at the first
+  spectrum) and a regex `id_map` is built once instead of on every access.
+- **File-like input** is now fully supported: `Mzml(...)` accepts any binary file-like object
+  (not only `BytesIO`), and a gzip-compressed stream is decompressed transparently. An unsupported
+  input type raises a clear `TypeError`.
+- **`gzip_mode`** now warns when it is silently overridden by the default `in_memory=True` (which
+  decompresses the whole file into memory); pass `in_memory=False` to use `"indexed"`/`"stream"`.
+- **Spectrum id lookup is now consistent across every reader mode.** `gzip_mode="stream"` previously
+  matched a bare trailing number against the native id (so `reader.spectra["19"]` could resolve
+  `scan=19` — or silently return the *wrong* spectrum when the trailing number was ambiguous, e.g.
+  `experiment=1` or a per-frame `scan=1`), while all other modes required the full native id. Stream
+  mode now matches on the full native id like every other mode. To look up by a component such as the
+  scan number, use `Mzml(spectrum_id_regex=r"scan=(\d+)")` and index with the extracted key — this
+  resolves identically in all modes.
 
 ### Fixed
 
@@ -72,6 +87,18 @@ affect existing code (see **Changed**).
 - **Decoder:** `unshuffle` silently produced scrambled output on a length not a multiple of the
   element size (now raises); dictionary-encoded zstd raised `ZeroDivisionError` on an empty array
   (now returns an empty array).
+- **Dictionary-encoded zstd** (`MS:1003782`) sized the value table from the output count instead of
+  the header's index offset, silently returning garbage whenever there were fewer unique values
+  than output points; it now uses the header offset and decodes correctly.
+- **Native-id parsing** (`id_dict`) coerced values like `"007"` and `"1_000"` to `7` / `1000`,
+  losing information that no longer matched the on-disk id; such values now stay strings (only
+  round-trip-safe integers are coerced).
+- **`Activation.collision_gas`** returned `None` for the usual valueless `MS:1000419` flag; it now
+  returns the term name (or value when present).
+- **Duplicate native ids** encountered while building an index from scratch now emit a warning
+  (matching the footer-index path) instead of being silently dropped.
+- **`peek_spectrum_count`** no longer accumulates the whole element tree in memory for a file that
+  has no `spectrumList`.
 - **Caches** are written atomically and validated against a source size+mtime signature, so an
   interrupted write or a restored (older) source no longer yields a stale/corrupt cache.
 - **`FileDescription.get_source_file(id)`** now matches the source file's `id` attribute (it
@@ -79,4 +106,64 @@ affect existing code (see **Changed**).
 - **`MSDecoder.encode_linear` / `encode_slof`** now pass the required numpress fixed point (they
   raised `TypeError` before); encoding is functional.
 
+## [0.4.0] - 2026-04-07
+
+### Added
+
+- **`gzip_mode` parameter** on `Mzml` for controlling how `.mzML.gz` files are read:
+  - `"extract"` (default) — decompress to a cached file under `<tmpdir>/mzmlpy/` for full random
+    access; cache persists across sessions.
+  - `"indexed"` — seekable access to the compressed file via `rapidgzip`, with no extraction.
+    Requires `pip install mzmlpy[rapidgzip]`.
+  - `"stream"` — sequential streaming with no index; lowest startup cost, but random access scans
+    from the beginning and emits a warning.
+- **`rapidgzip` integration** for parallel gzip decompression. New optional extra:
+  `pip install mzmlpy[rapidgzip]`.
+- Cached gzip seek index (`.gzidx`) and mzML offset index (`.mzidx`) as sidecar files alongside
+  `.gz` files for instant startup on subsequent opens.
+- **`extract_dir` parameter** on `Mzml` for choosing a custom extraction directory.
+- **`clear_cache()`** added to the public API for reclaiming extracted-cache disk space before the
+  OS clears the temp directory.
+- Byte-shuffled zstd and dictionary-encoded zstd decompression support.
+- Verified compatibility with Bruker timsTOF mzML files; added a dedicated test suite covering
+  them.
+
+### Fixed
+
+- Raise a clear `ImportError` when `rapidgzip` is missing for `gzip_mode="indexed"`.
+- Dictionary-encoded zstd now uses the actual dtype instead of guessing it from the buffer size.
+- Fixed several `pynumpress` API compatibility issues.
+
+## [0.2.0] - 2026-03-16
+
+### Changed
+
+- **Breaking:** renamed `lower_limit` / `upper_limit` → `lower_mz` / `upper_mz` on `ScanWindow`,
+  `Scan`, and `Spectrum`.
+- **Breaking:** renamed `lower_scan_window_limit` / `upper_scan_window_limit` → `lower_mz` /
+  `upper_mz` on `Scan`.
+
+### Added
+
+- **`ION_MOBILITIES`** constant set grouping all ion mobility `BinaryDataArrayAccession` values.
+- **`Spectrum.charge`** — charge array as a numpy array (or `None`).
+- **`Spectrum.has_im`** — `True` if the spectrum contains any ion mobility binary array.
+- **`Spectrum.im_types`** — set of `BinaryDataArrayAccession` values present for ion mobility.
+- **`Spectrum.scan_start_time`** — delegates to the first scan's `scan_start_time`.
+- **`Spectrum.ion_injection_time`** — delegates to the first scan's `ion_injection_time`.
+
+### Fixed
+
+- Polarity accessions — `ScanPolarity.POSITIVE` and `ScanPolarity.NEGATIVE` were swapped, causing
+  incorrect polarity identification for all spectra.
+
+## [0.1.0] - 2026-02-10
+
+### Added
+
+- First release on PyPI.
+
 [0.5.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.5.0
+[0.4.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.4.0
+[0.2.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.2.0
+[0.1.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.1.0

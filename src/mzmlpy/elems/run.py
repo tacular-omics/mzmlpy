@@ -11,22 +11,27 @@ class Run(_ParamGroup):
 
     @property
     def id(self) -> str | None:
+        """Get the run's ``id`` attribute."""
         return self.get_attribute("id")
 
     @property
     def default_instrument_configuration_ref(self) -> str | None:
+        """Get the ``id`` of the default instrument configuration for this run, if present."""
         return self.get_attribute("defaultInstrumentConfigurationRef")
 
     @property
     def default_source_file_ref(self) -> str | None:
+        """Get the ``id`` of the default source file for this run, if present."""
         return self.get_attribute("defaultSourceFileRef")
 
     @property
     def sample_ref(self) -> str | None:
+        """Get the ``id`` of the sample analyzed in this run, if present."""
         return self.get_attribute("sampleRef")
 
     @property
     def start_time_stamp(self) -> datetime.datetime | None:
+        """Get the run's acquisition start time, if present and parseable."""
         # example: 2007-06-27T15:23:45.00035
         start_time_stamp_str = self.get_attribute("startTimeStamp")
         if start_time_stamp_str is None:

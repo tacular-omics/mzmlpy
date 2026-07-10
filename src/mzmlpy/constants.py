@@ -331,3 +331,34 @@ class CollisionDissociationTypeAccession(StrEnum):
     LIFT = "MS:1002000"
     ELECTRON_TRANSFER_DISSOCIATION = "MS:1000598"
     NEGATIVE_ELECTRON_TRANSFER_DISSOCIATION = "MS:1003247"
+
+
+class IsolationWindowAccession(StrEnum):
+    """Enumeration of isolation window accessions."""
+
+    TARGET_MZ = "MS:1000827"
+    LOWER_OFFSET = "MS:1000828"
+    UPPER_OFFSET = "MS:1000829"
+
+
+class SelectedIonAccession(StrEnum):
+    """Enumeration of selected ion accessions."""
+
+    SELECTED_ION_MZ = "MS:1000744"
+    PEAK_INTENSITY = "MS:1000042"
+    CHARGE_STATE = "MS:1000041"
+    INVERSE_REDUCED_ION_MOBILITY = "MS:1002815"
+    ION_MOBILITY_DRIFT_TIME = "MS:1002476"
+    FAIMS_VOLTAGE_START = "MS:1003450"
+    FAIMS_VOLTAGE_END = "MS:1003451"
+    COLLISIONAL_CROSS_SECTION = "MS:1002954"
+
+
+class ActivationAccession(StrEnum):
+    """Enumeration of precursor activation accessions."""
+
+    ACTIVATION_ENERGY = "MS:1000509"
+    COLLISION_ENERGY = "MS:1000045"
+    SUPPLEMENTAL_COLLISION_ENERGY = "MS:1002680"
+    COLLISION_GAS = "MS:1000419"
+    COLLISION_GAS_PRESSURE = "MS:1000869"

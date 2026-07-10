@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="logo.png" alt="MZMLpy Logo" width="400" style="margin: 20px;"/>
+  <img src="https://raw.githubusercontent.com/tacular-omics/mzmlpy/main/logo.png" alt="MZMLpy Logo" width="400" style="margin: 20px;"/>
 
   A lightweight Python library for parsing mzML mass spectrometry files. Implements a type-safe, lazy-loading API with direct support for modern mzML structures (>= 1.1.0).
 

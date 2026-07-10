@@ -91,6 +91,9 @@ for prec in spectrum.precursors:
         ion.charge_state                 # int | None
         ion.peak_intensity               # float | None
     prec.activation                      # Activation | None -> .activation_type, .ce, ...
+
+for prod in spectrum.products:
+    win = prod.isolation_window          # IsolationWindow | None -> .target_mz, .lower_offset, .upper_offset
 ```
 
 ## Chromatograms

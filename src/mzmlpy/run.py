@@ -83,10 +83,16 @@ def peek_spectrum_count(file: str | Path) -> int | None:
     is_gz = path_str.endswith(".gz") or path_str.endswith(".igz")
     file_handle = gzip_open_binary(path_str) if is_gz else open(path_str, "rb")
     try:
-        for _event, element in ElementTree.iterparse(file_handle, events=("start",)):
-            if get_tag(element) == MzMLElement.SPECTRUM_LIST:
-                count = element.attrib.get("count")
-                return int(count) if count is not None else None
+        # Read the count off the spectrumList *start* tag, but clear completed elements on their
+        # *end* events so that a file with no spectrumList doesn't accumulate the whole tree in
+        # memory before returning None.
+        for event, element in ElementTree.iterparse(file_handle, events=("start", "end")):
+            if event == "start":
+                if get_tag(element) == MzMLElement.SPECTRUM_LIST:
+                    count = element.attrib.get("count")
+                    return int(count) if count is not None else None
+            else:
+                element.clear()
         return None
     finally:
         file_handle.close()
@@ -144,6 +150,8 @@ class Mzml:
         """Initialize Mzml and parse metadata."""
         self._spectrum_id_regex = spectrum_id_regex
         self._chromatogram_id_regex = chromatogram_id_regex
+        self._spectra_lookup: SpectrumLookup | None = None
+        self._chromatograms_lookup: ChromatogramLookup | None = None
         self._path: Path | None = None
         file_interface_arg: Any
 
@@ -154,8 +162,15 @@ class Mzml:
             self._encoding = _determine_file_encoding(path_str)
             file_interface_arg = path_str
         else:
-            # File-like object
-            if hasattr(file, "name"):
+            # File-like object — must be a readable binary stream. Validate up front so an
+            # unsupported input (e.g. an int) raises a clear TypeError instead of an opaque
+            # AttributeError from encoding sniffing below.
+            if not (hasattr(file, "read") and hasattr(file, "readline")):
+                raise TypeError(
+                    f"Unsupported input type {type(file).__name__!r}: expected a path (str/Path) "
+                    "or a readable binary file-like object."
+                )
+            if hasattr(file, "name") and isinstance(file.name, str):
                 self._path = Path(file.name)
             self._encoding = _guess_encoding(file)
             file_interface_arg = file
@@ -221,13 +236,27 @@ class Mzml:
 
     @property
     def spectra(self) -> SpectrumLookup:
-        """Access spectra lookup."""
-        return SpectrumLookup(file_object=self._file_object, id_regex=self._spectrum_id_regex)
+        """Access spectra lookup.
+
+        Returns the same lookup instance across calls so its ``next()``/``reset()`` cursor and
+        regex ``_id_map`` persist — ``reader.spectra.next()`` in a loop advances instead of
+        restarting, and ID lookups don't re-scan the file on every access.
+        """
+        if self._spectra_lookup is None:
+            self._spectra_lookup = SpectrumLookup(file_object=self._file_object, id_regex=self._spectrum_id_regex)
+        return self._spectra_lookup
 
     @property
     def chromatograms(self) -> ChromatogramLookup:
-        """Access chromatograms lookup."""
-        return ChromatogramLookup(file_object=self._file_object, id_regex=self._chromatogram_id_regex)
+        """Access chromatograms lookup.
+
+        Returns the same lookup instance across calls (see :meth:`spectra`).
+        """
+        if self._chromatograms_lookup is None:
+            self._chromatograms_lookup = ChromatogramLookup(
+                file_object=self._file_object, id_regex=self._chromatogram_id_regex
+            )
+        return self._chromatograms_lookup
 
     @property
     def TIC(self) -> Chromatogram | None:

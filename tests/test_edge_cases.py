@@ -140,10 +140,16 @@ def test_duplicate_spectrum_ids(tmp_path):
         "</spectrumList></run>"
     )
     path = _write(tmp_path, "dupids.mzML", body)
-    with Mzml(path) as r:
+    # This file has no footer index, so building the index (from scratch, implicitly) must warn
+    # about the collision instead of silently keeping only one spectrum.
+    with pytest.warns(UserWarning, match="Duplicate spectrum id"):
+        r = Mzml(path, build_index_from_scratch=True)
+    try:
         # Iteration should still see both; count should reflect both.
         levels = [s.ms_level for s in r.spectra]
         assert len(levels) == 2
+    finally:
+        r.close()
 
 
 # --------------------------------------------------------------------- id_regex edge cases

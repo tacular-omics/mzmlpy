@@ -137,23 +137,28 @@ class MSDecoder:
         The decompressed layout is:
         [16-byte header] [byte-shuffled value table] [byte-shuffled index table]
 
-        The header contains two uint64 values: a byte offset and the element count.
+        The header contains two uint64 values: ``header[0]`` is the absolute byte offset
+        (from the start of the decompressed buffer) at which the index table begins — i.e. the
+        end of the value table — and ``header[1]`` is the number of output elements. The value
+        table holds the *unique* values, of which there can be fewer than the output count
+        (that is the whole point of dictionary encoding), so its size must come from the header
+        offset, not from the output count.
         """
         decompressed = cls.decode_ztsd(data)
         header = np.frombuffer(decompressed[:16], dtype=np.uint64)
+        index_offset = int(header[0])
         num_elements = int(header[1])
         if num_elements == 0:
             # Empty array: nothing to index (avoids a divide-by-zero on the index-size calc below).
             return np.array([], dtype=np.float64)
         element_size = dtype.itemsize
-        payload = decompressed[16:]
 
-        # Value table: num_elements * element_size bytes, byte-shuffled
-        value_data = cls.unshuffle(payload[: num_elements * element_size], element_size)
+        # Value table: unique values, from the end of the 16-byte header up to the index offset.
+        value_data = cls.unshuffle(decompressed[16:index_offset], element_size)
         values = np.frombuffer(value_data, dtype=dtype).astype(np.float64)
 
-        # Index table: remaining bytes, byte-shuffled by index element size
-        idx_data = payload[num_elements * element_size :]
+        # Index table: remaining bytes, byte-shuffled by index element size.
+        idx_data = decompressed[index_offset:]
         idx_size = len(idx_data) // num_elements
         if idx_size == 1:
             indices = np.frombuffer(idx_data, dtype=np.uint8)

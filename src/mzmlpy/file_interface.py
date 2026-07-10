@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """Interface for different mzML file formats."""
 
+import gzip
 import hashlib
 import logging
 import os
 import tempfile
+import warnings
 from collections.abc import Iterator
 from functools import cached_property
 from io import BytesIO
 from pathlib import Path
 from re import Pattern
-from typing import Literal, overload
+from typing import BinaryIO, Literal, overload
 from xml.etree import ElementTree as ET
 
 from .constants import ChromatogramTypeAccession
@@ -59,7 +61,7 @@ class FileInterface:
 
     def __init__(
         self,
-        path: str | Path | BytesIO,
+        path: str | Path | BinaryIO,
         encoding: str,
         build_index_from_scratch: bool = False,
         index_regex: Pattern[bytes] | None = None,
@@ -80,14 +82,27 @@ class FileInterface:
         """Close the internal file handler."""
         self.file_handler.close()
 
-    def _open(self, path_or_file: str | Path | BytesIO) -> MzmlInterface:
+    def _open(self, path_or_file: str | Path | BinaryIO) -> MzmlInterface:
         """Open appropriate file handler based on file type and format."""
-        # Handle BytesIO objects
-        if isinstance(path_or_file, BytesIO):
-            return BytesMzml(
-                path_or_file,
-                self.encoding,
-                self.build_index_from_scratch,
+        # Handle any binary file-like object (BytesIO or an open ``rb`` stream). Materialize its
+        # bytes into an in-memory buffer; if the stream is gzip-compressed, decompress it first so
+        # a handle opened on a ``.mzML.gz`` file is accepted transparently.
+        if not isinstance(path_or_file, str | Path):
+            if hasattr(path_or_file, "read"):
+                if isinstance(path_or_file, BytesIO):
+                    data = path_or_file.getvalue()
+                else:
+                    # Encoding sniffing (readline) may have advanced the stream, so rewind it if we
+                    # can before reading the whole thing; getvalue() above sidesteps this for BytesIO.
+                    if hasattr(path_or_file, "seek"):
+                        path_or_file.seek(0)
+                    data = path_or_file.read()
+                if data[:2] == b"\x1f\x8b":  # gzip magic number
+                    data = gzip.decompress(data)
+                return BytesMzml(BytesIO(data), self.encoding, self.build_index_from_scratch)
+            raise TypeError(
+                f"Unsupported input type {type(path_or_file).__name__!r}: expected a path (str/Path) "
+                "or a binary file-like object with a read() method."
             )
 
         # Convert Path to string
@@ -96,6 +111,14 @@ class FileInterface:
         # Handle in_memory mode - load entire file into memory
         if self.in_memory:
             if path.endswith(".gz"):
+                if self.gzip_mode != "extract":
+                    # "indexed"/"stream" exist to avoid holding the whole file in memory; in_memory
+                    # (the default) decompresses it all anyway, so the mode is a no-op here.
+                    warnings.warn(
+                        f"gzip_mode={self.gzip_mode!r} is ignored because in_memory=True decompresses the "
+                        f"entire file into memory. Pass in_memory=False to use gzip_mode={self.gzip_mode!r}.",
+                        stacklevel=2,
+                    )
                 # Decompress gzipped file into memory
                 content = gzip_decompress(path)
             else:

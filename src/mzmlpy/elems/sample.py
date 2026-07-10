@@ -9,6 +9,11 @@ class Sample(_ParamGroup):
 
     @property
     def id(self) -> str:
+        """Get the sample's ``id`` attribute.
+
+        Raises:
+            ValueError: If the ``id`` attribute is missing.
+        """
         id = self.get_attribute("id")
         if id is None:
             raise ValueError("Sample ID is missing")
@@ -16,6 +21,7 @@ class Sample(_ParamGroup):
 
     @property
     def name(self) -> str | None:
+        """Get the sample's name, if present."""
         name = self.get_attribute("name")
         return name if name else None
 

@@ -20,13 +20,16 @@ from numpy.typing import NDArray
 from .constants import (
     BINARY_DECODE_DTYPES,
     ION_MOBILITIES,
+    ActivationAccession,
     BinaryDataArrayAccession,
     BinaryDataTypeAccession,
     ChromatogramTypeAccession,
     CollisionDissociationTypeAccession,
     CompressionTypeAccessions,
+    IsolationWindowAccession,
     MzMLElement,
     ScanPolarity,
+    SelectedIonAccession,
     SpectrumCombinationAccession,
     SpectrumMSAccession,
     XMLElement,
@@ -77,7 +80,11 @@ def _parse_native_id(identifier: str) -> dict[str, int | str]:
         if not sep:
             continue
         try:
-            result[key] = int(value)
+            # Only coerce when the int round-trips exactly back to the original token, so values
+            # like "007" (leading zeros) or "1_000" (underscores) stay strings and keep matching
+            # the on-disk id instead of silently becoming 7 / 1000.
+            coerced = int(value)
+            result[key] = coerced if str(coerced) == value else value
         except ValueError:
             result[key] = value
     return result
@@ -529,17 +536,17 @@ class IsolationWindow(_ParamGroup):
     @property
     def target_mz(self) -> float | None:
         """Get isolation window target m/z for this precursor."""
-        return self.cv_float("MS:1000827")
+        return self.cv_float(IsolationWindowAccession.TARGET_MZ)
 
     @property
     def lower_offset(self) -> float | None:
         """Get isolation window lower offset for this precursor."""
-        return self.cv_float("MS:1000828")
+        return self.cv_float(IsolationWindowAccession.LOWER_OFFSET)
 
     @property
     def upper_offset(self) -> float | None:
         """Get isolation window upper offset for this precursor."""
-        return self.cv_float("MS:1000829")
+        return self.cv_float(IsolationWindowAccession.UPPER_OFFSET)
 
 
 @dataclass(frozen=True, repr=False)
@@ -553,42 +560,42 @@ class SelectedIon(_ParamGroup):
     @property
     def selected_ion_mz(self) -> float | None:
         """Get selected ion m/z for this precursor."""
-        return self.cv_float("MS:1000744")
+        return self.cv_float(SelectedIonAccession.SELECTED_ION_MZ)
 
     @property
     def peak_intensity(self) -> float | None:
         """Get peak intensity for this precursor."""
-        return self.cv_float("MS:1000042")
+        return self.cv_float(SelectedIonAccession.PEAK_INTENSITY)
 
     @property
     def charge_state(self) -> int | None:
         """Get charge state for this precursor."""
-        return self.cv_int("MS:1000041")
+        return self.cv_int(SelectedIonAccession.CHARGE_STATE)
 
     @property
     def ir_im(self) -> float | None:
         """Get inversion reduced ion mobility for this precursor."""
-        return self.cv_float("MS:1002815")
+        return self.cv_float(SelectedIonAccession.INVERSE_REDUCED_ION_MOBILITY)
 
     @property
     def im_drift_time(self) -> float | None:
         """Get ion mobility drift time for this precursor."""
-        return self.cv_float("MS:1002476")
+        return self.cv_float(SelectedIonAccession.ION_MOBILITY_DRIFT_TIME)
 
     @property
     def faims_voltage_start(self) -> float | None:
         """Get FAIMS voltage start for this precursor."""
-        return self.cv_float("MS:1003450")
+        return self.cv_float(SelectedIonAccession.FAIMS_VOLTAGE_START)
 
     @property
     def faims_voltage_end(self) -> float | None:
         """Get FAIMS voltage end for this precursor."""
-        return self.cv_float("MS:1003451")
+        return self.cv_float(SelectedIonAccession.FAIMS_VOLTAGE_END)
 
     @property
     def ccs(self) -> float | None:
         """Get collisional cross section for this precursor."""
-        return self.cv_float("MS:1002954")
+        return self.cv_float(SelectedIonAccession.COLLISIONAL_CROSS_SECTION)
 
 
 @dataclass(frozen=True, repr=False)
@@ -610,30 +617,35 @@ class Activation(_ParamGroup):
     @property
     def activation_energy(self) -> float | None:
         """Get activation energy for this precursor."""
-        return self.cv_float("MS:1000509")
+        return self.cv_float(ActivationAccession.ACTIVATION_ENERGY)
 
     @property
     def ce(self) -> float | None:
         """Get collision energy for this precursor."""
-        return self.cv_float("MS:1000045")
+        return self.cv_float(ActivationAccession.COLLISION_ENERGY)
 
     @property
     def supplemental_ce(self) -> float | None:
         """Get supplemental collision energy for this precursor."""
-        return self.cv_float("MS:1002680")
+        return self.cv_float(ActivationAccession.SUPPLEMENTAL_COLLISION_ENERGY)
 
     @property
     def collision_gas(self) -> str | None:
-        """Get collision gas for this precursor."""
-        cv = self.get_cvparm("MS:1000419")
-        if cv is not None and cv.value is not None:
-            return cv.name
-        return None
+        """Get collision gas for this precursor.
+
+        ``collision gas`` (MS:1000419) is normally a valueless flag whose identity is carried by
+        the term name, so this returns the parameter's value when one is present and otherwise the
+        term name — instead of returning ``None`` for the (common) valueless case.
+        """
+        cv = self.get_cvparm(ActivationAccession.COLLISION_GAS)
+        if cv is None:
+            return None
+        return cv.value if cv.value else cv.name
 
     @property
     def collision_gas_pressure(self) -> float | None:
         """Get collision gas pressure for this precursor."""
-        return self.cv_float("MS:1000869")
+        return self.cv_float(ActivationAccession.COLLISION_GAS_PRESSURE)
 
 
 @dataclass(frozen=True, repr=False)

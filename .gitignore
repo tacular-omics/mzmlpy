@@ -121,3 +121,6 @@ dmypy.json
 # editors
 .vscode/
 .idea/
+
+# Claude Code local settings (not shared with the team)
+.claude/settings.local.json
