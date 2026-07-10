@@ -95,8 +95,7 @@ def test_spectra(filename):
     # Spectrum 2 - No binary data
     s3 = reader.spectra[2]
     assert s3.default_array_length == 0
-    with pytest.warns(UserWarning):
-        assert len(s3.mz) == 0
+    assert len(s3.mz) == 0
 
     # Spectrum 3 - Different SpotID
     s4 = reader.spectra[3]

@@ -79,6 +79,18 @@ start, so it's sequential-only in practice. See **[`benchmarks/`](benchmarks/)**
 reproducible harness with real numbers on real files, including a head-to-head against
 pyteomics and pymzml.
 
+### mzmlpy vs pymzml
+
+Compared against pymzml 2.6.0 on a Bruker timsTOF file with ion mobility (10 spectra, 6.7 MB):
+
+| Benchmark | mzmlpy | pymzml | Ratio |
+|---|---|---|---|
+| Startup | 0.012s | 0.092s | **8.0x faster** |
+| Iterate (decode) | 0.039s | 0.228s | **5.8x faster** |
+| Random access | 0.012s | 0.110s | **9.2x faster** |
+
+Both libraries produce identical m/z and intensity arrays. The gap narrows on smaller files (~1.1--1.3x) and widens on larger, more complex files. See the full results in the **[Benchmarks](https://tacular-omics.github.io/mzmlpy/benchmarks/)** page or run `benchmarks/bench_vs_pymzml.py` yourself.
+
 For full usage examples see the **[Getting Started guide](https://tacular-omics.github.io/mzmlpy/getting-started/)** and **[API Reference](https://tacular-omics.github.io/mzmlpy/api/mzml/)**.
 
 Using an AI coding assistant? Point it at **[`llms.txt`](llms.txt)** — a compact, accurate API guide for generating correct mzmlpy code.
