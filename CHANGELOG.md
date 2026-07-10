@@ -54,6 +54,8 @@ affect existing code (see **Changed**).
   files while keeping yielded spectra fully usable (verified ~37× lower peak on a 232 MB file).
 - **Duplicate ids** in `cvs` / `softwares` / `samples` now emit a warning instead of silently
   dropping the earlier entry.
+- **Empty binary data arrays** no longer emit a `UserWarning` on decode; an empty/absent `<binary>`
+  simply returns an empty array (the warnings were noisy for files with legitimately empty arrays).
 - **`_Param.to_timedelta`** returns `None` for non-time / non-numeric parameters instead of raising.
 - Scan-list accessors (`scan_start_time`, `lower_mz`, `upper_mz`, `ion_injection_time`) warn only
   for genuinely multiple scans, and return `None` (not raise) for an empty scan list.
