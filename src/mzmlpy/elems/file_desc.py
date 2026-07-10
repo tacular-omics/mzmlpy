@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Literal
 
-from ..constants import ChecksumTypeAccession, ContactAccession, MzMLElement
+from ..constants import ChecksumTypeAccession, ContactAccession, DIAAcquisitionAccession, MzMLElement
 from ..util import get_tag
 from .dtree_wrapper import _DataTreeWrapper, _ParamGroup
 
@@ -62,7 +62,23 @@ class SourceFile(_ParamGroup):
 class FileContent(_ParamGroup):
     """CV parameters describing the overall content of the mzML file (e.g. MS1 spectrum, centroid spectrum)."""
 
-    pass
+    @property
+    def dia_acquisition(self) -> DIAAcquisitionAccession | None:
+        """The DIA acquisition method declared for this file, or None if not a (declared) DIA file.
+
+        Returns the merged-concept term the file content header carries (e.g. diaPASEF, SONAR,
+        MSE) per the PSI IM-MS/DIA recommendation v1.0, §3.3. Returns None for DDA files or DIA
+        files that do not declare the method.
+        """
+        for term in DIAAcquisitionAccession:
+            if term in self.accessions:
+                return term
+        return None
+
+    @property
+    def is_dia(self) -> bool:
+        """Whether the file content header declares a data-independent acquisition method (§3.3)."""
+        return self.dia_acquisition is not None
 
 
 @dataclass(frozen=True, repr=False)

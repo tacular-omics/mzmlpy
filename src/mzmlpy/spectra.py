@@ -158,7 +158,9 @@ class BinaryDataArray(_ParamGroup):
             case CompressionTypeAccessions.MS_NUMPRESS_SHORT_LOGGED_FLOAT:
                 return MSDecoder.decode_slof(out_data)
             case CompressionTypeAccessions.TRUNCATION_LINEAR_PREDICTION_ZLIB:
-                raise NotImplementedError("TRUNCATION_LINEAR_PREDICTION_ZLIB compression is not yet implemented.")
+                # Reverse the linear predictor in native precision, then widen to float64.
+                native = np.frombuffer(MSDecoder.decode_zlib(out_data), dtype=_resolve_dtype(binary_data_type))
+                return MSDecoder.reverse_linear_prediction(native).astype(np.float64)
             case CompressionTypeAccessions.ZLIB_COMPRESSION:
                 return decode_to_numpy(MSDecoder.decode_zlib(out_data), binary_data_type)
             case CompressionTypeAccessions.NO_COMPRESSION:
@@ -182,7 +184,9 @@ class BinaryDataArray(_ParamGroup):
             case CompressionTypeAccessions.MS_NUMPRESS_POSITIVE_INTEGER:
                 return MSDecoder.decode_pic(out_data)
             case CompressionTypeAccessions.TRUNCATION_DELTA_PREDICTION_ZLIB:
-                raise NotImplementedError("TRUNCATION_DELTA_PREDICTION_ZLIB compression is not yet implemented.")
+                # Reverse the delta predictor in native precision, then widen to float64.
+                native = np.frombuffer(MSDecoder.decode_zlib(out_data), dtype=_resolve_dtype(binary_data_type))
+                return MSDecoder.reverse_delta_prediction(native).astype(np.float64)
             case CompressionTypeAccessions.ZSTD_COMPRESSION:
                 return decode_to_numpy(MSDecoder.decode_ztsd(out_data), binary_data_type)
             case CompressionTypeAccessions.MS_NUMPRESS_POSITIVE_INTEGER_ZSTD:
@@ -385,6 +389,25 @@ class Scan(_ParamGroup):
         cv = self.get_cvparm(SpectrumMSAccession.FILTER_STRING)
         return cv.value if cv is not None else None
 
+    @property
+    def faims_compensation_voltage(self) -> float | None:
+        """FAIMS compensation voltage for this scan (MS:1001581).
+
+        Front-end high-field asymmetric waveform ion mobility (FAIMS) filtering: each scan may
+        carry a single compensation voltage. See the PSI IM-MS/DIA recommendation v1.0, §3.6.
+        """
+        return self.cv_float(SpectrumMSAccession.FAIMS_COMPENSATION_VOLTAGE)
+
+    @property
+    def selexion_separation_voltage(self) -> float | None:
+        """SCIEX SelexION differential-mobility separation voltage for this scan (MS:1003394)."""
+        return self.cv_float(SpectrumMSAccession.SELEXION_SEPARATION_VOLTAGE)
+
+    @property
+    def selexion_compensation_voltage(self) -> float | None:
+        """SCIEX SelexION differential-mobility compensation voltage for this scan (MS:1003371)."""
+        return self.cv_float(SpectrumMSAccession.SELEXION_COMPENSATION_VOLTAGE)
+
 
 @dataclass(frozen=True)
 class _ScanList(_ParamGroup):
@@ -545,6 +568,15 @@ class IsolationWindow(_ParamGroup):
     def upper_offset(self) -> float | None:
         """Get isolation window upper offset for this precursor."""
         return self.cv_float(IsolationWindowAccession.UPPER_OFFSET)
+
+    @property
+    def no_isolation(self) -> bool:
+        """Whether this window carries the "no isolation" marker (MS:1003159).
+
+        Full-mass-range DIA (e.g. MSE/HDMSE) sets this on an otherwise-empty isolationWindow to
+        signal that no precursor was isolated (PSI IM-MS/DIA recommendation v1.0, §3.5).
+        """
+        return IsolationWindowAccession.NO_ISOLATION in self.accessions
 
 
 @dataclass(frozen=True, repr=False)

@@ -147,6 +147,11 @@ class SpectrumMSAccession(StrEnum):
     INVERSE_REDUCED_ION_MOBILITY = "MS:1002815"
     ION_MOBILITY_DRIFT_TIME = "MS:1002476"
 
+    # front-end ion mobility filtering (per PSI IM-MS/DIA recommendation v1.0, §3.6)
+    FAIMS_COMPENSATION_VOLTAGE = "MS:1001581"
+    SELEXION_SEPARATION_VOLTAGE = "MS:1003394"
+    SELEXION_COMPENSATION_VOLTAGE = "MS:1003371"
+
 
 class BinaryDataArrayAccession(StrEnum):
     """Enumeration of binary data array accessions."""
@@ -339,6 +344,23 @@ class IsolationWindowAccession(StrEnum):
     TARGET_MZ = "MS:1000827"
     LOWER_OFFSET = "MS:1000828"
     UPPER_OFFSET = "MS:1000829"
+    # Marker for full-mass-range DIA (e.g. MSE/HDMSE); a valid isolationWindow may contain only this
+    # (PSI IM-MS/DIA recommendation v1.0, §3.5).
+    NO_ISOLATION = "MS:1003159"
+
+
+class DIAAcquisitionAccession(StrEnum):
+    """Merged-concept CV terms describing DIA acquisition methods.
+
+    Per the PSI IM-MS/DIA recommendation v1.0 (§3.3), one of these SHOULD appear in the file
+    content header for raw DIA data; the individual constituent terms SHOULD NOT be used.
+    """
+
+    DISSOCIATION_OF_SEQUENTIAL_MASS_RANGES = "MS:1003224"  # SWATH-MS, FT-ARM, HRM, PAcIFIC
+    DISSOCIATION_OF_SEQUENTIAL_MASS_RANGES_AFTER_ION_MOBILITY = "MS:1003225"  # diaPASEF
+    DISSOCIATION_OF_FULL_MASS_RANGE_AFTER_ION_MOBILITY = "MS:1003226"  # HDMSE, IMS-AIF
+    DISSOCIATION_OF_FULL_MASS_RANGE = "MS:1003227"  # MSE, AIF, p2CID
+    DISSOCIATION_OF_SCANNING_QUADRUPOLE = "MS:1003228"  # SONAR
 
 
 class SelectedIonAccession(StrEnum):

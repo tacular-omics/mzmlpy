@@ -1,6 +1,6 @@
 [project]
 name = "mzmlpy"
-version = "0.5.0"
+version = "0.6.0"
 description = "A lightweight Python library for parsing mzML mass spectrometry files."
 readme = "README.md"
 requires-python = ">=3.12"

@@ -4,7 +4,7 @@
 
 **mzmlpy** — lightweight Python library for parsing mzML mass spectrometry files. Exposes a type-safe, lazy-loading API for spectra, chromatograms, and file metadata. Python 3.12+ only.
 
-Current version: **0.5.0** (Beta), in release preparation on branch `release/v0.5.0` and not yet tagged.
+Current version: **0.6.0** (Beta), in release preparation on branch `release/v0.6.0` and not yet tagged.
 The latest version currently published on PyPI is **0.4.0**.
 
 ## Commands

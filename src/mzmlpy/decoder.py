@@ -130,6 +130,39 @@ class MSDecoder:
         """Decompress byte-shuffled zstd data (MS:1003781)."""
         return cls.unshuffle(cls.decode_ztsd(data), element_size)
 
+    @staticmethod
+    def reverse_delta_prediction(values: NDArray) -> NDArray:
+        """Reverse the delta-prediction transform (used by MS:1003089).
+
+        The encoder stores ``values[0]`` and ``values[1]`` verbatim and, for ``i >= 2``,
+        ``x[0] + x[i] - x[i-1]`` (a first difference offset by the base value). Walking that back:
+        ``out[i] = values[i] + out[i-1] - out[0]``.
+
+        The recurrence runs in the array's *native* float precision and the operation order is
+        kept identical to the reference implementations so results are bit-reproducible against
+        other tools (ProteoWizard mzMLb ``IO.cpp``; psims ``mzml.binary_encoding.delta_predict``).
+        """
+        out = values.copy()
+        for i in range(2, len(out)):
+            out[i] = out[i] + out[i - 1] - out[0]
+        return out
+
+    @staticmethod
+    def reverse_linear_prediction(values: NDArray) -> NDArray:
+        """Reverse the linear- (second-order) prediction transform (used by MS:1003090).
+
+        The encoder stores ``values[0]`` and ``values[1]`` verbatim and, for ``i >= 2``,
+        ``x[1] + x[i] - 2*x[i-1] + x[i-2]`` (a linear extrapolation residual offset by ``x[1]``).
+        Walking that back: ``out[i] = values[i] + 2*out[i-1] - out[i-2] - out[1]``.
+
+        As with :meth:`reverse_delta_prediction`, the recurrence runs in native precision with the
+        reference operation order (ProteoWizard mzMLb ``IO.cpp``; psims ``linear_predict``).
+        """
+        out = values.copy()
+        for i in range(2, len(out)):
+            out[i] = out[i] + 2 * out[i - 1] - out[i - 2] - out[1]
+        return out
+
     @classmethod
     def decode_dict_encoded_zstd(cls, data: bytes, dtype: np.dtype) -> NDArray[np.float64]:
         """Decode dictionary-encoded zstd data (MS:1003782).
