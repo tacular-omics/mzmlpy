@@ -1,6 +1,7 @@
 import io
 import logging
 import re
+import warnings
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from functools import cached_property
@@ -70,6 +71,7 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
         index_regex: Pattern[bytes] | None = None,
     ) -> None:
         self.index_regex: Pattern[bytes] | None = index_regex
+        self.encoding: str = encoding
 
         self.spectrum_offsets: OrderedDict[str, int] = OrderedDict()
         self.chromatogram_offsets: OrderedDict[str, int] = OrderedDict()
@@ -77,7 +79,13 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
         self._chromatogram_keys: list[str] = []  # For fast O(1) index access
 
         self.file_handler: TextIO = self.get_file_handler(encoding)
-        self._build_index(from_scratch=build_index_from_scratch)
+        # Close the handle if index building fails, so a failed construction does not leak it
+        # (for IndexedGzip this handle is a RapidgzipFile with worker threads).
+        try:
+            self._build_index(from_scratch=build_index_from_scratch)
+        except BaseException:
+            self.file_handler.close()
+            raise
 
     @abstractmethod
     def get_binary_file_handler(self) -> BinaryIO:
@@ -109,12 +117,15 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
         try:
             seeker.seek(offset)
             _, end_pos = self._read_to_spec_end(seeker)
+            # Read the exact byte range from the binary handle (end_pos/offset are byte offsets).
+            # Reading through the text handle would treat the length as a character count, which
+            # over-reads past the element when the content contains multi-byte UTF-8.
+            seeker.seek(offset)
+            raw = seeker.read(end_pos - offset)
         finally:
             seeker.close()
 
-        self.file_handler.seek(offset, 0)
-        data = self.file_handler.read(end_pos - offset)
-
+        data = raw.decode(self.encoding)
         try:
             return MzmlXMLElement(XML(data), element_type="spectrum")
         except Exception as e:
@@ -155,12 +166,13 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
         try:
             seeker.seek(offset)
             _, end_pos = self._read_to_spec_end(seeker)
+            # Byte-range read from the binary handle (see get_spectrum_by_id for the rationale).
+            seeker.seek(offset)
+            raw = seeker.read(end_pos - offset)
         finally:
             seeker.close()
 
-        self.file_handler.seek(offset, 0)
-        data = self.file_handler.read(end_pos - offset)
-
+        data = raw.decode(self.encoding)
         return MzmlXMLElement(XML(data), element_type="chromatogram")
 
     def get_chromatogram_by_index(self, index: int) -> ChromatogramElement:
@@ -314,11 +326,26 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
                 for m in chromexp.finditer(chunk):
                     key = m.group(1).decode("utf-8")
                     value = offset + m.start()
+                    # A different offset for the same id is a genuine duplicate (not just the same
+                    # match re-seen across the overlapping lookback window), so warn rather than
+                    # silently drop it — mirroring the footer-index path's duplicate handling.
+                    if key in chrom_positions and chrom_positions[key] != value:
+                        warnings.warn(
+                            f"Duplicate chromatogram id {key!r} while building index from scratch; "
+                            "keeping the last occurrence.",
+                            stacklevel=2,
+                        )
                     chrom_positions[key] = value
 
                 for m in specexp.finditer(chunk):
                     key = m.group(1).decode("utf-8")
                     value = offset + m.start()
+                    if key in spec_positions and spec_positions[key] != value:
+                        warnings.warn(
+                            f"Duplicate spectrum id {key!r} while building index from scratch; "
+                            "keeping the last occurrence.",
+                            stacklevel=2,
+                        )
                     spec_positions[key] = value
 
                 m = chromcntexp.search(chunk)
@@ -329,12 +356,12 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
                     speccnt = int(m.group(1))
 
             if chromcnt != len(chrom_positions) or speccnt != len(spec_positions):
-                print(
-                    f"[Warning] Found {len(spec_positions)} spectra and "
-                    f"{len(chrom_positions)} chromatograms; "
-                    f"index lists show {speccnt} and {chromcnt} entries."
+                warnings.warn(
+                    f"Found {len(spec_positions)} spectra and {len(chrom_positions)} chromatograms; "
+                    f"index lists show {speccnt} and {chromcnt} entries. Using found offsets but some "
+                    f"may be missing — file may be truncated.",
+                    stacklevel=2,
                 )
-                print("[Warning] Using found offsets but some may be missing. File may be truncated.")
 
             return chrom_positions, spec_positions
 
@@ -351,26 +378,22 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
     def _read_to_spec_end(self, seeker: BinaryIO, chunks_to_read: int = 8) -> tuple[int, int]:
         """Return start and end positions of current spectrum/chromatogram element."""
         chunk_size = 512 * chunks_to_read
-        end_found = False
         start_pos = seeker.tell()
         data_chunk = seeker.read(chunk_size)
-        end_pos: int | None = None
-        while not end_found:
-            data_chunk += seeker.read(chunk_size)
-            tag_end, seeker = self._read_until_tag_end(seeker)
-            data_chunk += tag_end
+        while True:
             match = regex_patterns.SPECTRUM_CLOSE_PATTERN.search(data_chunk)
-            if match:
-                end_pos = start_pos + match.end()
-                end_found = True
-            else:
+            if match is None:
                 match = regex_patterns.CHROMATOGRAM_CLOSE_PATTERN.search(data_chunk)
-                if match:
-                    end_pos = start_pos + match.end()
-                    end_found = True
-        if end_pos is None:
-            raise Exception("Could not find end of spectrum or chromatogram")
-        return (start_pos, end_pos)
+            if match is not None:
+                return (start_pos, start_pos + match.end())
+
+            next_chunk = seeker.read(chunk_size)
+            tag_end, seeker = self._read_until_tag_end(seeker)
+            if not next_chunk and not tag_end:
+                # Reached EOF without a closing tag (e.g. a truncated final element). Stop instead
+                # of looping forever on a buffer that can no longer grow.
+                raise ValueError("Could not find end of spectrum or chromatogram (file may be truncated)")
+            data_chunk += next_chunk + tag_end
 
     def _read_until_tag_end(self, seeker: BinaryIO, max_search_len: int = 12) -> tuple[bytes, BinaryIO]:
         """Read bytes until tag boundary to avoid splitting XML tags in chunks."""
@@ -398,13 +421,13 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
 
     @cached_property
     def spectrum_count(self) -> int | None:
-        """Count of spectra in the file, if determinable."""
-        return len(self.spectrum_offsets) if self.spectrum_offsets else None
+        """Count of spectra in the file (0 for a file with none; the index is always built)."""
+        return len(self.spectrum_offsets)
 
     @cached_property
     def chromatogram_count(self) -> int | None:
-        """Count of chromatograms in the file, if determinable."""
-        return len(self.chromatogram_offsets) if self.chromatogram_offsets else None
+        """Count of chromatograms in the file (0 for a file with none; the index is always built)."""
+        return len(self.chromatogram_offsets)
 
     @property
     def spectrum_ids(self) -> list[str]:

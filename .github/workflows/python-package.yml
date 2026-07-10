@@ -5,9 +5,7 @@ name: Python package
 
 on:
   push:
-    paths:
-      - 'src/**'
-      - 'tests/**'
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -34,7 +32,7 @@ jobs:
     - name: Lint with ruff
       run: just lint
     - name: Type check with ty
-      run: just check
+      run: just ty
     - name: Test with pytest
       run: just test-cov codecov-tests
     - name: Upload coverage reports to Codecov

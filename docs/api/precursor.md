@@ -2,6 +2,10 @@
 
 ::: mzmlpy.spectra.Precursor
 
+## Product
+
+::: mzmlpy.spectra.Product
+
 ## IsolationWindow
 
 ::: mzmlpy.spectra.IsolationWindow

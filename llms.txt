@@ -1,0 +1,179 @@
+# mzmlpy — LLM / AI coding guide
+
+> mzmlpy is a lightweight, type-safe, lazy-loading Python library (3.12+) for reading mzML mass
+> spectrometry files. This file is written for AI coding assistants: it is a compact, accurate
+> reference for generating correct mzmlpy code. Everything below matches the public API as of
+> version 0.5.0. Only `numpy` is required at runtime.
+
+## Install
+
+```bash
+pip install mzmlpy
+# optional decoders (import lazily; only needed for those encodings):
+pip install mzmlpy[numpress]    # MS-Numpress arrays
+pip install mzmlpy[zstd]        # Zstandard-compressed arrays
+pip install mzmlpy[rapidgzip]   # fast/seekable .mzML.gz (gzip_mode="indexed")
+```
+
+## Core usage
+
+Always use the context manager so file handles are closed.
+
+```python
+from mzmlpy import Mzml
+
+with Mzml("run.mzML") as reader:
+    print(reader.file_name, len(reader.spectra), "spectra")
+    for spectrum in reader.spectra:
+        mz = spectrum.mz            # NDArray[float64] | None
+        intensity = spectrum.intensity
+        if mz is not None:
+            print(spectrum.id, f"MS{spectrum.ms_level}", len(mz), "peaks")
+```
+
+To cheaply check a spectrum count across many files without opening each fully (no index built,
+no random access needed), use the standalone function instead of constructing a reader:
+
+```python
+from mzmlpy import peek_spectrum_count
+
+n = peek_spectrum_count("run.mzML")  # int | None; works for .mzML and .mzML.gz
+```
+
+`reader.spectra` and `reader.chromatograms` are lookup objects supporting:
+
+```python
+reader.spectra[0]            # by 0-based index (negative indexing supported: [-1] = last)
+reader.spectra["scan=19"]    # by native id (KeyError if absent)
+reader.spectra[0:5]          # slice -> list[Spectrum]
+len(reader.spectra)          # count (0 for an empty file — does not raise)
+"scan=19" in reader.spectra  # membership
+for s in reader.spectra: ... # iterate (memory-bounded; safe to collect into a list)
+```
+
+## Spectrum API (all lazy; return None/`[]` when absent)
+
+| Property | Type | Notes |
+|---|---|---|
+| `id` | `str` | native id, e.g. `"controllerType=0 controllerNumber=1 scan=1"` |
+| `id_dict` | `dict[str, int\|str]` | native id parsed into components, e.g. `{"scan": 1}`; use `spectrum.id_dict["scan"]` for the scan number |
+| `mz` | `NDArray[float64] \| None` | decoded m/z array |
+| `intensity` | `NDArray[float64] \| None` | decoded intensity array |
+| `charge` | `NDArray[float64] \| None` | charge array if present |
+| `ms_level` | `int \| None` | 1, 2, … |
+| `polarity` | `Literal["positive","negative"] \| None` | |
+| `spectrum_type` | `Literal["centroid","profile"] \| None` | |
+| `scan_start_time` | `timedelta \| None` | |
+| `ion_injection_time` | `timedelta \| None` | |
+| `lower_mz` / `upper_mz` | `float \| None` | scan-window limits |
+| `filter_string` | `str \| None` | instrument scan filter (e.g. Thermo) |
+| `ion_mobility` | `float \| None` | scan-level ion mobility (e.g. timsTOF 1/K0) |
+| `TIC` | `float \| None` | total ion current value for the spectrum |
+| `base_peak_mz` / `base_peak_intensity` | `float \| None` | base peak summary |
+| `lowest_observed_mz` / `highest_observed_mz` | `float \| None` | observed m/z range |
+| `precursors` | `list[Precursor]` | MSn precursor info |
+| `products` | `list[Product]` | |
+| `scans` | `list[Scan]` | |
+| `has_im` / `im_types` | `bool` / `set` | ion-mobility presence/types |
+| `index`, `default_array_length` | `int \| None` | |
+
+Generic CV access (available on every element wrapper): `get_cvparm(accession_or_name)`,
+`has_cvparm(...)`, `cv_float(accession)`, `cv_int(accession)`, `.cv_params`, `.accessions`,
+`.user_params`, `.ref_params`.
+
+### Precursors
+
+```python
+for prec in spectrum.precursors:
+    win = prec.isolation_window          # IsolationWindow | None -> .target_mz, .lower_offset, .upper_offset
+    for ion in prec.selected_ions:       # list[SelectedIon]
+        ion.selected_ion_mz              # float | None
+        ion.charge_state                 # int | None
+        ion.peak_intensity               # float | None
+    prec.activation                      # Activation | None -> .activation_type, .ce, ...
+
+for prod in spectrum.products:
+    win = prod.isolation_window          # IsolationWindow | None -> .target_mz, .lower_offset, .upper_offset
+```
+
+## Chromatograms
+
+```python
+with Mzml("run.mzML") as reader:
+    tic = reader.TIC                     # Chromatogram | None (found by id or MS:1000235 CV term)
+    for chrom in reader.chromatograms:
+        t = chrom.time                   # NDArray[float64] | None
+        i = chrom.intensity
+    sic = reader.chromatograms["sic"]    # by id
+```
+
+## Metadata (parsed eagerly at open)
+
+```python
+reader.id                          # mzML id
+reader.version                     # mzML version string
+reader.file_description            # FileDescription | None
+reader.instrument_configurations   # dict[str, InstrumentConfiguration]
+reader.softwares                   # dict[str, Software]
+reader.samples                     # dict[str, Sample]
+reader.data_processes              # dict[str, DataProcessing]
+reader.cvs                         # dict[str, CVElement]
+reader.referenceable_param_groups  # dict[str, ReferenceableParamGroup]
+```
+
+## Gzipped files (`.mzML.gz`)
+
+mzmlpy reads `.gz` directly (pyteomics cannot). Choose a strategy via `gzip_mode`:
+
+```python
+Mzml("run.mzML.gz")                          # gzip_mode="extract" (default): decompress once, cache, fast
+Mzml("run.mzML.gz", gzip_mode="indexed", in_memory=False)  # seekable, no disk copy (needs rapidgzip)
+Mzml("run.mzML.gz", gzip_mode="stream")      # lowest startup; random access re-scans (slow)
+
+from mzmlpy import clear_cache
+clear_cache()                                # remove extracted/index cache files
+```
+
+Mode differences only matter with `in_memory=False`; the default `in_memory=True` buffers the
+whole file so all modes behave alike. For random access on large files use `extract` or `indexed`,
+not `stream`.
+
+## Look up spectra by scan number (id_regex)
+
+```python
+# First capture group becomes a secondary lookup key.
+with Mzml("run.mzML", spectrum_id_regex=r"scan=(\d+)") as reader:
+    s = reader.spectra["19"]             # instead of the full native id
+# chromatogram_id_regex works the same for chromatograms.
+```
+
+## Gotchas / rules for correct code
+
+- **Decoding is not cached.** `spectrum.mz` / `.intensity` decode on *every* access. Assign to a
+  variable if you use the result more than once: `mz = spectrum.mz`.
+- **Not thread-safe.** A reader shares one file handle; use one `Mzml` per thread.
+- **Absence is `None`.** `polarity`, `ms_level`, `mz`, `TIC`, etc. return `None` when the term is
+  absent — always guard before use.
+- **Empty arrays** may be `None` or length 0 (e.g. empty MS2 frames). Check `len(...)`.
+- **Warnings, not exceptions**, for ambiguous cases (e.g. a spectrum with multiple scans warns and
+  returns the first). Missing/assumed compression or data types also warn.
+- **Use the context manager** (`with Mzml(...) as reader:`) or call `reader.close()`.
+- **Constructor:** `Mzml(file, build_index_from_scratch=False, gzip_mode="extract",
+  in_memory=True, extract_dir=None, spectrum_id_regex=None, chromatogram_id_regex=None)`. `file`
+  may be a path (str/Path) or a `BytesIO`.
+
+## Error messages you may see (they are intentionally descriptive)
+
+- `Decoding this array requires the optional 'pynumpress' package … pip install mzmlpy[numpress]`
+  → install the named extra.
+- `Cannot decode binary array: N bytes is not a multiple of the M-byte element size …`
+  → the array is corrupt/truncated or uses an unsupported truncation encoding.
+- `CV param '<name>' (MS:xxxx) has a non-numeric value '<value>'`
+  → a numeric CV term holds a malformed value in the file.
+- `Failed to base64-decode binary data array …` → corrupt `<binary>` content.
+
+## More
+
+- Getting started: https://tacular-omics.github.io/mzmlpy/getting-started/
+- API reference: https://tacular-omics.github.io/mzmlpy/api/mzml/
+- Benchmarks vs pyteomics/pymzml: `benchmarks/README.md`

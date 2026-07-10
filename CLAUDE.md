@@ -4,14 +4,15 @@
 
 **mzmlpy** — lightweight Python library for parsing mzML mass spectrometry files. Exposes a type-safe, lazy-loading API for spectra, chromatograms, and file metadata. Python 3.12+ only.
 
-Current version: **0.3.0** (Beta). Published on PyPI.
+Current version: **0.5.0** (Beta), in release preparation on branch `release/v0.5.0` and not yet tagged.
+The latest version currently published on PyPI is **0.4.0**.
 
 ## Commands
 
 ```bash
 just lint        # ruff check src
 just format      # ruff isort + format src + tests
-just ty          # ty type checker (excludes src/mzmlpy/decoder.py)
+just ty          # ty type checker (excludes src/mzmlpy/decoder.py, src/mzmlpy/file_classes/indexedGzip.py, src/mzmlpy/util.py)
 just check       # lint + ty + test
 just test        # pytest tests/
 just test-cov    # pytest with coverage report
@@ -55,7 +56,8 @@ src/mzmlpy/
 ## Dependencies
 
 - **Runtime:** `numpy>=1.26.0` only
-- **Optional:** `pynumpress>=0.0.4` (`pip install mzmlpy[numpress]`), `zstd>=1.5.5` (`pip install mzmlpy[zstd]`)
+- **Optional:** `pynumpress>=0.0.4` (`pip install mzmlpy[numpress]`), `zstd>=1.5.5` (`pip install mzmlpy[zstd]`),
+  `rapidgzip>=0.14.0` (`pip install mzmlpy[rapidgzip]`, used by `gzip_mode="indexed"`)
 - **Dev:** pytest, pytest-cov, pytest-examples, ruff, ty, pyupgrade, zstd, mkdocs, mkdocs-material, mkdocstrings[python]
 - **Build:** uv + hatchling
 
@@ -77,6 +79,14 @@ MkDocs + Material theme + mkdocstrings. Deployed to GitHub Pages via `mkdocs gh-
 
 ## Tests
 
-Test data: `tests/data/example.mzML` and `tests/data/example.mzML.gz` (4 spectra, 2 chromatograms).
-Tests are parametrized over both files. No mocking — tests run against real XML.
+Test data: `tests/data/example.mzML` and `tests/data/example.mzML.gz` (4 spectra, 2 chromatograms),
+plus real Thermo/Bruker/re-encoded files under `tests/data/` for format and edge-case coverage.
+Tests are parametrized over both example files. No mocking — tests run against real XML.
 `tests/test_docs.py` uses `pytest-examples` to execute every Python code block in `docs/getting-started.md`.
+
+## Other resources
+
+- `benchmarks/` — reproducible harness comparing mzmlpy against pyteomics/pymzml (format support,
+  throughput, gzip handling); see `benchmarks/README.md` for current results.
+- `llms.txt` — compact, verified API guide for AI coding assistants.
+- `CHANGELOG.md` — Keep-a-Changelog format, updated per release.

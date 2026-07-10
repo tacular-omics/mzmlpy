@@ -8,6 +8,7 @@ from .dtree_wrapper import _ParamGroup
 class _Component(_ParamGroup):
     @property
     def order(self) -> int | None:
+        """Get the component's position in the acquisition order, if present."""
         order = self.get_attribute("order")
         if order is not None:
             return int(order)
@@ -44,6 +45,11 @@ class InstrumentConfiguration(_ParamGroup):
 
     @property
     def id(self) -> str:
+        """Get the instrument configuration's ``id`` attribute.
+
+        Raises:
+            ValueError: If the ``id`` attribute is missing.
+        """
         id = self.get_attribute("id")
         if id is None:
             raise ValueError("InstrumentConfiguration ID is missing")
@@ -51,6 +57,7 @@ class InstrumentConfiguration(_ParamGroup):
 
     @property
     def software_ref(self) -> str | None:
+        """Get the referenced software's ``id``, if a software reference is present."""
         sw_ref_element = self.element.find(f"./{self.ns}{MzMLElement.SOFTWARE_REF}")
         if sw_ref_element is not None:
             return sw_ref_element.attrib.get("ref")
@@ -58,6 +65,7 @@ class InstrumentConfiguration(_ParamGroup):
 
     @property
     def source_components(self) -> tuple[SourceComponent, ...]:
+        """Get the ion source components of this instrument configuration."""
         component_list = self.element.find(f"./{self.ns}{MzMLElement.COMPONENT_LIST}")
         if component_list is None:
             return ()
@@ -66,6 +74,7 @@ class InstrumentConfiguration(_ParamGroup):
 
     @property
     def analyzer_components(self) -> tuple[AnalyzerComponent, ...]:
+        """Get the mass analyzer components of this instrument configuration."""
         component_list = self.element.find(f"./{self.ns}{MzMLElement.COMPONENT_LIST}")
         if component_list is None:
             return ()
@@ -74,6 +83,7 @@ class InstrumentConfiguration(_ParamGroup):
 
     @property
     def detector_components(self) -> tuple[DetectorComponent, ...]:
+        """Get the detector components of this instrument configuration."""
         component_list = self.element.find(f"./{self.ns}{MzMLElement.COMPONENT_LIST}")
         if component_list is None:
             return ()

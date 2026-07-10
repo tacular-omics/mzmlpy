@@ -16,14 +16,17 @@ class SourceFile(_ParamGroup):
 
     @property
     def id(self) -> str | None:
+        """Get the source file's ``id`` attribute."""
         return self.get_attribute("id")
 
     @property
     def name(self) -> str | None:
+        """Get the source file's ``name`` attribute."""
         return self.get_attribute("name")
 
     @property
     def location(self) -> str | None:
+        """Get the source file's ``location`` attribute (e.g. a directory URI)."""
         return self.get_attribute("location")
 
     def __repr__(self) -> str:
@@ -68,46 +71,55 @@ class Contact(_ParamGroup):
 
     @property
     def name(self) -> str | None:
+        """Get the contact's name, if present."""
         cv = self.get_cvparm(ContactAccession.NAME)
         return cv.value if cv else None
 
     @property
     def organization(self) -> str | None:
+        """Get the contact's organization, if present."""
         cv = self.get_cvparm(ContactAccession.ORGANIZATION)
         return cv.value if cv else None
 
     @property
     def address(self) -> str | None:
+        """Get the contact's address, if present."""
         cv = self.get_cvparm(ContactAccession.ADDRESS)
         return cv.value if cv else None
 
     @property
     def url(self) -> str | None:
+        """Get the contact's URL, if present."""
         cv = self.get_cvparm(ContactAccession.URL)
         return cv.value if cv else None
 
     @property
     def email(self) -> str | None:
+        """Get the contact's email address, if present."""
         cv = self.get_cvparm(ContactAccession.EMAIL)
         return cv.value if cv else None
 
     @property
     def phone_number(self) -> str | None:
+        """Get the contact's phone number, if present."""
         cv = self.get_cvparm(ContactAccession.PHONE_NUMBER)
         return cv.value if cv else None
 
     @property
     def toll_free_phone_number(self) -> str | None:
+        """Get the contact's toll-free phone number, if present."""
         cv = self.get_cvparm(ContactAccession.TOLL_FREE_PHONE_NUMBER)
         return cv.value if cv else None
 
     @property
     def fax_number(self) -> str | None:
+        """Get the contact's fax number, if present."""
         cv = self.get_cvparm(ContactAccession.FAX_NUMBER)
         return cv.value if cv else None
 
     @property
     def role(self) -> str | None:
+        """Get the contact's role, if present."""
         cv = self.get_cvparm(ContactAccession.ROLE)
         return cv.value if cv else None
 
@@ -159,9 +171,9 @@ class FileDescription(_DataTreeWrapper):
         return []
 
     def get_source_file(self, id: str) -> SourceFile | None:
-        """Get a source file by ID (Accession or name)."""
+        """Get a source file by its ``id`` attribute."""
         for sf in self.source_files:
-            if sf.has_cvparm(id):
+            if sf.id == id:
                 return sf
         return None
 

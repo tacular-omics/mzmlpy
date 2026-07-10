@@ -9,6 +9,11 @@ class Software(_ParamGroup):
 
     @property
     def id(self) -> str:
+        """Get the software's ``id`` attribute.
+
+        Raises:
+            ValueError: If the ``id`` attribute is missing.
+        """
         id = self.get_attribute("id")
         if id is None:
             raise ValueError("Software ID is missing")
@@ -16,6 +21,7 @@ class Software(_ParamGroup):
 
     @property
     def version(self) -> str | None:
+        """Get the software's version string, if present."""
         return self.get_attribute("version")
 
     def __repr__(self) -> str:

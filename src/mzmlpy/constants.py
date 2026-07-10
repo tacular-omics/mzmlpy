@@ -136,6 +136,17 @@ class SpectrumMSAccession(StrEnum):
     SCAN_WINDOW_LOWER_LIMIT = "MS:1000501"
     SCAN_WINDOW_UPPER_LIMIT = "MS:1000500"
 
+    # spectrum summary values
+    BASE_PEAK_MZ = "MS:1000504"
+    BASE_PEAK_INTENSITY = "MS:1000505"
+    LOWEST_OBSERVED_MZ = "MS:1000528"
+    HIGHEST_OBSERVED_MZ = "MS:1000527"
+
+    # scan properties
+    FILTER_STRING = "MS:1000512"
+    INVERSE_REDUCED_ION_MOBILITY = "MS:1002815"
+    ION_MOBILITY_DRIFT_TIME = "MS:1002476"
+
 
 class BinaryDataArrayAccession(StrEnum):
     """Enumeration of binary data array accessions."""
@@ -248,10 +259,12 @@ ISOTOPE_AVERAGE_DIFFERENCE = 1.002
 
 # Data type to numpy dtype mapping
 BINARY_DECODE_DTYPES: dict[BinaryDataTypeAccession, str] = {
-    BinaryDataTypeAccession.FLOAT_32: "float32",
-    BinaryDataTypeAccession.FLOAT_64: "float64",
-    BinaryDataTypeAccession.INT_32: "int32",
-    BinaryDataTypeAccession.INT_64: "int64",
+    # mzML binary arrays are always little-endian; pin byte order so decoding is correct on
+    # big-endian hosts too (native "float64" etc. would silently byte-swap there).
+    BinaryDataTypeAccession.FLOAT_32: "<f4",
+    BinaryDataTypeAccession.FLOAT_64: "<f8",
+    BinaryDataTypeAccession.INT_32: "<i4",
+    BinaryDataTypeAccession.INT_64: "<i8",
 }
 
 
@@ -318,3 +331,34 @@ class CollisionDissociationTypeAccession(StrEnum):
     LIFT = "MS:1002000"
     ELECTRON_TRANSFER_DISSOCIATION = "MS:1000598"
     NEGATIVE_ELECTRON_TRANSFER_DISSOCIATION = "MS:1003247"
+
+
+class IsolationWindowAccession(StrEnum):
+    """Enumeration of isolation window accessions."""
+
+    TARGET_MZ = "MS:1000827"
+    LOWER_OFFSET = "MS:1000828"
+    UPPER_OFFSET = "MS:1000829"
+
+
+class SelectedIonAccession(StrEnum):
+    """Enumeration of selected ion accessions."""
+
+    SELECTED_ION_MZ = "MS:1000744"
+    PEAK_INTENSITY = "MS:1000042"
+    CHARGE_STATE = "MS:1000041"
+    INVERSE_REDUCED_ION_MOBILITY = "MS:1002815"
+    ION_MOBILITY_DRIFT_TIME = "MS:1002476"
+    FAIMS_VOLTAGE_START = "MS:1003450"
+    FAIMS_VOLTAGE_END = "MS:1003451"
+    COLLISIONAL_CROSS_SECTION = "MS:1002954"
+
+
+class ActivationAccession(StrEnum):
+    """Enumeration of precursor activation accessions."""
+
+    ACTIVATION_ENERGY = "MS:1000509"
+    COLLISION_ENERGY = "MS:1000045"
+    SUPPLEMENTAL_COLLISION_ENERGY = "MS:1002680"
+    COLLISION_GAS = "MS:1000419"
+    COLLISION_GAS_PRESSURE = "MS:1000869"

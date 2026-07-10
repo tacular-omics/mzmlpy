@@ -34,13 +34,16 @@ The `Mzml` reader lazily loads data, meaning binary arrays and metadata are only
 - **Lazy parsing** -- binary data is decoded only when accessed.
 - **Type-safe API** -- dataclass-based models with full type annotations.
 - **Flexible access** -- look up spectra and chromatograms by index, slice, or string ID.
-- **Ion mobility support** -- detect and retrieve IM binary arrays.
+- **Ion mobility support** -- detect and retrieve IM data, whether stored as a binary array or a scan-level cvParam (e.g. Bruker timsTOF PASEF MS2).
 - **Comprehensive compression** -- zlib, zstd, and MS-Numpress decoders built in.
 - **Fast** -- [5--9x faster than pymzml](benchmarks.md) on complex files, ~1.2x on small files.
 - **Context manager** -- use `with` for safe file handling.
+- **Actionable errors** -- decode failures name the offending value and, for optional dependencies, the extra to install.
 
 ## Next Steps
 
 - [Getting Started](getting-started.md) -- installation details, basic usage patterns, and working with binary data.
 - [Benchmarks](benchmarks.md) -- performance comparison against pymzml and gzip mode timings.
 - [API Reference](api/mzml.md) -- full auto-generated documentation for every public class and method.
+
+Using an AI coding assistant? Point it at [`llms.txt`](https://github.com/tacular-omics/mzmlpy/blob/main/llms.txt) in the repository root for a compact, accurate API guide.

@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
 """Interface for different mzML file formats."""
 
+import gzip
 import hashlib
 import logging
 import os
 import tempfile
+import warnings
 from collections.abc import Iterator
+from functools import cached_property
 from io import BytesIO
 from pathlib import Path
 from re import Pattern
-from typing import Literal, overload
+from typing import BinaryIO, Literal, overload
 from xml.etree import ElementTree as ET
 
+from .constants import ChromatogramTypeAccession
 from .file_classes import (
     BytesMzml,
     ChromatogramElement,
@@ -23,7 +27,7 @@ from .file_classes import (
     StandardMzml,
 )
 from .spectra import Chromatogram, Spectrum
-from .util import gzip_decompress
+from .util import atomic_write_path, cache_is_current, get_tag, gzip_decompress, write_cache_signature
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +61,7 @@ class FileInterface:
 
     def __init__(
         self,
-        path: str | Path | BytesIO,
+        path: str | Path | BinaryIO,
         encoding: str,
         build_index_from_scratch: bool = False,
         index_regex: Pattern[bytes] | None = None,
@@ -78,14 +82,27 @@ class FileInterface:
         """Close the internal file handler."""
         self.file_handler.close()
 
-    def _open(self, path_or_file: str | Path | BytesIO) -> MzmlInterface:
+    def _open(self, path_or_file: str | Path | BinaryIO) -> MzmlInterface:
         """Open appropriate file handler based on file type and format."""
-        # Handle BytesIO objects
-        if isinstance(path_or_file, BytesIO):
-            return BytesMzml(
-                path_or_file,
-                self.encoding,
-                self.build_index_from_scratch,
+        # Handle any binary file-like object (BytesIO or an open ``rb`` stream). Materialize its
+        # bytes into an in-memory buffer; if the stream is gzip-compressed, decompress it first so
+        # a handle opened on a ``.mzML.gz`` file is accepted transparently.
+        if not isinstance(path_or_file, str | Path):
+            if hasattr(path_or_file, "read"):
+                if isinstance(path_or_file, BytesIO):
+                    data = path_or_file.getvalue()
+                else:
+                    # Encoding sniffing (readline) may have advanced the stream, so rewind it if we
+                    # can before reading the whole thing; getvalue() above sidesteps this for BytesIO.
+                    if hasattr(path_or_file, "seek"):
+                        path_or_file.seek(0)
+                    data = path_or_file.read()
+                if data[:2] == b"\x1f\x8b":  # gzip magic number
+                    data = gzip.decompress(data)
+                return BytesMzml(BytesIO(data), self.encoding, self.build_index_from_scratch)
+            raise TypeError(
+                f"Unsupported input type {type(path_or_file).__name__!r}: expected a path (str/Path) "
+                "or a binary file-like object with a read() method."
             )
 
         # Convert Path to string
@@ -94,6 +111,14 @@ class FileInterface:
         # Handle in_memory mode - load entire file into memory
         if self.in_memory:
             if path.endswith(".gz"):
+                if self.gzip_mode != "extract":
+                    # "indexed"/"stream" exist to avoid holding the whole file in memory; in_memory
+                    # (the default) decompresses it all anyway, so the mode is a no-op here.
+                    warnings.warn(
+                        f"gzip_mode={self.gzip_mode!r} is ignored because in_memory=True decompresses the "
+                        f"entire file into memory. Pass in_memory=False to use gzip_mode={self.gzip_mode!r}.",
+                        stacklevel=2,
+                    )
                 # Decompress gzipped file into memory
                 content = gzip_decompress(path)
             else:
@@ -111,12 +136,15 @@ class FileInterface:
         if path.endswith(".gz"):
             if self.gzip_mode == "extract":
                 extracted_path = self._get_extract_path(path)
-                if not (os.path.exists(extracted_path) and os.path.getmtime(extracted_path) >= os.path.getmtime(path)):
-                    logger.debug("Extracting %s to %s", path, extracted_path)
-                    with open(extracted_path, "wb") as f_out:
-                        f_out.write(gzip_decompress(path))
-                else:
+                if cache_is_current(extracted_path, path):
                     logger.debug("Using cached extraction: %s", extracted_path)
+                else:
+                    logger.debug("Extracting %s to %s", path, extracted_path)
+                    # Atomic write so an interrupted extraction never leaves a truncated .mzML that
+                    # the currency check would then treat as a valid cache.
+                    with atomic_write_path(extracted_path) as tmp_path, open(tmp_path, "wb") as f_out:
+                        f_out.write(gzip_decompress(path))
+                    write_cache_signature(extracted_path, path)
 
                 return StandardMzml(
                     extracted_path,
@@ -164,29 +192,93 @@ class FileInterface:
         """Read binary data from file handler (size=-1 reads to end)."""
         return self.file_handler.read(size)
 
+    @cached_property
+    def _param_group_templates(self) -> dict[str, list[tuple[str, dict[str, str]]]]:
+        """Map each referenceableParamGroup id to its cvParam/userParam terms.
+
+        Parsed once from the file header. Each term is stored as (local tag name, attributes)
+        so it can be re-created inside a spectrum/scan with that element's own namespace,
+        regardless of how the target fragment was parsed.
+        """
+        templates: dict[str, list[tuple[str, dict[str, str]]]] = {}
+        file_handle = self.file_handler.get_file_handler(self.encoding)
+        try:
+            if hasattr(file_handle, "seek"):
+                file_handle.seek(0)
+            for event, element in ET.iterparse(file_handle, events=("start", "end")):
+                tag = get_tag(element)
+                # Groups live in the header, before <run>; stop as soon as spectra begin.
+                if event == "start" and tag in ("run", "spectrumList", "chromatogramList", "spectrum", "chromatogram"):
+                    break
+                if event == "end" and tag == "referenceableParamGroup":
+                    gid = element.get("id")
+                    if gid is not None:
+                        templates[gid] = [
+                            (get_tag(child), dict(child.attrib))
+                            for child in element
+                            if get_tag(child) in ("cvParam", "userParam")
+                        ]
+                    element.clear()
+        finally:
+            file_handle.close()
+        return templates
+
+    def _expand_param_group_refs(self, element: ET.Element) -> ET.Element:
+        """Resolve ``referenceableParamGroupRef`` in place, then return the element.
+
+        For every element in the subtree that references a param group, the group's cvParam /
+        userParam terms are inserted as direct children (skipping ones already present, so a
+        directly-specified term wins and nothing is duplicated). The ref node is left in place so
+        provenance is preserved and the operation is idempotent.
+        """
+        templates = self._param_group_templates
+        if not templates:
+            return element
+
+        targets = [
+            (el, [ref.get("ref") for ref in el if get_tag(ref) == "referenceableParamGroupRef"])
+            for el in element.iter()
+        ]
+        for el, group_ids in targets:
+            if not group_ids:
+                continue
+            ns = el.tag[: el.tag.index("}") + 1] if "}" in el.tag else ""
+            seen_cv = {c.get("accession") for c in el if get_tag(c) == "cvParam"}
+            seen_user = {c.get("name") for c in el if get_tag(c) == "userParam"}
+            for gid in group_ids:
+                if gid is None:
+                    continue
+                for local_name, attrib in templates.get(gid, []):
+                    if local_name == "cvParam":
+                        if attrib.get("accession") in seen_cv:
+                            continue
+                        seen_cv.add(attrib.get("accession"))
+                    else:
+                        if attrib.get("name") in seen_user:
+                            continue
+                        seen_user.add(attrib.get("name"))
+                    ET.SubElement(el, f"{ns}{local_name}", dict(attrib))
+        return element
+
     def get_chromatogram_by_id(self, identifier: str) -> Chromatogram:
-        chromatogram = convert_mzml_element_to_object(
-            self.file_handler.get_chromatogram_by_id(identifier),
-        )
-        return chromatogram
+        mzml_element = self.file_handler.get_chromatogram_by_id(identifier)
+        self._expand_param_group_refs(mzml_element.element)
+        return convert_mzml_element_to_object(mzml_element)
 
     def get_chromatogram_by_index(self, index: int) -> Chromatogram:
-        chromatogram = convert_mzml_element_to_object(
-            self.file_handler.get_chromatogram_by_index(index),
-        )
-        return chromatogram
+        mzml_element = self.file_handler.get_chromatogram_by_index(index)
+        self._expand_param_group_refs(mzml_element.element)
+        return convert_mzml_element_to_object(mzml_element)
 
     def get_spectrum_by_id(self, identifier: str) -> Spectrum:
-        spectrum = convert_mzml_element_to_object(
-            self.file_handler.get_spectrum_by_id(identifier),
-        )
-        return spectrum
+        mzml_element = self.file_handler.get_spectrum_by_id(identifier)
+        self._expand_param_group_refs(mzml_element.element)
+        return convert_mzml_element_to_object(mzml_element)
 
     def get_spectrum_by_index(self, index: int) -> Spectrum:
-        spectrum = convert_mzml_element_to_object(
-            self.file_handler.get_spectrum_by_index(index),
-        )
-        return spectrum
+        mzml_element = self.file_handler.get_spectrum_by_index(index)
+        self._expand_param_group_refs(mzml_element.element)
+        return convert_mzml_element_to_object(mzml_element)
 
     @overload
     def _iter_xml_elements(self, tag_suffix: Literal["spectrum"]) -> Iterator[SpectrumElement]: ...
@@ -197,7 +289,15 @@ class FileInterface:
     def _iter_xml_elements(
         self, tag_suffix: Literal["spectrum", "chromatogram"]
     ) -> Iterator[SpectrumElement] | Iterator[ChromatogramElement]:
-        """Iterate over XML elements with specific tag suffix."""
+        """Iterate over XML elements with a specific tag suffix.
+
+        Uses ``start``/``end`` events to track each element's parent so that, after an element is
+        yielded, it can be detached from the tree with ``parent.remove(...)``. This keeps peak
+        memory bounded — the container element does not accumulate every parsed spectrum as
+        iteration proceeds — while the yielded element stays fully intact and usable even after
+        iteration advances (e.g. ``list(reader.spectra)`` or a deferred ``spectrum.mz``).
+        ``element.clear()`` would instead empty a spectrum the caller is still holding.
+        """
         # Get a fresh file handle for iteration
         file_handle = self.file_handler.get_file_handler(self.encoding)
         try:
@@ -207,36 +307,58 @@ class FileInterface:
             if hasattr(file_handle, "seek"):
                 file_handle.seek(0)
 
-            # Type hint needed for iterparse iterator
-            mzml_iter: Iterator[tuple[str, ET.Element]] = iter(ET.iterparse(file_handle, events=("end",)))
+            # Stack of currently-open elements: pushed on "start", popped on "end". After popping a
+            # matched element, the new top of the stack is its parent.
+            open_elements: list[ET.Element] = []
+            for event, element in ET.iterparse(file_handle, events=("start", "end")):
+                if event == "start":
+                    open_elements.append(element)
+                    continue
 
-            for event, element in mzml_iter:
-                if event == "end":
-                    # Extract tag suffix for matching
-                    tag = element.tag.split("}")[-1] if "}" in element.tag else element.tag
-                    if tag == tag_suffix:
-                        # Create properly typed MzmlXMLElement
-                        if tag_suffix == "spectrum":
-                            yield MzmlXMLElement(element=element, element_type="spectrum")
-                        else:
-                            yield MzmlXMLElement(element=element, element_type="chromatogram")
+                # end event
+                open_elements.pop()
+                if get_tag(element) != tag_suffix:
+                    continue
+
+                if tag_suffix == "spectrum":
+                    yield MzmlXMLElement(element=element, element_type="spectrum")
+                else:
+                    yield MzmlXMLElement(element=element, element_type="chromatogram")
+
+                # Detach the just-yielded (and now consumed) element from its parent so the
+                # container does not keep growing. The element itself is unaffected and remains
+                # fully usable through the reference the caller now holds.
+                if open_elements:
+                    open_elements[-1].remove(element)
         finally:
             file_handle.close()
 
     def iter_spectra(self) -> Iterator[Spectrum]:
         """Iterate over all spectra in the file."""
         for mzml_element in self._iter_xml_elements("spectrum"):
-            yield Spectrum(mzml_element.element)
+            yield Spectrum(self._expand_param_group_refs(mzml_element.element))
 
     def iter_chromatograms(self) -> Iterator[Chromatogram]:
         """Iterate over all chromatograms in the file."""
         for mzml_element in self._iter_xml_elements("chromatogram"):
-            yield Chromatogram(mzml_element.element)
+            yield Chromatogram(self._expand_param_group_refs(mzml_element.element))
 
     @property
     def TIC(self) -> Chromatogram:
-        """Retrieve the Total Ion Chromatogram (TIC)."""
-        return self.get_chromatogram_by_id("TIC")
+        """Retrieve the Total Ion Chromatogram (TIC).
+
+        The conventional id ``"TIC"`` is tried first; if that is absent, chromatograms are searched
+        for the one carrying the "total ion current chromatogram" CV term (MS:1000235), since the
+        id spelling varies by writer (e.g. ``"tic"``). Raises ``KeyError`` if no TIC is present.
+        """
+        try:
+            return self.get_chromatogram_by_id("TIC")
+        except KeyError:
+            for cid in self.chromatogram_ids:
+                chromatogram = self.get_chromatogram_by_id(cid)
+                if chromatogram.has_cvparm(ChromatogramTypeAccession.TOTAL_ION_CURRENT):
+                    return chromatogram
+            raise
 
     @property
     def spectrum_ids(self) -> list[str]:

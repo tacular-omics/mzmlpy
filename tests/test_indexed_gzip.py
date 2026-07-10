@@ -68,15 +68,44 @@ def test_iteration(indexed_reader, reference_reader):
     assert idx_ids == ref_ids
 
 
+def test_no_transient_handle_leak(monkeypatch):
+    """Every transient handle from get_file_handler must be closed once the reader is closed.
+
+    Regression: ``_parse_metadata`` opened a handle it never closed. For ``gzip_mode='indexed'``
+    that handle is a ``RapidgzipFile`` with worker threads, which lingered until interpreter
+    shutdown and triggered rapidgzip's "close all RapidgzipFile objects" warning / abort.
+    """
+    from mzmlpy.file_classes import indexedGzip
+
+    handles = []
+    original = indexedGzip.IndexedGzip.get_file_handler
+
+    def tracking(self, encoding):
+        fh = original(self, encoding)
+        handles.append(fh)
+        return fh
+
+    monkeypatch.setattr(indexedGzip.IndexedGzip, "get_file_handler", tracking)
+
+    reader = Mzml(GZ_FILE, gzip_mode="indexed", in_memory=False)
+    _ = [s.id for s in reader.spectra]  # exercise the iteration handle too
+    reader.close()
+
+    assert handles, "expected get_file_handler to be exercised during parse/iteration"
+    assert all(fh.closed for fh in handles), "a transient file handle was left open after close()"
+
+
 def test_cached_index_reuse(reference_reader):
     """Opening the same file twice should use cached .gzidx and .mzidx on the second open."""
     import os
 
     gzidx_path = GZ_FILE + "idx"
     mzidx_path = GZ_FILE.removesuffix(".gz") + "idx"
+    # Each cache file has a ".src" signature sidecar (see util.write_cache_signature).
+    cache_files = (gzidx_path, mzidx_path, gzidx_path + ".src", mzidx_path + ".src")
 
     # Clean up any leftover index files
-    for p in (gzidx_path, mzidx_path):
+    for p in cache_files:
         if os.path.exists(p):
             os.unlink(p)
 
@@ -97,5 +126,6 @@ def test_cached_index_reuse(reference_reader):
         assert r2.spectra[i].id == reference_reader.spectra[i].id
 
     # Clean up
-    for p in (gzidx_path, mzidx_path):
-        os.unlink(p)
+    for p in cache_files:
+        if os.path.exists(p):
+            os.unlink(p)

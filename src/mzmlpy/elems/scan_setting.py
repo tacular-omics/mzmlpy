@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from ..constants import MzMLElement
+from ..constants import MzMLElement, SelectedIonAccession
 from .dtree_wrapper import _ParamGroup
 
 
@@ -10,8 +10,10 @@ class Target(_ParamGroup):
 
     @property
     def mz(self) -> float | None:
-        cv = self.get_cvparm("MS:1000744")
-        return float(cv.value) if cv is not None and cv.value is not None else None
+        """Get the targeted m/z value, if present."""
+        # Use the shared cv_float helper so a non-numeric value yields an actionable error and an
+        # absent value returns None, instead of a bare float() raising a raw ValueError.
+        return self.cv_float(SelectedIonAccession.SELECTED_ION_MZ)
 
 
 @dataclass(frozen=True)
@@ -27,6 +29,11 @@ class ScanSetting(_ParamGroup):
 
     @property
     def id(self) -> str:
+        """Get the scan setting's ``id`` attribute.
+
+        Raises:
+            ValueError: If the ``id`` attribute is missing.
+        """
         id = self.get_attribute("id")
         if id is None:
             raise ValueError("ScanSetting ID is missing")
@@ -34,6 +41,7 @@ class ScanSetting(_ParamGroup):
 
     @property
     def source_file_refs(self) -> tuple[SourceFileRef, ...]:
+        """Get the referenced source files' ``id``s for this scan setting."""
         source_file_ref_list = self.element.find(f"./{self.ns}{MzMLElement.SOURCE_FILE_REF_LIST}")
         if source_file_ref_list is None:
             return ()
@@ -43,6 +51,7 @@ class ScanSetting(_ParamGroup):
 
     @property
     def targets(self) -> tuple[Target, ...]:
+        """Get the targeted m/z entries for this scan setting."""
         target_list = self.element.find(f"./{self.ns}{MzMLElement.TARGET_LIST}")
         if target_list is None:
             return ()

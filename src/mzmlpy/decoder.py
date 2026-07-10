@@ -1,10 +1,22 @@
 #!/usr/bin/env python3
 """MS-Numpress decoder for compressed m/z and intensity values."""
 
+import importlib
 import zlib
 
 import numpy as np
 from numpy.typing import NDArray
+
+
+def _require(module: str, extra: str):
+    """Import an optional decoding dependency, raising an actionable error if it is missing."""
+    try:
+        return importlib.import_module(module)
+    except ImportError as exc:
+        raise ImportError(
+            f"Decoding this array requires the optional '{module}' package, which is not installed. "
+            f"Install it with:  pip install mzmlpy[{extra}]"
+        ) from exc
 
 
 def fix_input(data: NDArray[np.uint8] | bytes) -> NDArray[np.uint8]:
@@ -19,7 +31,7 @@ class MSDecoder:
     @classmethod
     def decode_linear(cls, data: NDArray[np.uint8] | bytes) -> NDArray[np.float64]:
         """Decode MS-Numpress linear prediction compressed data."""
-        import pynumpress
+        pynumpress = _require("pynumpress", "numpress")
 
         result = pynumpress.decode_linear(fix_input(data))
         return np.asarray(result, dtype=np.float64)
@@ -27,7 +39,7 @@ class MSDecoder:
     @classmethod
     def decode_pic(cls, data: NDArray[np.uint8] | bytes) -> NDArray[np.float64]:
         """Decode MS-Numpress positive integer compressed data."""
-        import pynumpress
+        pynumpress = _require("pynumpress", "numpress")
 
         result = pynumpress.decode_pic(fix_input(data))
         return np.asarray(result, dtype=np.float64)
@@ -35,7 +47,7 @@ class MSDecoder:
     @classmethod
     def decode_slof(cls, data: NDArray[np.uint8] | bytes) -> NDArray[np.float64]:
         """Decode MS-Numpress short logged float compressed data."""
-        import pynumpress
+        pynumpress = _require("pynumpress", "numpress")
 
         result = pynumpress.decode_slof(fix_input(data))
         return np.asarray(result, dtype=np.float64)
@@ -43,16 +55,16 @@ class MSDecoder:
     @classmethod
     def encode_linear(cls, data: NDArray[np.float64] | list[float]) -> bytearray:
         """Encode data using MS-Numpress linear prediction compression."""
-        import pynumpress
+        pynumpress = _require("pynumpress", "numpress")
 
         if isinstance(data, list):
             data = np.array(data, dtype=np.float64)
-        return pynumpress.encode_linear(data)
+        return pynumpress.encode_linear(data, pynumpress.optimal_linear_fixed_point(data))
 
     @classmethod
     def encode_pic(cls, data: NDArray[np.float64] | list[float]) -> bytearray:
         """Encode data using MS-Numpress positive integer compression."""
-        import pynumpress
+        pynumpress = _require("pynumpress", "numpress")
 
         if isinstance(data, list):
             data = np.array(data, dtype=np.float64)
@@ -61,11 +73,11 @@ class MSDecoder:
     @classmethod
     def encode_slof(cls, data: NDArray[np.float64] | list[float]) -> bytearray:
         """Encode data using MS-Numpress short logged float compression."""
-        import pynumpress
+        pynumpress = _require("pynumpress", "numpress")
 
         if isinstance(data, list):
             data = np.array(data, dtype=np.float64)
-        return pynumpress.encode_slof(data)
+        return pynumpress.encode_slof(data, pynumpress.optimal_slof_fixed_point(data))
 
     @classmethod
     def decode_zlib(cls, data: bytes) -> bytes:
@@ -80,14 +92,14 @@ class MSDecoder:
     @classmethod
     def decode_ztsd(cls, data: bytes) -> bytes:
         """Decompress ztsd-compressed data."""
-        import zstd
+        zstd = _require("zstd", "zstd")
 
         return zstd.decompress(data)
 
     @classmethod
     def encode_ztsd(cls, data: bytes) -> bytes:
         """Compress data using ztsd."""
-        import zstd
+        zstd = _require("zstd", "zstd")
 
         return zstd.compress(data)
 
@@ -99,6 +111,13 @@ class MSDecoder:
         (all byte-0s, then all byte-1s, etc.) to improve compression of
         numeric arrays. This reverses that transform.
         """
+        if element_size <= 0:
+            raise ValueError(f"element_size must be positive, got {element_size}")
+        if len(data) % element_size != 0:
+            # Otherwise numpy silently broadcasts mismatched slices into scrambled output.
+            raise ValueError(
+                f"byte-shuffled data length {len(data)} is not a multiple of element size {element_size}"
+            )
         n_elements = len(data) // element_size
         src = np.frombuffer(data, dtype=np.uint8)
         dst = np.empty_like(src)
@@ -118,20 +137,28 @@ class MSDecoder:
         The decompressed layout is:
         [16-byte header] [byte-shuffled value table] [byte-shuffled index table]
 
-        The header contains two uint64 values: a byte offset and the element count.
+        The header contains two uint64 values: ``header[0]`` is the absolute byte offset
+        (from the start of the decompressed buffer) at which the index table begins — i.e. the
+        end of the value table — and ``header[1]`` is the number of output elements. The value
+        table holds the *unique* values, of which there can be fewer than the output count
+        (that is the whole point of dictionary encoding), so its size must come from the header
+        offset, not from the output count.
         """
         decompressed = cls.decode_ztsd(data)
         header = np.frombuffer(decompressed[:16], dtype=np.uint64)
+        index_offset = int(header[0])
         num_elements = int(header[1])
+        if num_elements == 0:
+            # Empty array: nothing to index (avoids a divide-by-zero on the index-size calc below).
+            return np.array([], dtype=np.float64)
         element_size = dtype.itemsize
-        payload = decompressed[16:]
 
-        # Value table: num_elements * element_size bytes, byte-shuffled
-        value_data = cls.unshuffle(payload[: num_elements * element_size], element_size)
+        # Value table: unique values, from the end of the 16-byte header up to the index offset.
+        value_data = cls.unshuffle(decompressed[16:index_offset], element_size)
         values = np.frombuffer(value_data, dtype=dtype).astype(np.float64)
 
-        # Index table: remaining bytes, byte-shuffled by index element size
-        idx_data = payload[num_elements * element_size :]
+        # Index table: remaining bytes, byte-shuffled by index element size.
+        idx_data = decompressed[index_offset:]
         idx_size = len(idx_data) // num_elements
         if idx_size == 1:
             indices = np.frombuffer(idx_data, dtype=np.uint8)

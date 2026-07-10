@@ -9,6 +9,11 @@ class ReferenceableParamGroup(_ParamGroup):
 
     @property
     def id(self) -> str:
+        """Get the param group's ``id`` attribute, used by other elements to reference it.
+
+        Raises:
+            ValueError: If the ``id`` attribute is missing.
+        """
         id = self.get_attribute("id")
         if id is None:
             raise ValueError("ReferenceableParamGroup must have an 'id' attribute")

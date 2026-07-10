@@ -22,6 +22,10 @@ class _DataTreeWrapperProtocol(Protocol):
 
     def get_cvparm(self, id: str) -> CvParam | None: ...
 
+    def cv_float(self, id: str) -> float | None: ...
+
+    def cv_int(self, id: str) -> int | None: ...
+
     @property
     def accessions(self) -> set[str]: ...
 
@@ -78,12 +82,14 @@ class _ParamGroup(_DataTreeWrapper):
         cv_params = []
         for cv_param in self.element.findall(f"{self.ns}{MzMLElement.CV_PARAM}"):
             cv_param = cv_param.attrib
+            # cvRef/accession/name are schema-required, but tolerate their absence with empty
+            # defaults so one malformed cvParam does not break access to every other term.
             cv_params.append(
                 CvParam(
-                    cv_ref=cv_param["cvRef"],
-                    accession=cv_param["accession"],
+                    cv_ref=cv_param.get("cvRef", ""),
+                    accession=cv_param.get("accession", ""),
                     value=cv_param.get("value", None),
-                    name=cv_param["name"],
+                    name=cv_param.get("name", ""),
                     unit_accession=cv_param.get("unitAccession", None),
                     unit_name=cv_param.get("unitName", None),
                     unit_cv_ref=cv_param.get("unitCvRef", None),
@@ -101,6 +107,34 @@ class _ParamGroup(_DataTreeWrapper):
     def has_cvparm(self, id: str) -> bool:
         """Check if a cvParam with the given accession or name exists."""
         return any(cv_param.accession == id or cv_param.name == id for cv_param in self.cv_params)
+
+    def cv_float(self, id: str) -> float | None:
+        """Return a cvParam's value as a float, or None if the term is absent or has no value.
+
+        Raises ValueError naming the term and its bad value if the value is present but not
+        numeric — more actionable than a bare "could not convert string to float".
+        """
+        cv_param = self.get_cvparm(id)
+        if cv_param is None or cv_param.value is None:
+            return None
+        try:
+            return float(cv_param.value)
+        except ValueError as e:
+            raise ValueError(
+                f"CV param {cv_param.name or id!r} ({id}) has a non-numeric value {cv_param.value!r}"
+            ) from e
+
+    def cv_int(self, id: str) -> int | None:
+        """Return a cvParam's value as an int, or None if absent or valueless (see :meth:`cv_float`)."""
+        cv_param = self.get_cvparm(id)
+        if cv_param is None or cv_param.value is None:
+            return None
+        try:
+            return int(cv_param.value)
+        except ValueError as e:
+            raise ValueError(
+                f"CV param {cv_param.name or id!r} ({id}) has a non-integer value {cv_param.value!r}"
+            ) from e
 
     @cached_property
     def accessions(self) -> set[str]:

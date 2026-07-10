@@ -34,7 +34,9 @@ def test_spectra(filename):
     s1 = reader.spectra[0]
     assert s1.id == "scan=19"
     assert s1.ms_level == 1
-    assert s1.polarity is None
+    # polarity ("positive scan", MS:1000130) is supplied via referenceableParamGroupRef
+    # (CommonMS1SpectrumParams); it must be resolved from the referenced group.
+    assert s1.polarity == "positive"
     assert s1.spectrum_type == "centroid"
     assert s1.TIC == 16675500.0
 
