@@ -6,11 +6,15 @@ abstract: >-
   including modern compression formats, ion-mobility metadata, and DIA acquisition metadata.
 type: software
 authors:
-  - given-names: Patrick Tyler
+  - given-names: Patrick
     family-names: Garrett
-    affiliation: The Scripps Research Institute
+    affiliation: Scripps Research Institute
     email: pgarrett@scripps.edu
     orcid: "https://orcid.org/0000-0002-8434-9693"
+  - given-names: John
+    family-names: Yates
+    affiliation: Scripps Research Institute
+    orcid: "https://orcid.org/0000-0001-5267-1672"
 repository-code: "https://github.com/tacular-omics/mzmlpy"
 url: "https://tacular-omics.github.io/mzmlpy/"
 doi: "10.5281/zenodo.21960080"
