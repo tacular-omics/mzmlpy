@@ -1,6 +1,6 @@
 {
   "title": "mzmlpy: Type-safe, lazy mzML reading in Python",
-  "description": "A lightweight, type-safe Python library for lazy reading of mzML mass spectrometry files, including modern compression formats, ion-mobility metadata, and data-independent acquisition metadata.",
+  "description": "A type-safe Python library for lazy reading of mzML mass spectrometry files, including multiple compression formats, ion-mobility metadata, and data-independent acquisition metadata.",
   "creators": [
     {
       "name": "Garrett, Patrick T.",

@@ -2,8 +2,8 @@ cff-version: 1.2.0
 message: "If you use mzmlpy in your research, please cite the software using this metadata."
 title: "mzmlpy: Type-safe, lazy mzML reading in Python"
 abstract: >-
-  A lightweight, type-safe Python library for lazy reading of mzML mass spectrometry files,
-  including modern compression formats, ion-mobility metadata, and
+  A type-safe Python library for lazy reading of mzML mass spectrometry files,
+  including multiple compression formats, ion-mobility metadata, and
   data-independent acquisition metadata.
 type: software
 authors:
