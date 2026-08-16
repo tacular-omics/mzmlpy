@@ -10,10 +10,11 @@ dependencies = [
     "numpy>=1.26.0",
 ]
 authors = [
-    { name = "Patrick Garrett", email = "pgarrett@scripps.edu" }
+    { name = "Patrick T. Garrett", email = "pgarrett@scripps.edu" },
+    { name = "John R. Yates III", email = "jyates@scripps.edu" },
 ]
 maintainers = [
-    { name = "Patrick Garrett", email = "pgarrett@scripps.edu" }
+    { name = "Patrick T. Garrett", email = "pgarrett@scripps.edu" }
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -32,6 +33,7 @@ Repository = "https://github.com/tacular-omics/mzmlpy"
 Documentation = "https://tacular-omics.github.io/mzmlpy/"
 Changelog = "https://github.com/tacular-omics/mzmlpy/blob/main/CHANGELOG.md"
 Issues = "https://github.com/tacular-omics/mzmlpy/issues"
+DOI = "https://doi.org/10.5281/zenodo.21960079"
 
 [build-system]
 requires = ["hatchling"]
