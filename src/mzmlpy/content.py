@@ -16,7 +16,7 @@ from .elems import (
     Software,
 )
 from .regex_patterns import MZML_VERSION_PATTERN
-from .util import get_tag
+from .util import expand_param_group_refs, get_tag
 
 
 class CVElement(NamedTuple):
@@ -185,6 +185,26 @@ class MzMLContentBuilder:
 
     def build(self) -> _MzMLContent:
         """Build immutable MzMLContent from parsed data."""
+        templates = {
+            group.id: [
+                (get_tag(child), dict(child.attrib))
+                for child in group.element
+                if get_tag(child) in ("cvParam", "userParam")
+            ]
+            for group in self._referenceable_param_groups
+        }
+        metadata = [
+            self._file_description,
+            *self._software_list,
+            *self._instrument_configurations,
+            *self._data_processing_list,
+            *self._sample_list,
+            *self._scan_settings_list,
+        ]
+        for wrapper in metadata:
+            if wrapper is not None:
+                expand_param_group_refs(wrapper.element, templates)
+
         return _MzMLContent(
             id=self._id,
             version=self._version,

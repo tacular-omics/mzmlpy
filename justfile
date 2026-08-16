@@ -6,7 +6,7 @@ install:
 
 # Run linting checks
 lint:
-    uv run ruff check src
+    uv run ruff check src tests
 
 # Format code
 format:

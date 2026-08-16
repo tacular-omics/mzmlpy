@@ -10,7 +10,11 @@ from mzmlpy import Mzml, peek_spectrum_count
 
 EXAMPLE = "tests/data/example.mzML"
 EXAMPLE_GZ = "tests/data/example.mzML.gz"
-_HEADER = '<?xml version="1.0" encoding="utf-8"?>\n<indexedmzML xmlns="http://psi.hupo.org/ms/mzml">\n<mzML id="m" version="1.1.0">\n'
+_HEADER = (
+    '<?xml version="1.0" encoding="utf-8"?>\n'
+    '<indexedmzML xmlns="http://psi.hupo.org/ms/mzml">\n'
+    '<mzML id="m" version="1.1.0">\n'
+)
 _FOOTER = "</mzML></indexedmzML>\n"
 
 

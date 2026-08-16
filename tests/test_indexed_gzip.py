@@ -110,20 +110,20 @@ def test_cached_index_reuse(reference_reader):
             os.unlink(p)
 
     # First open — builds and saves both indices
-    r1 = Mzml(GZ_FILE, gzip_mode="indexed", in_memory=False)
-    assert os.path.exists(gzidx_path)
-    assert os.path.exists(mzidx_path)
-    gzidx_mtime = os.path.getmtime(gzidx_path)
-    mzidx_mtime = os.path.getmtime(mzidx_path)
+    with Mzml(GZ_FILE, gzip_mode="indexed", in_memory=False):
+        assert os.path.exists(gzidx_path)
+        assert os.path.exists(mzidx_path)
+        gzidx_mtime = os.path.getmtime(gzidx_path)
+        mzidx_mtime = os.path.getmtime(mzidx_path)
 
     # Second open — should load from cache (no rebuild)
-    r2 = Mzml(GZ_FILE, gzip_mode="indexed", in_memory=False)
-    assert os.path.getmtime(gzidx_path) == gzidx_mtime
-    assert os.path.getmtime(mzidx_path) == mzidx_mtime
+    with Mzml(GZ_FILE, gzip_mode="indexed", in_memory=False) as r2:
+        assert os.path.getmtime(gzidx_path) == gzidx_mtime
+        assert os.path.getmtime(mzidx_path) == mzidx_mtime
 
-    # Verify correctness from cached index
-    for i in range(len(reference_reader.spectra)):
-        assert r2.spectra[i].id == reference_reader.spectra[i].id
+        # Verify correctness from cached index
+        for i in range(len(reference_reader.spectra)):
+            assert r2.spectra[i].id == reference_reader.spectra[i].id
 
     # Clean up
     for p in cache_files:

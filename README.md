@@ -95,6 +95,11 @@ For full usage examples see the **[Getting Started guide](https://tacular-omics.
 
 Using an AI coding assistant? Point it at **[`llms.txt`](llms.txt)** — a compact, accurate API guide for generating correct mzmlpy code.
 
+## Citation
+
+Citation metadata are provided in [`CITATION.cff`](CITATION.cff). A DOI will be added after the
+first Zenodo archive is published.
+
 
 ## Benchmarks
 

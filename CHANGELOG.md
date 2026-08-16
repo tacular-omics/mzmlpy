@@ -4,6 +4,36 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-08-15
+
+Ion-mobility / DIA release, tracking the PSI "Encoding data independent acquisition, ion mobility
+data, subsampled data arrays, and additional compression types in mzML 1.1" recommendation v1.0
+(2026-06-30).
+
+### Added
+
+- **Citation metadata** — `CITATION.cff` provides validated author, ORCID, project, license, and
+  keyword metadata for GitHub and Zenodo software archiving.
+- **Front-end ion mobility filtering accessors** on `Scan` (recommendation §3.6): `faims_compensation_voltage`
+  (`MS:1001581`), `selexion_separation_voltage` (`MS:1003394`), and `selexion_compensation_voltage`
+  (`MS:1003371`).
+- **DIA acquisition detection** on `FileContent`: `dia_acquisition` returns the declared
+  merged-concept DIA method term (`MS:1003224`–`MS:1003228`, covering SWATH/HRM, diaPASEF,
+  HDMSE/IMS-AIF, MSE/AIF/bbCID, SONAR), and `is_dia` is a convenience boolean
+  (recommendation §3.3).
+- **`IsolationWindow.no_isolation`** — detects the `MS:1003159` "no isolation" marker used on
+  full-mass-range DIA (MSE/HDMSE) windows (recommendation §3.5).
+
+### Fixed
+
+- **Truncation + prediction compression** — the `truncation, linear prediction and zlib` (`MS:1003090`)
+  and `truncation, delta prediction and zlib` (`MS:1003089`) codecs now decode instead of raising
+  `NotImplementedError`. Composite prediction terms take precedence when a producer also emits a
+  generic zlib term, and malformed partial elements now raise the same actionable error as other
+  binary encodings.
+- **Referenced DIA metadata** — DIA acquisition terms inherited by `fileContent` through a valid
+  `referenceableParamGroupRef` are now resolved instead of incorrectly reporting `is_dia=False`.
+
 ## [0.5.0] - 2026-07-09
 
 A large correctness, robustness, and diagnostics release. Some behavior changed in ways that can
@@ -165,6 +195,7 @@ affect existing code (see **Changed**).
 
 - First release on PyPI.
 
+[0.6.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.6.0
 [0.5.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.5.0
 [0.4.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.4.0
 [0.2.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.2.0

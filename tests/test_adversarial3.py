@@ -3,12 +3,14 @@
 import base64
 import zlib
 
-import pytest
-
 from mzmlpy import Mzml
 
 EXAMPLE = "tests/data/example.mzML"
-_HEADER = '<?xml version="1.0" encoding="utf-8"?>\n<indexedmzML xmlns="http://psi.hupo.org/ms/mzml">\n<mzML id="m" version="1.1.0">\n'
+_HEADER = (
+    '<?xml version="1.0" encoding="utf-8"?>\n'
+    '<indexedmzML xmlns="http://psi.hupo.org/ms/mzml">\n'
+    '<mzML id="m" version="1.1.0">\n'
+)
 _FOOTER = "</mzML></indexedmzML>\n"
 
 
@@ -43,12 +45,14 @@ def test_precursor_full_chain(tmp_path):
         '<spectrum index="0" id="scan=2" defaultArrayLength="0">'
         '<cvParam cvRef="MS" accession="MS:1000511" name="ms level" value="2"/>'
         '<precursorList count="1"><precursor>'
-        '<isolationWindow><cvParam cvRef="MS" accession="MS:1000827" name="isolation window target m/z" value="500.0"/></isolationWindow>'
+        '<isolationWindow><cvParam cvRef="MS" accession="MS:1000827" '
+        'name="isolation window target m/z" value="500.0"/></isolationWindow>'
         '<selectedIonList count="1"><selectedIon>'
         '<cvParam cvRef="MS" accession="MS:1000744" name="selected ion m/z" value="500.5"/>'
         '<cvParam cvRef="MS" accession="MS:1000041" name="charge state" value="2"/>'
         "</selectedIon></selectedIonList>"
-        '<activation><cvParam cvRef="MS" accession="MS:1000133" name="collision-induced dissociation" value=""/></activation>'
+        '<activation><cvParam cvRef="MS" accession="MS:1000133" '
+        'name="collision-induced dissociation" value=""/></activation>'
         "</precursor></precursorList>"
         "</spectrum></spectrumList></run>"
     )

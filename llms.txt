@@ -3,7 +3,7 @@
 > mzmlpy is a lightweight, type-safe, lazy-loading Python library (3.12+) for reading mzML mass
 > spectrometry files. This file is written for AI coding assistants: it is a compact, accurate
 > reference for generating correct mzmlpy code. Everything below matches the public API as of
-> version 0.5.0. Only `numpy` is required at runtime.
+> version 0.6.0. Only `numpy` is required at runtime.
 
 ## Install
 
@@ -93,8 +93,13 @@ for prec in spectrum.precursors:
     prec.activation                      # Activation | None -> .activation_type, .ce, ...
 
 for prod in spectrum.products:
-    win = prod.isolation_window          # IsolationWindow | None -> .target_mz, .lower_offset, .upper_offset
+    win = prod.isolation_window          # IsolationWindow | None; also exposes .no_isolation
 ```
+
+Scan-level front-end ion-mobility filters are available as `scan.faims_compensation_voltage`,
+`scan.selexion_separation_voltage`, and `scan.selexion_compensation_voltage`. For DIA files,
+`reader.file_description.file_content.is_dia` reports whether a merged DIA method term is declared,
+and `.dia_acquisition` returns that term.
 
 ## Chromatograms
 

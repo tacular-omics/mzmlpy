@@ -20,6 +20,43 @@ def get_tag(element: ElementTree.Element) -> str:
     return element.tag.split("}")[-1] if "}" in element.tag else element.tag
 
 
+def expand_param_group_refs(
+    element: ElementTree.Element, templates: dict[str, list[tuple[str, dict[str, str]]]]
+) -> ElementTree.Element:
+    """Expand referenceable parameter groups into an XML element tree in place.
+
+    Directly specified parameters take precedence over inherited ones. Reference nodes remain in
+    place to preserve provenance, and repeated expansion is idempotent.
+    """
+    if not templates:
+        return element
+
+    targets = [
+        (child, [ref.get("ref") for ref in child if get_tag(ref) == "referenceableParamGroupRef"])
+        for child in element.iter()
+    ]
+    for child, group_ids in targets:
+        if not group_ids:
+            continue
+        ns = child.tag[: child.tag.index("}") + 1] if "}" in child.tag else ""
+        seen_cv = {param.get("accession") for param in child if get_tag(param) == "cvParam"}
+        seen_user = {param.get("name") for param in child if get_tag(param) == "userParam"}
+        for group_id in group_ids:
+            if group_id is None:
+                continue
+            for local_name, attributes in templates.get(group_id, []):
+                if local_name == "cvParam":
+                    if attributes.get("accession") in seen_cv:
+                        continue
+                    seen_cv.add(attributes.get("accession"))
+                else:
+                    if attributes.get("name") in seen_user:
+                        continue
+                    seen_user.add(attributes.get("name"))
+                ElementTree.SubElement(child, f"{ns}{local_name}", dict(attributes))
+    return element
+
+
 def gzip_open_binary(path: str) -> BinaryIO:
     """Open a gzip file for binary reading, using rapidgzip if available."""
     if _HAS_RAPIDGZIP:
