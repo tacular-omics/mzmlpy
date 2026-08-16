@@ -6,6 +6,7 @@
   [![Python package](https://github.com/tacular-omics/mzmlpy/actions/workflows/python-package.yml/badge.svg)](https://github.com/tacular-omics/mzmlpy/actions/workflows/python-package.yml)
   [![codecov](https://codecov.io/github/tacular-omics/mzmlpy/graph/badge.svg?token=1CTVZVFXF7)](https://codecov.io/github/tacular-omics/mzmlpy)
   [![PyPI version](https://badge.fury.io/py/mzmlpy.svg)](https://badge.fury.io/py/mzmlpy)
+  [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21960079.svg)](https://doi.org/10.5281/zenodo.21960079)
   [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
   [![License: MIT](https://img.shields.io/badge/License-MIT-g.svg)](https://opensource.org/licenses/MIT)
 
@@ -97,8 +98,8 @@ Using an AI coding assistant? Point it at **[`llms.txt`](llms.txt)** — a compa
 
 ## Citation
 
-Citation metadata are provided in [`CITATION.cff`](CITATION.cff). A DOI will be added after the
-first Zenodo archive is published.
+Citation metadata are provided in [`CITATION.cff`](CITATION.cff). The archived v0.6.0 release is
+available from Zenodo at [doi:10.5281/zenodo.21960080](https://doi.org/10.5281/zenodo.21960080).
 
 
 ## Benchmarks

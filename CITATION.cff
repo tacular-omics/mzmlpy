@@ -13,6 +13,7 @@ authors:
     orcid: "https://orcid.org/0000-0002-8434-9693"
 repository-code: "https://github.com/tacular-omics/mzmlpy"
 url: "https://tacular-omics.github.io/mzmlpy/"
+doi: "10.5281/zenodo.21960080"
 license: MIT
 version: 0.6.0
 date-released: 2026-08-15
