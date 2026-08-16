@@ -1,21 +1,21 @@
 cff-version: 1.2.0
 message: "If you use mzmlpy in your research, please cite the software using this metadata."
-title: mzmlpy
+title: "mzmlpy: Type-safe, lazy mzML reading in Python"
 abstract: >-
   A lightweight, type-safe Python library for lazy reading of mzML mass spectrometry files,
-  including modern compression formats, ion-mobility metadata, and DIA acquisition metadata.
+  including modern compression formats, ion-mobility metadata, and
+  data-independent acquisition metadata.
 type: software
 authors:
-- given-names: Patrick T.
-  family-names: Garrett
-  orcid: https://orcid.org/0000-0002-8434-9693
-  affiliation: Scripps Research Institute
-
-- given-names: John R.
-  family-names: Yates
-  name-suffix: III
-  orcid: https://orcid.org/0000-0001-5267-1672
-  affiliation: Scripps Research Institute
+  - given-names: Patrick T.
+    family-names: Garrett
+    orcid: https://orcid.org/0000-0002-8434-9693
+    affiliation: Scripps Research Institute
+  - given-names: John R.
+    family-names: Yates
+    name-suffix: III
+    orcid: https://orcid.org/0000-0001-5267-1672
+    affiliation: Scripps Research Institute
 repository-code: "https://github.com/tacular-omics/mzmlpy"
 url: "https://tacular-omics.github.io/mzmlpy/"
 doi: "10.5281/zenodo.21960080"
@@ -23,9 +23,10 @@ license: MIT
 version: 0.6.0
 date-released: 2026-08-15
 keywords:
-  - mass spectrometry
+  - Python
+  - Proteomics
+  - Mass Spectrometry
   - mzML
-  - proteomics
-  - bioinformatics
-  - ion mobility
-  - data-independent acquisition
+  - Ion Mobility
+  - Data-Independent Acquisition
+  - Bioinformatics
