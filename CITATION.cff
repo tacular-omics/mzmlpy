@@ -2,9 +2,21 @@ cff-version: 1.2.0
 message: "If you use mzmlpy in your research, please cite the software using this metadata."
 title: "mzmlpy: Type-safe, lazy mzML reading in Python"
 abstract: >-
-  A type-safe Python library for lazy reading of mzML mass spectrometry files,
-  including multiple compression formats, ion-mobility metadata, and
-  data-independent acquisition metadata.
+  mzmlpy is a typed Python library for reading mzML mass spectrometry files. It
+  parses run and spectrum metadata into explicit Python models while delaying
+  binary-array decoding until peak data is requested. This separates metadata
+  inspection from the cost of decoding mass-to-charge, intensity, ion
+  mobility, and other arrays. The reader supports mzML and gzipped mzML files,
+  indexed spectrum access, and metadata for ion mobility and
+  data-independent acquisition. Binary decoding covers uncompressed arrays,
+  zlib compression, MS-Numpress encodings, and Zstandard-compressed data when
+  the corresponding optional support is installed. Gzipped input can be
+  extracted to a reusable temporary cache, accessed through an indexed gzip
+  backend, or streamed sequentially. Spectrum collections provide iteration
+  and random access without requiring all binary arrays to reside in memory at
+  once. mzmlpy is intended for proteomics pipelines, format-conversion tools,
+  metadata inspection, and applications that need direct control over when
+  spectral arrays are decoded. It requires Python 3.12 or later.
 type: software
 authors:
   - given-names: Patrick T.
