@@ -124,6 +124,22 @@ def _binary_data_array_xml(values: np.ndarray, dtype_accession: str, compression
     return BinaryDataArray(ElementTree.fromstring(xml))
 
 
+def _binary_data_array_xml_with_generic_zlib_first(
+    values: np.ndarray, dtype_accession: str, compression_accession: str
+) -> BinaryDataArray:
+    payload = base64.b64encode(zlib.compress(values.tobytes())).decode("ascii")
+    xml = (
+        "<binaryDataArray>"
+        f'<cvParam accession="{dtype_accession}" name="float" value=""/>'
+        '<cvParam accession="MS:1000574" name="zlib compression" value=""/>'
+        f'<cvParam accession="{compression_accession}" name="prediction compression" value=""/>'
+        f'<cvParam accession="{MZ_ARRAY}" name="m/z array" value=""/>'
+        f"<binary>{payload}</binary>"
+        "</binaryDataArray>"
+    )
+    return BinaryDataArray(ElementTree.fromstring(xml))
+
+
 @pytest.mark.parametrize(
     "dtype_accession,np_dtype", [(FLOAT_64, np.float64), (FLOAT_32, np.float32)]
 )
@@ -146,3 +162,32 @@ def test_decode_truncation_linear_end_to_end(dtype_accession, np_dtype):
     decoded = bda._decode()
     assert decoded.dtype == np.float64
     np.testing.assert_allclose(decoded, original.astype(np.float64), rtol=1e-6, atol=1e-6)
+
+
+@pytest.mark.parametrize(
+    "compression,encoder",
+    [
+        (TRUNCATION_DELTA_ZLIB, delta_encode),
+        (TRUNCATION_LINEAR_ZLIB, linear_encode),
+    ],
+)
+def test_prediction_compression_wins_when_generic_zlib_term_comes_first(compression, encoder):
+    original = np.arange(100.0, 110.0, 0.5, dtype=np.float64)
+    bda = _binary_data_array_xml_with_generic_zlib_first(encoder(original), FLOAT_64, compression)
+    assert bda.compression == compression
+    np.testing.assert_array_equal(bda._decode(), original)
+
+
+@pytest.mark.parametrize("compression", [TRUNCATION_DELTA_ZLIB, TRUNCATION_LINEAR_ZLIB])
+def test_prediction_decode_rejects_partial_elements(compression):
+    payload = base64.b64encode(zlib.compress(b"not-a-multiple-of-eight")).decode("ascii")
+    xml = (
+        "<binaryDataArray>"
+        f'<cvParam accession="{FLOAT_64}" name="64-bit float" value=""/>'
+        f'<cvParam accession="{compression}" name="prediction compression" value=""/>'
+        f'<cvParam accession="{MZ_ARRAY}" name="m/z array" value=""/>'
+        f"<binary>{payload}</binary>"
+        "</binaryDataArray>"
+    )
+    with pytest.raises(ValueError, match="not a multiple of the 8-byte element size"):
+        BinaryDataArray(ElementTree.fromstring(xml))._decode()

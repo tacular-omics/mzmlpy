@@ -20,6 +20,8 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: 3 :: Only",
     "Typing :: Typed",
 ]
@@ -43,6 +45,7 @@ include = [
     "src/mzmlpy",
     "README.md",
     "CHANGELOG.md",
+    "CITATION.cff",
     "LICENSE",
     "pyproject.toml",
 ]
@@ -57,7 +60,9 @@ exclude = [
 
 [tool.uv]
 package = true
-dev-dependencies = [
+
+[dependency-groups]
+dev = [
     "pytest>=8.0.0",
     "pytest-cov>=6.0.0",
     "pytest-examples>=0.0.14",
@@ -93,4 +98,3 @@ select = [
     "B",   # flake8-bugbear
     "UP",  # pyupgrade
 ]
-

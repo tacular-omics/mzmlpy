@@ -27,7 +27,14 @@ from .file_classes import (
     StandardMzml,
 )
 from .spectra import Chromatogram, Spectrum
-from .util import atomic_write_path, cache_is_current, get_tag, gzip_decompress, write_cache_signature
+from .util import (
+    atomic_write_path,
+    cache_is_current,
+    expand_param_group_refs,
+    get_tag,
+    gzip_decompress,
+    write_cache_signature,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -231,34 +238,7 @@ class FileInterface:
         directly-specified term wins and nothing is duplicated). The ref node is left in place so
         provenance is preserved and the operation is idempotent.
         """
-        templates = self._param_group_templates
-        if not templates:
-            return element
-
-        targets = [
-            (el, [ref.get("ref") for ref in el if get_tag(ref) == "referenceableParamGroupRef"])
-            for el in element.iter()
-        ]
-        for el, group_ids in targets:
-            if not group_ids:
-                continue
-            ns = el.tag[: el.tag.index("}") + 1] if "}" in el.tag else ""
-            seen_cv = {c.get("accession") for c in el if get_tag(c) == "cvParam"}
-            seen_user = {c.get("name") for c in el if get_tag(c) == "userParam"}
-            for gid in group_ids:
-                if gid is None:
-                    continue
-                for local_name, attrib in templates.get(gid, []):
-                    if local_name == "cvParam":
-                        if attrib.get("accession") in seen_cv:
-                            continue
-                        seen_cv.add(attrib.get("accession"))
-                    else:
-                        if attrib.get("name") in seen_user:
-                            continue
-                        seen_user.add(attrib.get("name"))
-                    ET.SubElement(el, f"{ns}{local_name}", dict(attrib))
-        return element
+        return expand_param_group_refs(element, self._param_group_templates)
 
     def get_chromatogram_by_id(self, identifier: str) -> Chromatogram:
         mzml_element = self.file_handler.get_chromatogram_by_id(identifier)

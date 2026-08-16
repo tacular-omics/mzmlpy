@@ -39,7 +39,7 @@ from .decoder import MSDecoder
 from .elems.dtree_wrapper import _DataTreeWrapper, _DataTreeWrapperProtocol, _ParamGroup
 
 
-def decode_to_numpy(data: bytes, data_type: str) -> NDArray[np.float64]:
+def _decode_to_native(data: bytes, data_type: str) -> np.ndarray:
     dtype = _resolve_dtype(data_type)
     if len(data) % dtype.itemsize != 0:
         raise ValueError(
@@ -47,7 +47,11 @@ def decode_to_numpy(data: bytes, data_type: str) -> NDArray[np.float64]:
             f"{dtype.itemsize}-byte element size for data type {data_type!r}. The data may be "
             f"corrupt, truncated, or use a truncation encoding that mzmlpy does not support."
         )
-    return np.frombuffer(data, dtype=dtype).astype(np.float64)
+    return np.frombuffer(data, dtype=dtype)
+
+
+def decode_to_numpy(data: bytes, data_type: str) -> NDArray[np.float64]:
+    return _decode_to_native(data, data_type).astype(np.float64)
 
 
 def _resolve_dtype(data_type: str) -> np.dtype:
@@ -101,6 +105,14 @@ class BinaryDataArray(_ParamGroup):
     @cached_property
     def compression(self) -> CompressionTypeAccessions | None:
         """Return the compression accession for this array, or None if no compression CV term is present."""
+        # Composite prediction terms already include zlib. Prefer them even if a producer also
+        # emits the generic zlib term first; cvParam order has no semantic significance in mzML.
+        for composite in (
+            CompressionTypeAccessions.TRUNCATION_LINEAR_PREDICTION_ZLIB,
+            CompressionTypeAccessions.TRUNCATION_DELTA_PREDICTION_ZLIB,
+        ):
+            if composite in self.accessions:
+                return composite
         for param in self.cv_params:
             with contextlib.suppress(ValueError):
                 return CompressionTypeAccessions(param.accession)
@@ -159,7 +171,7 @@ class BinaryDataArray(_ParamGroup):
                 return MSDecoder.decode_slof(out_data)
             case CompressionTypeAccessions.TRUNCATION_LINEAR_PREDICTION_ZLIB:
                 # Reverse the linear predictor in native precision, then widen to float64.
-                native = np.frombuffer(MSDecoder.decode_zlib(out_data), dtype=_resolve_dtype(binary_data_type))
+                native = _decode_to_native(MSDecoder.decode_zlib(out_data), binary_data_type)
                 return MSDecoder.reverse_linear_prediction(native).astype(np.float64)
             case CompressionTypeAccessions.ZLIB_COMPRESSION:
                 return decode_to_numpy(MSDecoder.decode_zlib(out_data), binary_data_type)
@@ -185,7 +197,7 @@ class BinaryDataArray(_ParamGroup):
                 return MSDecoder.decode_pic(out_data)
             case CompressionTypeAccessions.TRUNCATION_DELTA_PREDICTION_ZLIB:
                 # Reverse the delta predictor in native precision, then widen to float64.
-                native = np.frombuffer(MSDecoder.decode_zlib(out_data), dtype=_resolve_dtype(binary_data_type))
+                native = _decode_to_native(MSDecoder.decode_zlib(out_data), binary_data_type)
                 return MSDecoder.reverse_delta_prediction(native).astype(np.float64)
             case CompressionTypeAccessions.ZSTD_COMPRESSION:
                 return decode_to_numpy(MSDecoder.decode_ztsd(out_data), binary_data_type)

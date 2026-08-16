@@ -7,7 +7,11 @@ from mzmlpy import Mzml
 
 EXAMPLE = "tests/data/example.mzML"
 
-_HEADER = '<?xml version="1.0" encoding="utf-8"?>\n<indexedmzML xmlns="http://psi.hupo.org/ms/mzml">\n<mzML id="m" version="1.1.0">\n'
+_HEADER = (
+    '<?xml version="1.0" encoding="utf-8"?>\n'
+    '<indexedmzML xmlns="http://psi.hupo.org/ms/mzml">\n'
+    '<mzML id="m" version="1.1.0">\n'
+)
 _FOOTER = "</mzML></indexedmzML>\n"
 
 
@@ -26,9 +30,15 @@ def test_missing_file_raises_not_silent(tmp_path):
 def test_truncated_xml_is_an_error_not_hang(tmp_path):
     # A spectrum whose closing tag never arrives before EOF.
     p = tmp_path / "trunc.mzML"
-    p.write_text(_HEADER + '<run id="r"><spectrumList count="1">\n<spectrum index="0" id="scan=1" defaultArrayLength="0"><cvParam cvRef="MS" accession="MS:1000511" name="ms level" value="1"/>', encoding="utf-8")
+    p.write_text(
+        _HEADER
+        + '<run id="r"><spectrumList count="1">\n'
+        + '<spectrum index="0" id="scan=1" defaultArrayLength="0">'
+        + '<cvParam cvRef="MS" accession="MS:1000511" name="ms level" value="1"/>',
+        encoding="utf-8",
+    )
     with Mzml(str(p), in_memory=False) as r:
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError, match="Could not find end"):
             _ = r.spectra["scan=1"]
 
 
@@ -135,8 +145,10 @@ def test_empty_scan_and_precursor_lists(tmp_path):
 def test_duplicate_spectrum_ids(tmp_path):
     body = (
         '<run id="r"><spectrumList count="2">\n'
-        '<spectrum index="0" id="dup" defaultArrayLength="0"><cvParam cvRef="MS" accession="MS:1000511" name="ms level" value="1"/></spectrum>\n'
-        '<spectrum index="1" id="dup" defaultArrayLength="0"><cvParam cvRef="MS" accession="MS:1000511" name="ms level" value="2"/></spectrum>\n'
+        '<spectrum index="0" id="dup" defaultArrayLength="0">'
+        '<cvParam cvRef="MS" accession="MS:1000511" name="ms level" value="1"/></spectrum>\n'
+        '<spectrum index="1" id="dup" defaultArrayLength="0">'
+        '<cvParam cvRef="MS" accession="MS:1000511" name="ms level" value="2"/></spectrum>\n'
         "</spectrumList></run>"
     )
     path = _write(tmp_path, "dupids.mzML", body)

@@ -9,7 +9,11 @@ from mzmlpy import Mzml
 EXAMPLE = "tests/data/example.mzML"
 EXAMPLE_GZ = "tests/data/example.mzML.gz"
 
-_HEADER = '<?xml version="1.0" encoding="utf-8"?>\n<indexedmzML xmlns="http://psi.hupo.org/ms/mzml">\n<mzML id="m" version="1.1.0">\n'
+_HEADER = (
+    '<?xml version="1.0" encoding="utf-8"?>\n'
+    '<indexedmzML xmlns="http://psi.hupo.org/ms/mzml">\n'
+    '<mzML id="m" version="1.1.0">\n'
+)
 _FOOTER = "</mzML></indexedmzML>\n"
 
 
@@ -90,8 +94,10 @@ def test_scan_window_with_unit_accession_only(tmp_path):
         '<spectrum index="0" id="scan=1" defaultArrayLength="0">'
         '<cvParam cvRef="MS" accession="MS:1000511" name="ms level" value="1"/>'
         '<scanList count="1"><scan><scanWindowList count="1"><scanWindow>'
-        '<cvParam cvRef="MS" accession="MS:1000501" name="scan window lower limit" value="100.0" unitCvRef="MS" unitAccession="MS:1000040"/>'
-        '<cvParam cvRef="MS" accession="MS:1000500" name="scan window upper limit" value="1500.0" unitCvRef="MS" unitAccession="MS:1000040"/>'
+        '<cvParam cvRef="MS" accession="MS:1000501" name="scan window lower limit" value="100.0" '
+        'unitCvRef="MS" unitAccession="MS:1000040"/>'
+        '<cvParam cvRef="MS" accession="MS:1000500" name="scan window upper limit" value="1500.0" '
+        'unitCvRef="MS" unitAccession="MS:1000040"/>'
         "</scanWindow></scanWindowList></scan></scanList>"
         "</spectrum></spectrumList></run>"
     )
@@ -109,8 +115,10 @@ def test_multiple_scans_warns_and_returns_first(tmp_path):
         '<spectrum index="0" id="scan=1" defaultArrayLength="0">'
         '<cvParam cvRef="MS" accession="MS:1000511" name="ms level" value="1"/>'
         '<scanList count="2">'
-        '<scan><cvParam cvRef="MS" accession="MS:1000016" name="scan start time" value="1.0" unitCvRef="UO" unitAccession="UO:0000010" unitName="second"/></scan>'
-        '<scan><cvParam cvRef="MS" accession="MS:1000016" name="scan start time" value="2.0" unitCvRef="UO" unitAccession="UO:0000010" unitName="second"/></scan>'
+        '<scan><cvParam cvRef="MS" accession="MS:1000016" name="scan start time" value="1.0" '
+        'unitCvRef="UO" unitAccession="UO:0000010" unitName="second"/></scan>'
+        '<scan><cvParam cvRef="MS" accession="MS:1000016" name="scan start time" value="2.0" '
+        'unitCvRef="UO" unitAccession="UO:0000010" unitName="second"/></scan>'
         "</scanList></spectrum></spectrumList></run>"
     )
     path = _write(tmp_path, "multiscan.mzML", body)

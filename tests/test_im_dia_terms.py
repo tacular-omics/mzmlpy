@@ -7,6 +7,7 @@ fragments (no mocking), matching the pattern in test_regression_fixes.py.
 
 from xml.etree import ElementTree
 
+from mzmlpy import Mzml
 from mzmlpy.elems.file_desc import FileContent
 from mzmlpy.spectra import IsolationWindow, Scan
 
@@ -87,3 +88,34 @@ def test_dia_acquisition_absent_for_dda() -> None:
     fc = FileContent(element)
     assert fc.is_dia is False
     assert fc.dia_acquisition is None
+
+
+def test_dia_acquisition_resolves_file_content_param_group_ref(tmp_path) -> None:
+    path = tmp_path / "referenced-dia.mzML"
+    path.write_text(
+        """<?xml version="1.0" encoding="utf-8"?>
+<mzML xmlns="http://psi.hupo.org/ms/mzml" id="referenced-dia" version="1.1.0">
+  <fileDescription>
+    <fileContent><referenceableParamGroupRef ref="DiaMethod"/></fileContent>
+  </fileDescription>
+  <referenceableParamGroupList count="1">
+    <referenceableParamGroup id="DiaMethod">
+      <cvParam cvRef="MS" accession="MS:1003225"
+        name="data independent acquisition from dissociation of sequential mass ranges after ion mobility separation"
+        value=""/>
+    </referenceableParamGroup>
+  </referenceableParamGroupList>
+  <run id="run1"><spectrumList count="0"/></run>
+</mzML>
+""",
+        encoding="utf-8",
+    )
+
+    with Mzml(path) as reader:
+        file_description = reader.file_description
+        assert file_description is not None
+        file_content = file_description.file_content
+        assert file_content is not None
+        assert file_content.is_dia is True
+        assert file_content.dia_acquisition == "MS:1003225"
+        assert [ref.ref for ref in file_content.ref_params] == ["DiaMethod"]
