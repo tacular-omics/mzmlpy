@@ -6,6 +6,7 @@ import os
 import warnings
 import xml.etree.ElementTree as ElementTree
 from collections.abc import Iterator
+from io import BytesIO
 from pathlib import Path
 from re import Match
 from typing import Any, Literal, Self
@@ -22,7 +23,8 @@ from .elems import (
     ScanSetting,
     Software,
 )
-from .file_interface import FileInterface
+from .embedded_indexed_gzip import decompress_indexed_member, is_embedded_indexed_gzip, read_embedded_index
+from .file_interface import AccessStrategy, FileInterface
 from .lookup import ChromatogramLookup, SpectrumLookup
 from .regex_patterns import FILE_ENCODING_PATTERN
 from .spectra import Chromatogram
@@ -55,6 +57,15 @@ def _determine_file_encoding(path: str) -> str:
     if not os.path.exists(path):
         return "utf-8"
 
+    if path.endswith((".gz", ".igz")) and is_embedded_indexed_gzip(path):
+        try:
+            first_offset = read_embedded_index(path)[0].offset
+        except ValueError:
+            pass
+        else:
+            return _guess_encoding(
+                BytesIO(decompress_indexed_member(path, first_offset))
+            )
     if path.endswith(".gz") or path.endswith(".igz"):
         with gzip_open_binary(path) as sniffer:
             return _guess_encoding(sniffer)
@@ -116,7 +127,13 @@ class Mzml:
         build_index_from_scratch: Build the index from scratch instead of using an existing index.
         gzip_mode: Strategy for reading gzip-compressed (``.mzML.gz``) files:
 
-            - ``"extract"`` (default): Decompress to a temporary file on disk, then use
+            Self-indexed files created by :func:`mzmlpy.write_indexed_gzip` are detected
+            automatically when ``in_memory=False``. They use their embedded index regardless of
+            this setting.
+
+            - ``"auto"`` (default): Use an embedded index, a current extracted cache, or
+              complete rapidgzip sidecars in that order. Extract when none is available.
+            - ``"extract"``: Decompress to a temporary file on disk, then use
               standard random-access reading.
             - ``"indexed"``: Use the ``rapidgzip`` library for seekable access to the
               compressed file without extracting to disk. Requires
@@ -141,7 +158,7 @@ class Mzml:
         self,
         file: str | Path | Any,
         build_index_from_scratch: bool = False,
-        gzip_mode: Literal["extract", "indexed", "stream"] = "extract",
+        gzip_mode: Literal["auto", "extract", "indexed", "stream"] = "auto",
         in_memory: bool = True,
         extract_dir: str | Path | None = None,
         spectrum_id_regex: str | None = None,
@@ -221,6 +238,11 @@ class Mzml:
             # RapidgzipFile with worker threads that otherwise linger until interpreter shutdown
             # (triggering rapidgzip's "close all RapidgzipFile objects" warning / abort).
             file_handle.close()
+
+    @property
+    def access_strategy(self) -> AccessStrategy:
+        """Concrete storage strategy selected when the file was opened."""
+        return self._file_object.access_strategy
 
     @property
     def file_path(self) -> Path | None:

@@ -32,7 +32,31 @@ Both `.mzML` and `.mzML.gz` files are supported. The reader lazily parses the fi
 
 When working with `.mzML.gz` files, the `gzip_mode` parameter controls how the compressed file is accessed:
 
-- **`"extract"`** (default) — Decompress to a cached file under the OS temp directory (`<tmpdir>/mzmlpy/`), then read with full random access. The cache persists across Python sessions so subsequent opens of the same file skip decompression entirely. The OS clears the temp directory on reboot; call `clear_cache()` to reclaim space sooner.
+`gzip_mode="auto"` is the default. With `in_memory=False`, it selects an embedded index, a current
+extracted cache, or complete rapidgzip sidecars in that order. If none exists, it creates an
+extracted cache. Inspect `reader.access_strategy` to see the concrete route.
+
+For fast random access without cache files, create a self-indexed gzip file once:
+
+```python
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from mzmlpy import Mzml, write_indexed_gzip
+
+with TemporaryDirectory() as directory:
+    output = Path(directory) / "input.indexed.mzML.gz"
+    write_indexed_gzip("tests/data/example.mzML", output)
+
+    with Mzml(output, in_memory=False) as reader:
+        spectrum = reader.spectra[0]
+```
+
+mzMLPy detects this pyMZML-compatible embedded format automatically. The file remains a standard
+concatenated gzip stream, and decompressing it reconstructs the original mzML bytes exactly.
+
+- **`"auto"`** (default) selects the best valid representation already available and otherwise extracts into the central cache.
+- **`"extract"`** decompresses to a cached file under the OS temp directory (`<tmpdir>/mzmlpy/`), then reads with full random access. The cache persists across Python sessions so subsequent opens of the same file skip decompression entirely. The OS clears the temp directory on reboot. Call `clear_cache()` to reclaim space sooner.
 - **`"indexed"`** — Use the `rapidgzip` library for seekable access to the compressed file without extracting to disk. Requires `pip install mzmlpy[rapidgzip]`. Builds a gzip seek index (`.gzidx`) and mzML offset index (`.mzMLidx`) on first open, cached alongside the file for instant startup on subsequent opens.
 - **`"stream"`** — Stream the file sequentially with no index. Lowest startup cost, but random access (e.g. `reader.spectra[0]`) scans from the beginning each time — a warning is emitted.
 

@@ -46,17 +46,40 @@ Both `.mzML` and `.mzML.gz` files are supported. Metadata is parsed eagerly; bin
 
 When opening `.mzML.gz` files, the `gzip_mode` parameter controls how the file is accessed:
 
+`"auto"` is the default. It selects an embedded index first, then a current extracted cache,
+then complete rapidgzip sidecars, and finally creates an extracted cache. The selected route is
+available through `reader.access_strategy`.
+
+Self-indexed gzip files created by `write_indexed_gzip` are detected automatically when
+`in_memory=False`. Their index lives inside the gzip header, so random access needs no extracted
+copy, sidecar index, or optional dependency.
+
+```python
+from mzmlpy import Mzml, write_indexed_gzip
+
+write_indexed_gzip("data.mzML", "data.indexed.mzML.gz")
+
+with Mzml("data.indexed.mzML.gz", in_memory=False) as reader:
+    spec = reader.spectra["controllerType=0 controllerNumber=1 scan=1234"]
+```
+
+The writer also accepts an ordinary `.mzML.gz` input. It preserves the decompressed mzML bytes
+exactly and writes the destination atomically. The embedded layout is compatible with pyMZML's
+`FU` version 1 indexed gzip reader.
+
 | Mode | Description |
 |---|---|
-| `"extract"` (default) | Decompress to `<tmpdir>/mzmlpy/` and cache across sessions. First open pays decompression cost; subsequent opens reuse the cache instantly. The OS clears tmp on reboot. |
+| `"auto"` (default) | Reuse the fastest valid representation already available, otherwise extract into the central cache. |
+| `"extract"` | Decompress to `<tmpdir>/mzmlpy/` and cache across sessions. First open pays decompression cost. Subsequent opens reuse the cache instantly. The OS clears tmp on reboot. |
 | `"indexed"` | Seekable access to the compressed file using `rapidgzip`. No decompression to disk. Requires `pip install mzmlpy[rapidgzip]`. |
 | `"stream"` | Stream sequentially. Lowest startup cost but no efficient random access. |
 
 For most use cases, `"extract"` or `"indexed"` is recommended:
 
 ```python
-# Default — extracts to tmp, cached across sessions
-with Mzml("data.mzML.gz") as reader:
+# Automatic selection with observable behavior
+with Mzml("data.mzML.gz", in_memory=False) as reader:
+    print(reader.access_strategy)
     spec = reader.spectra[0]
 
 # Indexed — no extraction, seekable access (requires rapidgzip)

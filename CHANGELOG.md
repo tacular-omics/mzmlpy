@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- `write_indexed_gzip` and its `index_gzip` alias create deterministic, pyMZML-compatible
+  self-indexed gzip files from plain or compressed mzML input. Output is atomic and preserves the
+  decompressed mzML bytes exactly.
+- Self-indexed gzip files are detected automatically with `in_memory=False`. Spectrum and
+  chromatogram access uses embedded member offsets without extracted files, sidecars, rapidgzip,
+  or a writable source directory.
+- `gzip_mode="auto"` is the new default and reuses embedded indexes, current extracted caches, or
+  complete rapidgzip sidecars before falling back to extraction. `Mzml.access_strategy` reports
+  the concrete route selected for every input.
+- Embedded index and gzip member validation rejects duplicate identifiers, invalid offsets,
+  malformed deflate streams, and checksum failures.
+
 ## [0.6.0] - 2026-08-15
 
 Ion-mobility / DIA release, tracking the PSI "Encoding data independent acquisition, ion mobility

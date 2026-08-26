@@ -1,4 +1,4 @@
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 from .content import CVElement
 from .elems import (
@@ -23,6 +23,13 @@ from .elems import (
     Target,
     UserParam,
 )
+from .embedded_indexed_gzip import (
+    IndexedGzipWriteResult,
+    index_gzip,
+    is_embedded_indexed_gzip,
+    write_indexed_gzip,
+)
+from .file_interface import AccessStrategy
 from .lookup import ChromatogramLookup, SpectrumLookup
 from .run import Mzml, peek_spectrum_count
 from .spectra import (
@@ -44,6 +51,11 @@ __all__ = [
     "Mzml",
     "peek_spectrum_count",
     "clear_cache",
+    "write_indexed_gzip",
+    "index_gzip",
+    "is_embedded_indexed_gzip",
+    "IndexedGzipWriteResult",
+    "AccessStrategy",
     "SpectrumLookup",
     "ChromatogramLookup",
     "DataProcessing",

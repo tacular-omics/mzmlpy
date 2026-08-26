@@ -20,6 +20,15 @@ from .standardMzml import AbstractRandomAccessMzml
 logger = logging.getLogger(__name__)
 
 
+def has_cached_indexes(path: str) -> bool:
+    """Return whether rapidgzip and mzML sidecars are installed, complete, and current."""
+    if RapidgzipFile is None or not path.endswith(".gz"):
+        return False
+    gzip_index_path = path + "idx"
+    mzml_index_path = path.removesuffix(".gz") + "idx"
+    return cache_is_current(gzip_index_path, path) and cache_is_current(mzml_index_path, path)
+
+
 class _NonClosingBinaryWrapper(io.RawIOBase):
     """Wrapper around a binary file handle that ignores close().
 

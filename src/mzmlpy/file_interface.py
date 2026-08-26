@@ -8,6 +8,7 @@ import os
 import tempfile
 import warnings
 from collections.abc import Iterator
+from enum import StrEnum
 from functools import cached_property
 from io import BytesIO
 from pathlib import Path
@@ -16,15 +17,18 @@ from typing import BinaryIO, Literal, overload
 from xml.etree import ElementTree as ET
 
 from .constants import ChromatogramTypeAccession
+from .embedded_indexed_gzip import is_embedded_indexed_gzip
 from .file_classes import (
     BytesMzml,
     ChromatogramElement,
+    EmbeddedIndexedGzip,
     IndexedGzip,
     MzmlInterface,
     MzmlXMLElement,
     SpectrumElement,
     StandardGzip,
     StandardMzml,
+    has_cached_indexes,
 )
 from .spectra import Chromatogram, Spectrum
 from .util import (
@@ -37,6 +41,17 @@ from .util import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class AccessStrategy(StrEnum):
+    """Concrete storage strategy selected for an mzML reader."""
+
+    MEMORY = "memory"
+    PLAIN = "plain"
+    EMBEDDED = "embedded"
+    EXTRACTED = "extracted"
+    RAPIDGZIP = "rapidgzip"
+    STREAM = "stream"
 
 
 @overload
@@ -72,7 +87,7 @@ class FileInterface:
         encoding: str,
         build_index_from_scratch: bool = False,
         index_regex: Pattern[bytes] | None = None,
-        gzip_mode: Literal["extract", "indexed", "stream"] = "extract",
+        gzip_mode: Literal["auto", "extract", "indexed", "stream"] = "auto",
         in_memory: bool = False,
         extract_dir: str | None = None,
     ) -> None:
@@ -80,9 +95,12 @@ class FileInterface:
         self.build_index_from_scratch: bool = build_index_from_scratch
         self.encoding: str = encoding
         self.index_regex: Pattern[bytes] | None = index_regex
-        self.gzip_mode: Literal["extract", "indexed", "stream"] = gzip_mode
+        if gzip_mode not in {"auto", "extract", "indexed", "stream"}:
+            raise ValueError(f"Unsupported gzip_mode: {gzip_mode}")
+        self.gzip_mode: Literal["auto", "extract", "indexed", "stream"] = gzip_mode
         self.in_memory: bool = in_memory
         self._extract_dir: str | None = extract_dir
+        self.access_strategy: AccessStrategy
         self.file_handler: MzmlInterface = self._open(path)
 
     def close(self) -> None:
@@ -106,6 +124,7 @@ class FileInterface:
                     data = path_or_file.read()
                 if data[:2] == b"\x1f\x8b":  # gzip magic number
                     data = gzip.decompress(data)
+                self.access_strategy = AccessStrategy.MEMORY
                 return BytesMzml(BytesIO(data), self.encoding, self.build_index_from_scratch)
             raise TypeError(
                 f"Unsupported input type {type(path_or_file).__name__!r}: expected a path (str/Path) "
@@ -117,8 +136,8 @@ class FileInterface:
 
         # Handle in_memory mode - load entire file into memory
         if self.in_memory:
-            if path.endswith(".gz"):
-                if self.gzip_mode != "extract":
+            if path.endswith((".gz", ".igz")):
+                if self.gzip_mode not in {"auto", "extract"}:
                     # "indexed"/"stream" exist to avoid holding the whole file in memory; in_memory
                     # (the default) decompresses it all anyway, so the mode is a no-op here.
                     warnings.warn(
@@ -133,6 +152,7 @@ class FileInterface:
                 with open(path, "rb") as f:
                     content = f.read()
 
+            self.access_strategy = AccessStrategy.MEMORY
             return BytesMzml(
                 BytesIO(content),
                 self.encoding,
@@ -140,38 +160,67 @@ class FileInterface:
             )
 
         # Handle gzipped files
-        if path.endswith(".gz"):
-            if self.gzip_mode == "extract":
+        if path.endswith((".gz", ".igz")):
+            if is_embedded_indexed_gzip(path):
+                try:
+                    embedded = EmbeddedIndexedGzip(path, self.encoding)
+                except ValueError as error:
+                    logger.warning(
+                        "Ignoring invalid embedded gzip index in %s: %s", path, error
+                    )
+                else:
+                    self.access_strategy = AccessStrategy.EMBEDDED
+                    return embedded
+            if self.gzip_mode == "auto":
                 extracted_path = self._get_extract_path(path)
                 if cache_is_current(extracted_path, path):
-                    logger.debug("Using cached extraction: %s", extracted_path)
-                else:
-                    logger.debug("Extracting %s to %s", path, extracted_path)
-                    # Atomic write so an interrupted extraction never leaves a truncated .mzML that
-                    # the currency check would then treat as a valid cache.
-                    with atomic_write_path(extracted_path) as tmp_path, open(tmp_path, "wb") as f_out:
-                        f_out.write(gzip_decompress(path))
-                    write_cache_signature(extracted_path, path)
-
-                return StandardMzml(
-                    extracted_path,
-                    self.encoding,
-                    self.build_index_from_scratch,
-                    index_regex=self.index_regex,
-                )
-            elif self.gzip_mode == "indexed":
+                    self.access_strategy = AccessStrategy.EXTRACTED
+                    return self._open_extracted(path, extracted_path)
+                if has_cached_indexes(path):
+                    self.access_strategy = AccessStrategy.RAPIDGZIP
+                    return IndexedGzip(
+                        path,
+                        self.encoding,
+                        self.build_index_from_scratch,
+                        index_regex=self.index_regex,
+                    )
+                self.access_strategy = AccessStrategy.EXTRACTED
+                return self._open_extracted(path, extracted_path)
+            if self.gzip_mode == "extract":
+                self.access_strategy = AccessStrategy.EXTRACTED
+                return self._open_extracted(path)
+            if self.gzip_mode == "indexed":
+                self.access_strategy = AccessStrategy.RAPIDGZIP
                 return IndexedGzip(
                     path,
                     self.encoding,
                     self.build_index_from_scratch,
                     index_regex=self.index_regex,
                 )
-            else:
-                return StandardGzip(path, self.encoding)
+            self.access_strategy = AccessStrategy.STREAM
+            return StandardGzip(path, self.encoding)
 
         # Handle standard mzML files
+        self.access_strategy = AccessStrategy.PLAIN
         return StandardMzml(
             path,
+            self.encoding,
+            self.build_index_from_scratch,
+            index_regex=self.index_regex,
+        )
+
+    def _open_extracted(self, gz_path: str, extracted_path: str | None = None) -> StandardMzml:
+        """Open a current extracted cache, creating it atomically when needed."""
+        target = extracted_path or self._get_extract_path(gz_path)
+        if cache_is_current(target, gz_path):
+            logger.debug("Using cached extraction: %s", target)
+        else:
+            logger.debug("Extracting %s to %s", gz_path, target)
+            with atomic_write_path(target) as temporary_path, open(temporary_path, "wb") as output:
+                output.write(gzip_decompress(gz_path))
+            write_cache_signature(target, gz_path)
+        return StandardMzml(
+            target,
             self.encoding,
             self.build_index_from_scratch,
             index_regex=self.index_regex,
