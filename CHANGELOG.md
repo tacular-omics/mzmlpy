@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## Unreleased
 
+## [0.7.0] - 2026-08-28
+
 ### Added
 
 - `write_indexed_gzip` and its `index_gzip` alias create deterministic, pyMZML-compatible
@@ -211,6 +213,7 @@ affect existing code (see **Changed**).
 
 - First release on PyPI.
 
+[0.7.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.7.0
 [0.6.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.6.0
 [0.5.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.5.0
 [0.4.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.4.0
