@@ -4,7 +4,36 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.8.0] - 2026-09-04
+
+### Added
+
+- Streaming validation reports for XML structure, counts, IDs, references, and array metadata.
+  Optional binary decoding verifies array lengths, and optional index checks verify XML offsets.
+- Lazy spectrum filtering by MS level, retention time in seconds, polarity, and precursor m/z.
+- `python -m mzmlpy inspect`, `validate`, and `index-gzip` commands with JSON output.
+- Cross-mode regression tests, base-install CI on Linux, Windows, and macOS, strict docs checks,
+  and clean-wheel smoke tests. Coverage and JUnit reports now come from one test run.
+
+### Fixed
+
+- Extracted-cache collisions between files sharing a basename, size, and timestamp.
+  Cache paths now include source identity and revision, including in custom directories.
+- Index parsing for compact XML, single quotes, namespace prefixes, comments, and long tags.
+  Invalid footer fallback discards partial entries. Lookup verifies record identity.
+- Whole-file buffering during extraction and encoding sniffing, and retention of preceding
+  spectra during chromatogram iteration. In-memory text readers share immutable source bytes.
+- Invented chromatograms in spectra-only embedded gzip files, missing root metadata in unindexed
+  mzML, and out-of-range negative indexes returning the last record.
+- Temporary-file collisions during overlapping writes and recovery from malformed rapidgzip sidecars.
+- Binary decoding now rejects invalid base64 characters while accepting XML whitespace.
+- Scan times now recognize supported time-unit accessions even when unitName is absent.
+
+### Changed
+
+- Embedded gzip writing identifies XML boundaries with a streaming parser and rejects malformed input.
+- Cache signatures include source identity and cached-file metadata. Old caches are rebuilt.
+- `in_memory=True` remains the default. Large-file examples explicitly select disk-backed access.
 
 ## [0.7.0] - 2026-08-28
 

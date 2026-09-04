@@ -83,7 +83,7 @@ with Mzml("data.mzML.gz", in_memory=False) as reader:
     spec = reader.spectra[0]
 
 # Indexed — no extraction, seekable access (requires rapidgzip)
-with Mzml("data.mzML.gz", gzip_mode="indexed") as reader:
+with Mzml("data.mzML.gz", gzip_mode="indexed", in_memory=False) as reader:
     spec = reader.spectra[0]
 ```
 
@@ -118,6 +118,24 @@ Both libraries produce identical m/z and intensity arrays. The gap narrows on sm
 For full usage examples see the **[Getting Started guide](https://tacular-omics.github.io/mzmlpy/getting-started/)** and **[API Reference](https://tacular-omics.github.io/mzmlpy/api/mzml/)**.
 
 Using an AI coding assistant? Point it at **[`llms.txt`](llms.txt)** — a compact, accurate API guide for generating correct mzmlpy code.
+
+## Validation and filtering
+
+```python
+from mzmlpy import Mzml, validate
+
+report = validate("data.mzML", decode_binary=True)
+print(report.valid, report.issues)
+
+with Mzml("data.mzML", in_memory=False) as reader:
+    for spectrum in reader.spectra.filter(ms_level=2, retention_time=(60, 180)):
+        print(spectrum.id)
+```
+
+Validation reports structural and decoding problems without repairing the input. Filtering
+uses metadata and inclusive retention-time bounds in seconds, without decoding arrays.
+See the [guide](https://tacular-omics.github.io/mzmlpy/getting-started/) for check scope,
+precursor filters, cache behavior, and `python -m mzmlpy` CLI commands.
 
 ## Citation
 

@@ -25,6 +25,15 @@ class DataType(StrEnum):
     TIME = "time"
 
 
+class TimeUnitAccession(StrEnum):
+    """Controlled vocabulary identifiers for supported time units."""
+
+    MILLISECOND = "UO:0000028"
+    SECOND = "UO:0000010"
+    MINUTE = "UO:0000031"
+    HOUR = "UO:0000032"
+
+
 class TimeUnit(StrEnum):
     """Enumeration of time units."""
 

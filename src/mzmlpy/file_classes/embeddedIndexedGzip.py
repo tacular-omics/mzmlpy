@@ -10,16 +10,18 @@ from collections.abc import Buffer
 from functools import cached_property
 from pathlib import Path
 from typing import Literal, TextIO, overload
-from xml.etree.ElementTree import XML
+from xml.etree.ElementTree import ParseError
+from xml.parsers import expat
 
+from .._xml import read_fragment, read_header
 from ..embedded_indexed_gzip import decompress_indexed_member, read_embedded_index
 from .interface import MzmlInterface
 from .xml_tuple import ChromatogramElement, MzmlXMLElement, SpectrumElement
 
 _SPECIAL_KEYS = {"Head", "tail", "junk"}
 _ELEMENT_PATTERNS = {
-    "spectrum": re.compile(rb"<spectrum(?=\s|>).*?</spectrum\s*>", re.DOTALL),
-    "chromatogram": re.compile(rb"<chromatogram(?=\s|>).*?</chromatogram\s*>", re.DOTALL),
+    "spectrum": re.compile(rb"<(?:[\w.-]+:)?spectrum(?=\s|>)", re.DOTALL),
+    "chromatogram": re.compile(rb"<(?:[\w.-]+:)?chromatogram(?=\s|>)", re.DOTALL),
 }
 
 
@@ -138,12 +140,13 @@ class EmbeddedIndexedGzip(MzmlInterface):
         elif self.chromatogram_offsets:
             self._chromatogram_keys = list(self.chromatogram_offsets)
 
-        if not self.spectrum_offsets:
+        self._modern_index = any(identifier.startswith(("s:", "c:")) for identifier in self._offsets)
+        if not self.spectrum_offsets and not self._modern_index:
             for identifier, offset in self._offsets.items():
                 if identifier.isdecimal():
                     self.spectrum_offsets[identifier] = offset
             self._spectrum_keys = list(self.spectrum_offsets)
-        if not self.chromatogram_offsets:
+        if not self.chromatogram_offsets and not self._modern_index:
             for identifier, offset in self._offsets.items():
                 if (
                     not identifier.isdecimal()
@@ -163,19 +166,31 @@ class EmbeddedIndexedGzip(MzmlInterface):
         self, offset: int, kind: Literal["spectrum", "chromatogram"]
     ) -> SpectrumElement | ChromatogramElement:
         member = decompress_indexed_member(self.path, offset)
-        match = _ELEMENT_PATTERNS[kind].search(member)
+        match = re.search(rb"<(?:[\w.-]+:)?" + kind.encode() + rb"(?=\s|>)", member)
         if match is None:
             raise ValueError(f"Indexed member at offset {offset} contains no {kind}")
         try:
-            element = XML(match.group().decode(self.encoding))
-        except Exception as error:
-            raise ValueError(f"Could not parse {kind} member at offset {offset}: {error}") from error
+            element = read_fragment(io.BytesIO(member[match.start() :]), self.encoding, self._namespaces)
+        except ParseError as error:
+            if error.code != expat.errors.codes[expat.errors.XML_ERROR_UNBOUND_PREFIX]:
+                raise
+            offsets = self.spectrum_offsets if kind == "spectrum" else self.chromatogram_offsets
+            identifier = next((key for key, value in offsets.items() if value == offset), None)
+            with self.get_file_handler(self.encoding) as source:
+                context, _ = read_header(source, (kind, identifier if self._modern_index else None))
+            self._namespaces.update(context)
+            element = read_fragment(io.BytesIO(member[match.start() :]), self.encoding, context)
         if kind == "spectrum":
             return MzmlXMLElement(element, element_type="spectrum")
         return MzmlXMLElement(element, element_type="chromatogram")
 
+    @cached_property
+    def _namespaces(self) -> dict[str, str]:
+        with self.get_file_handler(self.encoding) as handle:
+            return read_header(handle)[0]
+
     def _discover_legacy_ids(self) -> None:
-        if self._legacy_discovered:
+        if self._legacy_discovered or self._modern_index:
             return
         spectrum_offsets: OrderedDict[str, int] = OrderedDict()
         chromatogram_offsets: OrderedDict[str, int] = OrderedDict()
@@ -188,17 +203,14 @@ class EmbeddedIndexedGzip(MzmlInterface):
                 match = _ELEMENT_PATTERNS[kind].search(member)
                 if match is None:
                     continue
-                opening_end = match.group().find(b">")
-                opening = match.group()[: opening_end + 1]
-                id_match = re.search(rb"\bid\s*=\s*([\"'])(.*?)\1", opening, re.DOTALL)
-                if id_match is not None:
-                    target[id_match.group(2).decode(self.encoding)] = offset
-        if spectrum_offsets:
-            self.spectrum_offsets = spectrum_offsets
-            self._spectrum_keys = list(spectrum_offsets)
-        if chromatogram_offsets:
-            self.chromatogram_offsets = chromatogram_offsets
-            self._chromatogram_keys = list(chromatogram_offsets)
+                element = self._element_at(offset, "spectrum" if kind == "spectrum" else "chromatogram").element
+                identifier = element.get("id")
+                if identifier is not None:
+                    target[identifier] = offset
+        self.spectrum_offsets = spectrum_offsets
+        self._spectrum_keys = list(spectrum_offsets)
+        self.chromatogram_offsets = chromatogram_offsets
+        self._chromatogram_keys = list(chromatogram_offsets)
         self._legacy_discovered = True
 
     def close(self) -> None:
@@ -219,9 +231,15 @@ class EmbeddedIndexedGzip(MzmlInterface):
             offset = self.spectrum_offsets[key]
         except KeyError as error:
             raise KeyError(f"Spectrum ID {key} not found in embedded index") from error
-        return self._element_at(offset, "spectrum")
+        result = self._element_at(offset, "spectrum")
+        if self._modern_index and result.element.get("id") != key:
+            raise ValueError(f"Embedded index entry {key!r} points to a different spectrum")
+        return result
 
     def get_spectrum_by_index(self, index: int) -> SpectrumElement:
+        self._discover_legacy_ids()
+        if not 0 <= index < len(self._spectrum_keys):
+            raise IndexError(f"Spectrum index {index} out of range")
         try:
             key = self._spectrum_keys[index]
         except IndexError as error:
@@ -236,9 +254,15 @@ class EmbeddedIndexedGzip(MzmlInterface):
             offset = self.chromatogram_offsets[key]
         except KeyError as error:
             raise KeyError(f"Chromatogram ID {key} not found in embedded index") from error
-        return self._element_at(offset, "chromatogram")
+        result = self._element_at(offset, "chromatogram")
+        if self._modern_index and result.element.get("id") != key:
+            raise ValueError(f"Embedded index entry {key!r} points to a different chromatogram")
+        return result
 
     def get_chromatogram_by_index(self, index: int) -> ChromatogramElement:
+        self._discover_legacy_ids()
+        if not 0 <= index < len(self._chromatogram_keys):
+            raise IndexError(f"Chromatogram index {index} out of range")
         try:
             key = self._chromatogram_keys[index]
         except IndexError as error:
@@ -254,10 +278,12 @@ class EmbeddedIndexedGzip(MzmlInterface):
 
     @cached_property
     def spectrum_count(self) -> int | None:
+        self._discover_legacy_ids()
         return len(self._spectrum_keys)
 
     @cached_property
     def chromatogram_count(self) -> int | None:
+        self._discover_legacy_ids()
         return len(self._chromatogram_keys)
 
     @property

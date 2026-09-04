@@ -14,6 +14,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO
+from xml.parsers import expat
 
 from .util import atomic_write_path
 
@@ -27,12 +28,6 @@ _FHCRC = 0x02
 _RESERVED_FLAGS = 0xE0
 _MEMBER_HEADER = struct.Struct("<BBBBIBB")
 _TRAILER = struct.Struct("<II")
-_ELEMENT_START = re.compile(rb"<(spectrum|chromatogram)(?=\s|>)")
-_ELEMENT_CLOSE = {
-    "spectrum": re.compile(rb"</spectrum\s*>"),
-    "chromatogram": re.compile(rb"</chromatogram\s*>"),
-}
-_ID_ATTRIBUTE = re.compile(rb"\bid\s*=\s*([\"'])(.*?)\1", re.DOTALL)
 _SCAN_NUMBER = re.compile(r"(?:^|\s)scan=(\d+)(?:\s|$)")
 _CHUNK_SIZE = 1024 * 1024
 
@@ -216,69 +211,70 @@ def _write_member(
     return payload_offset
 
 
-def _extract_id(opening_tag: bytes, kind: str) -> str:
-    match = _ID_ATTRIBUTE.search(opening_tag)
-    if match is None:
-        raise ValueError(f"{kind} element has no id attribute")
-    try:
-        return match.group(2).decode("utf-8")
-    except UnicodeDecodeError as error:
-        raise ValueError(f"{kind} id is not valid UTF-8") from error
-
-
 def _iter_blocks(file_handler: BinaryIO) -> Iterator[_Block]:
+    """Split at XML record boundaries, preserving every source byte."""
     buffer = bytearray()
+    buffer_offset = 0
     first_element = True
     junk_position = 0
     positions = {"spectrum": 0, "chromatogram": 0}
-    reached_eof = False
-    read_more = True
+    records: list[tuple[str, str, int, int]] = []
+    active: tuple[str, str, int] | None = None
+    parser = expat.ParserCreate(namespace_separator="}")
 
+    def on_start(name: str, attributes: dict[str, str]) -> None:
+        nonlocal active
+        kind = name.rsplit("}", 1)[-1]
+        if kind in positions:
+            if active is not None:
+                raise ValueError("Nested spectrum or chromatogram elements are not supported")
+            if "id" not in attributes:
+                raise ValueError(f"{kind} element has no id attribute")
+            active = kind, attributes["id"], parser.CurrentByteIndex
+
+    def on_end(name: str) -> None:
+        nonlocal active
+        kind = name.rsplit("}", 1)[-1]
+        if active is not None and kind == active[0]:
+            end = parser.CurrentByteIndex
+            local_end = end - buffer_offset
+            # For an empty element Expat points just after '/>'. Otherwise it points
+            # at the closing tag, which has already arrived in the input buffer.
+            if buffer[local_end : local_end + 2] == b"</":
+                end = buffer_offset + buffer.index(b">", local_end) + 1
+            records.append((*active, end))
+            active = None
+
+    parser.StartElementHandler = on_start
+    parser.EndElementHandler = on_end
     while True:
-        if read_more and not reached_eof:
-            chunk = file_handler.read(_CHUNK_SIZE)
-            if chunk:
-                buffer.extend(chunk)
-            else:
-                reached_eof = True
-        read_more = False
-
-        start = _ELEMENT_START.search(buffer)
-        if start is None:
-            if reached_eof:
-                key = "Head" if first_element else "tail"
-                yield _Block("special", key, 0, bytes(buffer))
-                return
-            read_more = True
-            continue
-
-        kind = start.group(1).decode("ascii")
-        close = _ELEMENT_CLOSE[kind].search(buffer, start.end())
-        if close is None:
-            if reached_eof:
-                raise ValueError(f"Unclosed {kind} element in mzML input")
-            read_more = True
-            continue
-
-        prefix = bytes(buffer[: start.start()])
-        if first_element:
-            yield _Block("special", "Head", 0, prefix)
-            first_element = False
-            prefix = b""
-        elif prefix.strip():
-            yield _Block("special", f"junk:{junk_position}", junk_position, prefix)
-            junk_position += 1
-            prefix = b""
-
-        element = bytes(buffer[start.start() : close.end()])
-        opening_end = element.find(b">")
-        if opening_end < 0:
-            raise ValueError(f"Unclosed {kind} opening tag")
-        identifier = _extract_id(element[: opening_end + 1], kind)
-        position = positions[kind]
-        positions[kind] += 1
-        yield _Block(kind, identifier, position, prefix + element)
-        buffer = buffer[close.end() :]
+        chunk = file_handler.read(_CHUNK_SIZE)
+        buffer.extend(chunk)
+        try:
+            parser.Parse(chunk, not chunk)
+        except expat.ExpatError as error:
+            raise ValueError(f"Invalid or unclosed mzML input: {error}") from error
+        consumed = 0
+        for kind, identifier, start, end in records:
+            prefix = bytes(buffer[consumed : start - buffer_offset])
+            if first_element:
+                yield _Block("special", "Head", 0, prefix)
+                first_element = False
+                prefix = b""
+            elif prefix.strip():
+                yield _Block("special", f"junk:{junk_position}", junk_position, prefix)
+                junk_position += 1
+                prefix = b""
+            data = prefix + bytes(buffer[start - buffer_offset : end - buffer_offset])
+            yield _Block(kind, identifier, positions[kind], data)
+            positions[kind] += 1
+            consumed = end - buffer_offset
+        del buffer[:consumed]
+        buffer_offset += consumed
+        records.clear()
+        if not chunk:
+            yield _Block("special", "Head" if first_element else "tail", 0, bytes(buffer))
+            return
 
 
 def _aliases(block: _Block) -> list[str]:
@@ -325,8 +321,8 @@ def write_indexed_gzip(
 ) -> IndexedGzipWriteResult:
     """Create a deterministic, pyMZML-compatible self-indexed ``.mzML.gz`` file.
 
-    The input may be plain mzML or gzip-compressed mzML. Memory use is bounded by the largest
-    individual spectrum or chromatogram. Gzip input is decompressed once to a temporary spool so
+    The input may be plain mzML or gzip-compressed mzML. Memory use depends on the largest
+    XML section plus the embedded index. Gzip input is decompressed once to a temporary spool so
     the index can be sized before the output header is written.
     """
     if not -1 <= compression_level <= 9:

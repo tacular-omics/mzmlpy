@@ -51,6 +51,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+junit.xml
 *.cover
 *.py,cover
 .hypothesis/
@@ -109,6 +110,7 @@ ipython_config.py
 
 # uv
 .venv
+.wheel-venv/
 
 # ruff
 .ruff_cache/

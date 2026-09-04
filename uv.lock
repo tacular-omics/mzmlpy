@@ -506,7 +506,7 @@ wheels = [
 
 [[package]]
 name = "mzmlpy"
-version = "0.7.0"
+version = "0.8.0"
 source = { editable = "." }
 dependencies = [
     { name = "numpy" },
@@ -538,6 +538,11 @@ dev = [
     { name = "ty" },
     { name = "zstd" },
 ]
+test = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-examples" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -562,6 +567,11 @@ dev = [
     { name = "ruff", specifier = ">=0.3.0" },
     { name = "ty", specifier = ">=0.0.11" },
     { name = "zstd", specifier = ">=1.5.5" },
+]
+test = [
+    { name = "pytest", specifier = ">=8.0.0" },
+    { name = "pytest-cov", specifier = ">=6.0.0" },
+    { name = "pytest-examples", specifier = ">=0.0.14" },
 ]
 
 [[package]]

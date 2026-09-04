@@ -3,7 +3,7 @@
 > mzmlpy is a lightweight, type-safe, lazy-loading Python library (3.12+) for reading mzML mass
 > spectrometry files. This file is written for AI coding assistants: it is a compact, accurate
 > reference for generating correct mzmlpy code. Everything below matches the public API as of
-> version 0.6.0. Only `numpy` is required at runtime.
+> version 0.8.0. Only `numpy` is required at runtime.
 
 ## Install
 
@@ -131,9 +131,9 @@ reader.referenceable_param_groups  # dict[str, ReferenceableParamGroup]
 mzmlpy reads `.gz` directly (pyteomics cannot). Choose a strategy via `gzip_mode`:
 
 ```python
-Mzml("run.mzML.gz")                          # gzip_mode="extract" (default): decompress once, cache, fast
+Mzml("run.mzML.gz")                          # in_memory=True (default): materialize the decompressed file
 Mzml("run.mzML.gz", gzip_mode="indexed", in_memory=False)  # seekable, no disk copy (needs rapidgzip)
-Mzml("run.mzML.gz", gzip_mode="stream")      # lowest startup; random access re-scans (slow)
+Mzml("run.mzML.gz", gzip_mode="stream", in_memory=False)      # lowest startup; random access re-scans (slow)
 
 from mzmlpy import clear_cache
 clear_cache()                                # remove extracted/index cache files
@@ -163,7 +163,7 @@ with Mzml("run.mzML", spectrum_id_regex=r"scan=(\d+)") as reader:
 - **Warnings, not exceptions**, for ambiguous cases (e.g. a spectrum with multiple scans warns and
   returns the first). Missing/assumed compression or data types also warn.
 - **Use the context manager** (`with Mzml(...) as reader:`) or call `reader.close()`.
-- **Constructor:** `Mzml(file, build_index_from_scratch=False, gzip_mode="extract",
+- **Constructor:** `Mzml(file, build_index_from_scratch=False, gzip_mode="auto",
   in_memory=True, extract_dir=None, spectrum_id_regex=None, chromatogram_id_regex=None)`. `file`
   may be a path (str/Path) or a `BytesIO`.
 
@@ -182,3 +182,16 @@ with Mzml("run.mzML", spectrum_id_regex=r"scan=(\d+)") as reader:
 - Getting started: https://tacular-omics.github.io/mzmlpy/getting-started/
 - API reference: https://tacular-omics.github.io/mzmlpy/api/mzml/
 - Benchmarks vs pyteomics/pymzml: `benchmarks/README.md`
+
+## Validation and filtering (0.8.0)
+
+- `validate(path, decode_binary=False, check_index=False)` returns `ValidationReport`.
+- Reports expose `valid`, `complete`, `issues`, record counts, check counters, and `to_dict()`.
+- Structural checks do not decode arrays. Full XSD and ontology validation are outside the scope.
+- `reader.validate(...)` validates the selected representation without advancing lookup cursors.
+- `reader.spectra.filter(ms_level=2, retention_time=(60, 180), polarity="positive")` is lazy.
+- Retention time is in seconds. Bounds are inclusive and may have a `None` endpoint.
+- `precursor_mz=(499, 501)` matches isolation-window overlap, with selected ions as a fallback.
+- `SpectrumFilter(...).matches(spectrum)` exposes the same predicate. Missing metadata does not match.
+- `python -m mzmlpy` supports `inspect`, `validate`, and `index-gzip`, with JSON output.
+- Custom extraction directories use source-specific, revision-specific filenames.

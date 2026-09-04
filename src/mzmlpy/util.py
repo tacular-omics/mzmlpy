@@ -1,6 +1,7 @@
 import contextlib
 import gzip
 import io
+import json
 import os
 import shutil
 import tempfile
@@ -98,7 +99,10 @@ def atomic_write_path(final_path: str) -> Iterator[str]:
     reader only ever sees the complete old file or the complete new one. On failure the temp file
     is removed and the original (if any) is left untouched.
     """
-    tmp_path = f"{final_path}.{os.getpid()}.tmp"
+    fd, tmp_path = tempfile.mkstemp(
+        prefix=f".{os.path.basename(final_path)}.", suffix=".tmp", dir=os.path.dirname(os.path.abspath(final_path))
+    )
+    os.close(fd)
     try:
         yield tmp_path
         os.replace(tmp_path, final_path)
@@ -109,34 +113,34 @@ def atomic_write_path(final_path: str) -> Iterator[str]:
 
 
 def source_signature(path: str) -> str:
-    """Return a cheap content signature (size + high-resolution mtime) for a source file."""
+    """Identify a source and its current filesystem revision without reading its data."""
     st = os.stat(path)
-    return f"{st.st_size}:{st.st_mtime_ns}"
+    return json.dumps([os.path.realpath(path), st.st_size, st.st_mtime_ns, st.st_ctime_ns])
 
 
 def cache_is_current(cache_path: str, source_path: str) -> bool:
-    """Whether ``cache_path`` is a valid cache of ``source_path``.
-
-    Validated against a ``<cache_path>.src`` sidecar recording the source's signature at build
-    time. Comparing the *recorded* signature to the source's *current* one (rather than comparing
-    file mtimes) correctly invalidates the cache when the source is replaced by an older or
-    same-mtime-but-different-size file (e.g. restoring a backup), which a plain ``mtime >=`` check
-    would wrongly treat as still current.
-    """
-    signature_path = cache_path + ".src"
-    if not (os.path.exists(cache_path) and os.path.exists(signature_path)):
-        return False
+    """Check source identity, revision, and the cached payload's size and timestamp."""
     try:
-        with open(signature_path) as f:
-            return f.read().strip() == source_signature(source_path)
-    except OSError:
+        with open(cache_path + ".src") as handle:
+            signature = json.load(handle)
+        st = os.stat(cache_path)
+        return (
+            isinstance(signature, dict)
+            and signature.get("source") == source_signature(source_path)
+            and signature.get("cache") == [st.st_size, st.st_mtime_ns]
+        )
+    except (OSError, ValueError):
         return False
 
 
-def write_cache_signature(cache_path: str, source_path: str) -> None:
-    """Record the source's current signature next to a freshly written cache file."""
-    with atomic_write_path(cache_path + ".src") as tmp_path, open(tmp_path, "w") as f:
-        f.write(source_signature(source_path))
+def write_cache_signature(cache_path: str, source_path: str, expected_source: str | None = None) -> None:
+    """Publish cache metadata only if the source stayed unchanged during construction."""
+    signature = source_signature(source_path)
+    if expected_source is not None and signature != expected_source:
+        raise OSError("Source changed while building its cache. Reopen the reader to retry.")
+    st = os.stat(cache_path)
+    with atomic_write_path(cache_path + ".src") as tmp_path, open(tmp_path, "w") as handle:
+        json.dump({"source": signature, "cache": [st.st_size, st.st_mtime_ns]}, handle)
 
 
 def _get_cache_dir() -> str:

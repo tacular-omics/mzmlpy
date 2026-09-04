@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from datetime import timedelta
 
+from ..constants import TimeUnitAccession
+
 
 @dataclass(frozen=True)
 class _Param:
@@ -13,7 +15,15 @@ class _Param:
     @property
     def to_timedelta(self) -> timedelta | None:
         """Convert this CvParam to a timedelta object if it has a time unit, otherwise return None."""
-        if self.value is None or self.unit_name is None:
+        if self.value is None:
+            return None
+        unit_name = {
+            TimeUnitAccession.MILLISECOND: "millisecond",
+            TimeUnitAccession.SECOND: "second",
+            TimeUnitAccession.MINUTE: "minute",
+            TimeUnitAccession.HOUR: "hour",
+        }.get(self.unit_accession, self.unit_name)
+        if unit_name is None:
             return None
 
         try:
@@ -21,7 +31,7 @@ class _Param:
         except (TypeError, ValueError):
             return None
 
-        match self.unit_name.lower():
+        match unit_name.lower():
             case "millisecond":
                 return timedelta(milliseconds=time_val)
             case "second":

@@ -121,7 +121,8 @@ def test_source_file_checksums_differ_across_files() -> None:
 
 def test_extract_dir_places_extracted_file_and_reads_correctly(tmp_path: Path) -> None:
     with Mzml("tests/data/example.mzML.gz", gzip_mode="extract", in_memory=False, extract_dir=tmp_path) as reader:
-        extracted = tmp_path / "example.mzML"
+        extracted = Path(reader._file_object.file_handler.path)
+        assert extracted.parent == tmp_path
         assert extracted.exists()
         assert len(reader.spectra) == 4
         assert reader.spectra[0].id == "scan=19"

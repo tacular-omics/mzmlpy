@@ -2,9 +2,10 @@ import re
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from functools import cached_property
-from typing import overload
+from typing import Literal, overload
 
 from .file_interface import FileInterface
+from .filtering import SpectrumFilter
 from .spectra import Chromatogram, Spectrum
 
 
@@ -45,6 +46,8 @@ class BaseLookup[T: (Spectrum, Chromatogram)](ABC):
             count = self.count
             if count is not None:
                 index += count
+            if index < 0:
+                raise IndexError("Index out of range")
         return self._get_by_index_impl(index)
 
     def get_by_id(self, identifier: str) -> T:
@@ -149,6 +152,23 @@ class BaseLookup[T: (Spectrum, Chromatogram)](ABC):
 
 class SpectrumLookup(BaseLookup[Spectrum]):
     """Lookup interface for spectra."""
+
+    def filter(
+        self,
+        *,
+        ms_level: int | None = None,
+        retention_time: tuple[float | None, float | None] | None = None,
+        polarity: Literal["positive", "negative"] | None = None,
+        precursor_mz: tuple[float | None, float | None] | None = None,
+    ) -> Iterator[Spectrum]:
+        """Lazily select spectra by metadata, using inclusive time bounds in seconds.
+
+        Criteria are combined with AND. Retention time matches any scan. Precursor m/z
+        matches overlapping isolation windows, with selected ions as a fallback. Missing
+        metadata does not match a requested criterion. Keep the reader open while iterating.
+        """
+        predicate = SpectrumFilter(ms_level, retention_time, polarity, precursor_mz)
+        return (spectrum for spectrum in self if predicate.matches(spectrum))
 
     def _get_by_index_impl(self, index: int) -> Spectrum:
         return self.file_object.get_spectrum_by_index(index)

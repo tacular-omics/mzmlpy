@@ -7,9 +7,10 @@ import warnings
 import xml.etree.ElementTree as ElementTree
 from collections.abc import Iterator
 from io import BytesIO
+from itertools import chain
 from pathlib import Path
 from re import Match
-from typing import Any, Literal, Self
+from typing import Any, BinaryIO, Literal, Self, cast
 
 from .constants import MzMLElement
 from .content import CVElement, MzMLContentBuilder, _MzMLContent
@@ -29,12 +30,13 @@ from .lookup import ChromatogramLookup, SpectrumLookup
 from .regex_patterns import FILE_ENCODING_PATTERN
 from .spectra import Chromatogram
 from .util import get_tag, gzip_open_binary
+from .validation import ValidationReport, _validate_stream
 
 
 # Keep encoding detection methods
 def _guess_encoding(mzml_file: Any) -> str:
     """Determine the encoding used for the file."""
-    match: Match[bytes] | None = FILE_ENCODING_PATTERN.search(mzml_file.readline())
+    match: Match[bytes] | None = FILE_ENCODING_PATTERN.search(mzml_file.read(1024))
     return bytes.decode(match.group("encoding")) if match else "utf-8"
 
 
@@ -63,9 +65,7 @@ def _determine_file_encoding(path: str) -> str:
         except ValueError:
             pass
         else:
-            return _guess_encoding(
-                BytesIO(decompress_indexed_member(path, first_offset))
-            )
+            return _guess_encoding(BytesIO(decompress_indexed_member(path, first_offset)))
     if path.endswith(".gz") or path.endswith(".igz"):
         with gzip_open_binary(path) as sniffer:
             return _guess_encoding(sniffer)
@@ -228,7 +228,7 @@ class Mzml:
 
             # Build metadata
             builder = MzMLContentBuilder()
-            builder.parse_from_iterator(mzml_iter)
+            builder.parse_from_iterator(chain((("start", root),), mzml_iter))
 
             root.clear()
             return root, mzml_iter, builder
@@ -238,6 +238,16 @@ class Mzml:
             # RapidgzipFile with worker threads that otherwise linger until interpreter shutdown
             # (triggering rapidgzip's "close all RapidgzipFile objects" warning / abort).
             file_handle.close()
+
+    def validate(self, *, decode_binary: bool = False, check_index: bool = False) -> ValidationReport:
+        """Validate this reader's XML through a fresh handle, preserving its lookup cursor.
+
+        See :func:`mzmlpy.validate` for check scope. This checks the representation selected
+        by the reader. Use the standalone function to validate the original file directly.
+        """
+        with self._file_object.file_handler.get_file_handler(self._encoding) as handle:
+            binary = cast(BinaryIO, getattr(handle, "buffer", handle))
+            return _validate_stream(binary, decode_binary=decode_binary, check_index=check_index)
 
     @property
     def access_strategy(self) -> AccessStrategy:

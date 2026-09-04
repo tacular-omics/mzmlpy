@@ -1,8 +1,8 @@
-default: lint format check test
+default: check
 
 # Install dependencies
 install:
-    uv sync
+    uv sync --locked
 
 # Run linting checks
 lint:
@@ -24,8 +24,8 @@ check:
     just test
 
 # Run tests
-test:
-    uv run pytest tests
+test *args:
+    uv run pytest tests {{args}}
 
 upgrade:
     @echo "Upgrading Python syntax to 3.12+..."
@@ -35,13 +35,12 @@ upgrade:
 
 # Run tests with coverage
 test-cov:
-    uv run pytest tests --cov=src/mzmlpy --cov-branch --cov-report=term-missing --cov-report=html --cov-report=xml
+    uv run pytest tests --cov=src/mzmlpy --cov-branch --cov-report=term-missing --cov-report=html --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
 
-codecov-tests:
-    uv run pytest tests --cov --junitxml=junit.xml -o junit_family=legacy
+codecov-tests: test-cov
 
 docs:  # Build and serve docs (port 8001)
     uv run mkdocs serve --dev-addr=localhost:8001
 
 docs-build:  # Build docs to site/
-    uv run mkdocs build
+    uv run mkdocs build --strict
