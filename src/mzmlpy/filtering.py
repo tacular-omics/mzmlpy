@@ -7,14 +7,14 @@ from typing import Literal
 from .spectra import Spectrum
 
 
-def _check_range(name: str, bounds: tuple[float | None, float | None] | None) -> None:
+def _check_range(name: str, bounds: tuple[float | None, float | None] | None, *, signed: bool = False) -> None:
     if bounds is None:
         return
     if len(bounds) != 2:
         raise ValueError(f"{name} must contain a lower and an upper bound")
     lower, upper = bounds
-    if any(value is not None and (not math.isfinite(value) or value < 0) for value in bounds):
-        raise ValueError(f"{name} bounds must be finite and nonnegative, or None")
+    if any(value is not None and (not math.isfinite(value) or (not signed and value < 0)) for value in bounds):
+        raise ValueError(f"{name} bounds must be finite, nonnegative unless signed, or None")
     if lower is not None and upper is not None and lower > upper:
         raise ValueError(f"{name} lower bound must not exceed the upper bound")
 
@@ -44,16 +44,40 @@ class SpectrumFilter:
     polarity: Literal["positive", "negative"] | None = None
     precursor_mz: tuple[float | None, float | None] | None = None
 
+    spectrum_type: Literal["centroid", "profile"] | None = None
+    mobility_type: Literal["inverse_reduced", "drift_time"] | None = None
+    ion_mobility: tuple[float | None, float | None] | None = None
+    faims_voltage: tuple[float | None, float | None] | None = None
+
     def __post_init__(self) -> None:
         if self.ms_level is not None and (type(self.ms_level) is not int or self.ms_level < 1):
             raise ValueError("ms_level must be a positive integer")
         if self.polarity not in {None, "positive", "negative"}:
             raise ValueError("polarity must be 'positive' or 'negative'")
+        if self.spectrum_type not in {None, "centroid", "profile"}:
+            raise ValueError("spectrum_type must be centroid or profile")
+        if self.mobility_type not in {None, "inverse_reduced", "drift_time"}:
+            raise ValueError("mobility_type must be inverse_reduced or drift_time")
+        if self.ion_mobility is not None and self.mobility_type is None:
+            raise ValueError("ion_mobility requires an explicit mobility_type")
+        _check_range("ion_mobility", self.ion_mobility)
+        _check_range("faims_voltage", self.faims_voltage, signed=True)
         _check_range("retention_time", self.retention_time)
         _check_range("precursor_mz", self.precursor_mz)
 
     def matches(self, spectrum: Spectrum) -> bool:
         """Return whether a spectrum satisfies every supplied criterion."""
+        if self.spectrum_type is not None and spectrum.spectrum_type != self.spectrum_type:
+            return False
+        if self.mobility_type is not None:
+            attribute = (
+                "inverse_reduced_ion_mobility" if self.mobility_type == "inverse_reduced" else "ion_mobility_drift_time"
+            )
+            if not any(_within(getattr(scan, attribute), self.ion_mobility or (None, None)) for scan in spectrum.scans):
+                return False
+        if self.faims_voltage is not None:
+            if not any(_within(scan.faims_compensation_voltage, self.faims_voltage) for scan in spectrum.scans):
+                return False
         if self.ms_level is not None and spectrum.ms_level != self.ms_level:
             return False
         if self.polarity is not None and spectrum.polarity != self.polarity:

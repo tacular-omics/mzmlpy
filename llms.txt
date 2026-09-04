@@ -200,8 +200,13 @@ with Mzml("run.mzML", spectrum_id_regex=r"scan=(\d+)") as reader:
 
 - Install from a checkout with `pip install ".[mcp]"`.
 - Launch `python -m mzmlpy mcp --root /absolute/path/to/data`.
-- Tools: inspect_file, validate_file, find_spectra, get_spectrum, get_chromatogram.
-- Tools are local and read-only. Paths must stay inside the configured directory.
+- Seventeen default tools cover discovery, header metadata, validation, metadata inventories,
+  comparisons, spectrum batches, stored chromatograms, arbitrary arrays, and background jobs.
+- With --output-dir, export_records and read_export provide original encoded records in JSONL.
+- Read mzmlpy://capabilities, mzmlpy://guide, mzmlpy://units, and mzmlpy://schemas.
+- Spectrum processing belongs to Spectacular. Plotting belongs to companion visualization tools.
+- The JSONL handoff is an mzmlpy format, not an assumed Spectacular importer.
+- Sources are read-only. Paths stay inside the configured data directory. Exports require explicit output configuration.
 - Results contain file, revision, and data. Follow next_index with unchanged filters and expected_revision.
 - Search and chromatogram times use seconds. Peak decoding is opt-in and decodes full arrays before paging.
 - See docs/mcp.md for controls, limits, and validation scope.

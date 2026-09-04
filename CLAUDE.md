@@ -102,7 +102,10 @@ Tests are parametrized over both example files. No mocking — tests run against
 
 ## Optional MCP server
 
-- `mcp.py` adapts the public reader API into five local read-only tools.
+- `mcp.py` adapts the reader API for data access. `_mcp_server.py` owns optional SDK integration.
+- `_mcp_metadata.py`, `_mcp_types.py`, `_mcp_runtime.py`, and `_mcp_export.py` handle inventories,
+  schemas, jobs/cache, and lossless record exports. `_progress.py` supplies internal checkpoints.
+- Spectrum processing belongs to Spectacular. Do not add peak processing, derived traces, or plotting here.
 - The SDK is imported only by `create_server`, not by the core package.
 - Run `uv sync --locked --extra mcp` and `UV_NO_SYNC=1 just check` for protocol tests.
 - `tests/test_mcp_protocol.py` checks current and legacy clients and the stdio subprocess.

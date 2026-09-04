@@ -24,12 +24,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     index.add_argument("output")
     mcp = commands.add_parser("mcp", help="Serve local read-only MCP tools (requires the mcp extra)")
     mcp.add_argument("--root", required=True, help="Existing directory containing permitted mzML files")
+    mcp.add_argument("--output-dir", help="Existing directory for optional JSONL exports")
     args = parser.parse_args(argv)
     try:
         if args.command == "mcp":
             from .mcp import create_server
 
-            create_server(args.root).run(transport="stdio")
+            create_server(args.root, args.output_dir).run(transport="stdio")
             return 0
         if args.command == "validate":
             report = validate(args.file, decode_binary=args.decode_binary, check_index=args.check_index)

@@ -298,12 +298,18 @@ with Mzml("tests/data/example.mzML", in_memory=False) as reader:
 ```
 
 Available criteria are `ms_level`, `retention_time=(lower_seconds, upper_seconds)`,
-`polarity="positive"` or `"negative"`, and `precursor_mz=(lower_mz, upper_mz)`.
+`polarity="positive"` or `"negative"`, `precursor_mz=(lower_mz, upper_mz)`,
+`spectrum_type="centroid"` or `"profile"`, and scan-level mobility or FAIMS selection.
 Retention time matches any scan. Precursor m/z matches overlap with any reported isolation
 window. Selected-ion m/z values are used when a precursor has no usable isolation window.
 Missing metadata does not match a requested criterion. Invalid numeric metadata raises its
 normal contextual error. `SpectrumFilter` provides the same reusable predicate through
 its `matches(spectrum)` method.
+
+For mobility selection, use `mobility_type="inverse_reduced"` or `"drift_time"` and
+optionally `ion_mobility=(lower, upper)`. Bounds use the recorded scan quantity and require
+an explicit mobility type. `faims_voltage=(lower, upper)` accepts signed volts. These
+criteria inspect scan metadata and do not process per-peak mobility arrays.
 
 Filtering is a sequential scan. Keep the reader open while consuming the returned iterator.
 It neither builds a retention-time index nor changes the cursor used by `reader.spectra.next()`.

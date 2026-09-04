@@ -11,6 +11,13 @@ All notable changes to this project are documented here. The format is based on
 - Optional `mcp` extra and local stdio server via `python -m mzmlpy mcp --root DIR`.
 - Read-only tools for file inspection, validation, spectrum filtering, peak retrieval, and
   chromatograms, with explicit units, paging, file revisions, and restricted data paths.
+- Full local MCP data-access integration with discovery, paged header metadata, acquisition
+  inventories and comparisons, batched spectrum access, and arbitrary numeric arrays.
+- Background jobs with progress, cancellation and bounded retention, revision-aware summary
+  caching, typed output schemas, reference resources, and workflow prompts.
+- Optional JSONL record exports preserve original encoded binary data and provenance. Exports
+  require an explicit output directory. Spectrum processing remains in Spectacular.
+- Spectrum representation, scan mobility, and signed FAIMS voltage metadata filters.
 - MCP client integration tests, stdio smoke tests, and optional-install CI coverage.
 
 ## [0.8.0] - 2026-09-04

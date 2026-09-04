@@ -28,8 +28,10 @@ pip install mzmlpy[rapidgzip]  # Parallel gzip decompression (recommended for .g
 
 ## MCP integration (development)
 
-An optional local MCP server exposes file inspection, validation, spectrum filtering, and
-bounded spectrum and chromatogram data to AI clients. It is not included in 0.8.0.
+An optional local MCP server exposes file discovery, full acquisition metadata, validation,
+metadata inventories and comparisons, and bounded array access to AI clients. Background jobs,
+reference resources, workflow prompts, and optional lossless JSONL exports support larger tasks.
+Spectrum processing stays in Spectacular, and plotting stays in companion visualization tools. It is not included in 0.8.0.
 From a checkout containing the feature, install with `pip install ".[mcp]"` and launch with
 `python -m mzmlpy mcp --root /absolute/path/to/data`. See the [MCP guide](docs/mcp.md).
 
