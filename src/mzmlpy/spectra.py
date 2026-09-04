@@ -153,11 +153,9 @@ class BinaryDataArray(_ParamGroup):
 
         # Decode base64
         try:
-            out_data = base64.b64decode(binary_element.text)
+            out_data = base64.b64decode("".join(binary_element.text.split()), validate=True)
         except ValueError as e:  # binascii.Error subclasses ValueError
-            raise ValueError(
-                f"Failed to base64-decode binary data array (data type {binary_data_type}): {e}"
-            ) from e
+            raise ValueError(f"Failed to base64-decode binary data array (data type {binary_data_type}): {e}") from e
 
         if len(out_data) == 0:
             return np.array([], dtype=np.float64)

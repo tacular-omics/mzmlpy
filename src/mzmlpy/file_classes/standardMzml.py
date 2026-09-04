@@ -1,6 +1,5 @@
 import io
 import logging
-import re
 import warnings
 from abc import ABC, abstractmethod
 from collections import OrderedDict
@@ -8,9 +7,12 @@ from functools import cached_property
 from io import BytesIO, TextIOWrapper
 from re import Pattern
 from typing import BinaryIO, TextIO, cast
-from xml.etree.ElementTree import XML
+from xml.etree.ElementTree import Element, ParseError
+from xml.parsers import expat
 
 from .. import regex_patterns
+from .._xml import read_fragment, read_header
+from ..util import get_tag
 from .interface import MzmlInterface
 from .xml_tuple import ChromatogramElement, MzmlXMLElement, SpectrumElement
 
@@ -19,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class _MemoryViewReader(io.RawIOBase):
     def __init__(self, mv: memoryview) -> None:
+        super().__init__()
         self._mv = mv
         self._pos = 0
 
@@ -112,24 +115,38 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
         if identifier not in self.spectrum_offsets:
             raise KeyError(f"Spectrum ID {identifier} not found in index")
 
-        offset = self.spectrum_offsets[identifier]
-        seeker = self.get_binary_file_handler()
-        try:
-            seeker.seek(offset)
-            _, end_pos = self._read_to_spec_end(seeker)
-            # Read the exact byte range from the binary handle (end_pos/offset are byte offsets).
-            # Reading through the text handle would treat the length as a character count, which
-            # over-reads past the element when the content contains multi-byte UTF-8.
-            seeker.seek(offset)
-            raw = seeker.read(end_pos - offset)
-        finally:
-            seeker.close()
+        return MzmlXMLElement(
+            self._read_record(self.spectrum_offsets[identifier], "spectrum", identifier), element_type="spectrum"
+        )
 
-        data = raw.decode(self.encoding)
-        try:
-            return MzmlXMLElement(XML(data), element_type="spectrum")
-        except Exception as e:
-            raise ValueError(f"Error parsing spectrum with ID {identifier} at offset {offset}: {e}") from e
+    @cached_property
+    def _header(self) -> tuple[dict[str, str], int | None]:
+        with self.get_binary_file_handler() as handle:
+            handle.seek(0)
+            return read_header(handle)
+
+    def _read_record(self, offset: int, kind: str, identifier: str) -> Element:
+        namespaces, _ = self._header
+        with self.get_binary_file_handler() as handle:
+            handle.seek(offset)
+            try:
+                try:
+                    element = read_fragment(handle, self.encoding, namespaces)
+                except ParseError as error:
+                    if error.code != expat.errors.codes[expat.errors.XML_ERROR_UNBOUND_PREFIX]:
+                        raise
+                    with self.get_file_handler(self.encoding) as source:
+                        context, _ = read_header(source, (kind, identifier))
+                    namespaces.update(context)
+                    handle.seek(offset)
+                    element = read_fragment(handle, self.encoding, context)
+            except Exception as error:
+                raise ValueError(
+                    f"Could not find end or parse {kind} {identifier!r} at offset {offset}: {error}"
+                ) from error
+        if get_tag(element) != kind or element.get("id") != identifier:
+            raise ValueError(f"Index entry for {kind} {identifier!r} points to a different element at offset {offset}")
+        return element
 
     def get_spectrum_by_index(self, index: int) -> SpectrumElement:
         """Retrieve spectrum by 0-based index.
@@ -161,19 +178,10 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
         if identifier not in self.chromatogram_offsets:
             raise KeyError(f"Chromatogram ID {identifier} not found in index")
 
-        offset = self.chromatogram_offsets[identifier]
-        seeker = self.get_binary_file_handler()
-        try:
-            seeker.seek(offset)
-            _, end_pos = self._read_to_spec_end(seeker)
-            # Byte-range read from the binary handle (see get_spectrum_by_id for the rationale).
-            seeker.seek(offset)
-            raw = seeker.read(end_pos - offset)
-        finally:
-            seeker.close()
-
-        data = raw.decode(self.encoding)
-        return MzmlXMLElement(XML(data), element_type="chromatogram")
+        return MzmlXMLElement(
+            self._read_record(self.chromatogram_offsets[identifier], "chromatogram", identifier),
+            element_type="chromatogram",
+        )
 
     def get_chromatogram_by_index(self, index: int) -> ChromatogramElement:
         """Retrieve chromatogram by 0-based index.
@@ -184,6 +192,8 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
         Raises:
             IndexError: If index is out of range.
         """
+        if not 0 <= index < len(self._chromatogram_keys):
+            raise IndexError(f"Chromatogram index {index} out of range")
         try:
             key = self._chromatogram_keys[index]
         except IndexError as e:
@@ -229,29 +239,28 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
         return None
 
     def _parse_index_section(self, seeker: BinaryIO, index_offset: int) -> None:
-        """Parse the index section and populate offset dictionaries."""
-        seeker.seek(index_offset, 0)
-
-        current_index_type = None
-        offset_pattern = re.compile(rb'<offset idRef="([^"]*)"[^>]*>(\d+)</offset>')
-        index_name_pattern = re.compile(rb'<index name="([^"]*)">')
-
-        for line in seeker:
-            if b"</indexList>" in line:
-                break
-
-            # Check for new index section
-            if name_match := index_name_pattern.search(line):
-                current_index_type = name_match.group(1).decode("utf-8")
-                continue
-
-            # Parse offset entry
-            if (offset_match := offset_pattern.search(line)) and current_index_type:
-                self._add_offset_entry(
-                    current_index_type,
-                    offset_match.group(1).decode("utf-8"),
-                    int(offset_match.group(2).decode("utf-8")),
-                )
+        """Parse XML offsets independently of whitespace, quoting, and namespaces."""
+        namespaces, expected_spectra = self._header
+        seeker.seek(index_offset)
+        root = read_fragment(seeker, self.encoding, namespaces)
+        if get_tag(root) != "indexList":
+            raise ValueError("indexListOffset does not point to an indexList")
+        indices = list(root)
+        if int(root.get("count", str(len(indices)))) != len(indices):
+            raise ValueError("Index list count does not match its entries")
+        for index in indices:
+            kind = index.get("name")
+            if get_tag(index) != "index" or kind not in {"spectrum", "chromatogram"}:
+                raise ValueError("Unknown index kind")
+            for entry in index:
+                if get_tag(entry) != "offset":
+                    raise ValueError("Unexpected element in index")
+                offset = int(entry.text or "")
+                if not 0 <= offset < index_offset:
+                    raise ValueError("Record offset is outside the data section")
+                self._add_offset_entry(kind, entry.attrib["idRef"], offset)
+        if expected_spectra is not None and len(self.spectrum_offsets) != expected_spectra:
+            raise ValueError("Spectrum index count does not match spectrumList")
 
     def _add_offset_entry(self, index_type: str, native_id: str, offset: int) -> None:
         """Add an offset entry to the appropriate dictionary with duplicate checking."""
@@ -267,9 +276,17 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
 
     def _finalize_index(self) -> None:
         """Build key lists for fast index access."""
-        self._spectrum_keys = list(self.spectrum_offsets.keys())
-        self._chromatogram_keys = list(self.chromatogram_offsets.keys())
+        for offsets in (self.spectrum_offsets, self.chromatogram_offsets):
+            if any(
+                not isinstance(identifier, str) or type(offset) is not int or offset < 0
+                for identifier, offset in offsets.items()
+            ):
+                raise ValueError("Invalid record ID or byte offset in index")
         self._validate_unique_offsets()
+        self.spectrum_offsets = OrderedDict(sorted(self.spectrum_offsets.items(), key=lambda item: item[1]))
+        self.chromatogram_offsets = OrderedDict(sorted(self.chromatogram_offsets.items(), key=lambda item: item[1]))
+        self._spectrum_keys = list(self.spectrum_offsets)
+        self._chromatogram_keys = list(self.chromatogram_offsets)
 
     def _validate_unique_offsets(self) -> None:
         """Ensure no offsets are shared between or within spectrum/chromatogram indices."""
@@ -288,123 +305,49 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
             raise ValueError(f"Offsets shared between spectra and chromatograms: {sorted(shared)}")
 
     def _build_index_from_scratch(self, seeker: BinaryIO) -> None:
-        """Build index by parsing the file for spectrum/chromatogram elements."""
+        """Build byte offsets with an XML parser, without retaining the document tree."""
+        self.spectrum_offsets.clear()
+        self.chromatogram_offsets.clear()
+        expected: dict[str, int] = {}
+        parser = expat.ParserCreate(encoding=self.encoding, namespace_separator="}")
 
-        def get_data_indices(
-            fh: BinaryIO, chunksize: int = 8192, lookback_size: int = 100
-        ) -> tuple[dict[str, int], dict[str, int]]:
-            """Find binary offsets of all spectra and chromatograms.
+        def on_start(name: str, attributes: dict[str, str]) -> None:
+            tag = name.rsplit("}", 1)[-1]
+            if tag in {"spectrumList", "chromatogramList"} and "count" in attributes:
+                expected[tag.removesuffix("List")] = int(attributes["count"])
+            elif tag in {"spectrum", "chromatogram"}:
+                identifier = attributes.get("id")
+                if identifier is None:
+                    return
+                offsets = self.spectrum_offsets if tag == "spectrum" else self.chromatogram_offsets
+                if identifier in offsets:
+                    warnings.warn(
+                        f"Duplicate {tag} id {identifier!r} while building index from scratch. "
+                        "Keeping the last occurrence.",
+                        stacklevel=2,
+                    )
+                offsets[identifier] = parser.CurrentByteIndex
 
-            Uses regex instead of XML parser to capture exact file positions.
-
-            Returns:
-                Tuple of (chrom_positions, spec_positions) dictionaries.
-            """
-            chrom_positions: dict[str, int] = {}
-            spec_positions: dict[str, int] = {}
-
-            chromcnt = 0
-            speccnt = 0
-            chromexp: Pattern[bytes] = re.compile(b'<\\s*chromatogram[^>]*id="([^"]*)"')
-            chromcntexp: Pattern[bytes] = re.compile(b'<\\s*chromatogramList\\s*count="([^"]*)"')
-            specexp: Pattern[bytes] = re.compile(b'<\\s*spectrum[^>]*id="([^"]*)"')
-            speccntexp: Pattern[bytes] = re.compile(b'<\\s*spectrumList\\s*count="([^"]*)"')
-            fh.seek(0)
-            prev_chunk = ""
-            while True:
-                offset: int = fh.tell()
-                chunk: bytes = fh.read(chunksize)
-                if not chunk:
-                    break
-
-                if len(prev_chunk) > 0:
-                    chunk = prev_chunk[-lookback_size:] + chunk
-                    offset -= lookback_size
-
-                prev_chunk = chunk
-
-                for m in chromexp.finditer(chunk):
-                    key = m.group(1).decode("utf-8")
-                    value = offset + m.start()
-                    # A different offset for the same id is a genuine duplicate (not just the same
-                    # match re-seen across the overlapping lookback window), so warn rather than
-                    # silently drop it — mirroring the footer-index path's duplicate handling.
-                    if key in chrom_positions and chrom_positions[key] != value:
-                        warnings.warn(
-                            f"Duplicate chromatogram id {key!r} while building index from scratch; "
-                            "keeping the last occurrence.",
-                            stacklevel=2,
-                        )
-                    chrom_positions[key] = value
-
-                for m in specexp.finditer(chunk):
-                    key = m.group(1).decode("utf-8")
-                    value = offset + m.start()
-                    if key in spec_positions and spec_positions[key] != value:
-                        warnings.warn(
-                            f"Duplicate spectrum id {key!r} while building index from scratch; "
-                            "keeping the last occurrence.",
-                            stacklevel=2,
-                        )
-                    spec_positions[key] = value
-
-                m = chromcntexp.search(chunk)
-                if m is not None:
-                    chromcnt = int(m.group(1))
-                m = speccntexp.search(chunk)
-                if m is not None:
-                    speccnt = int(m.group(1))
-
-            if chromcnt != len(chrom_positions) or speccnt != len(spec_positions):
-                warnings.warn(
-                    f"Found {len(spec_positions)} spectra and {len(chrom_positions)} chromatograms; "
-                    f"index lists show {speccnt} and {chromcnt} entries. Using found offsets but some "
-                    f"may be missing — file may be truncated.",
-                    stacklevel=2,
-                )
-
-            return chrom_positions, spec_positions
-
-        chrom_positions, spec_positions = get_data_indices(seeker)
-
-        # Update separate offset dictionaries
-        self.chromatogram_offsets.update(chrom_positions)
-        self.spectrum_offsets.update(spec_positions)
-
-        # Build keys lists for fast index access
-        self._spectrum_keys = list(self.spectrum_offsets.keys())
-        self._chromatogram_keys = list(self.chromatogram_offsets.keys())
-
-    def _read_to_spec_end(self, seeker: BinaryIO, chunks_to_read: int = 8) -> tuple[int, int]:
-        """Return start and end positions of current spectrum/chromatogram element."""
-        chunk_size = 512 * chunks_to_read
-        start_pos = seeker.tell()
-        data_chunk = seeker.read(chunk_size)
-        while True:
-            match = regex_patterns.SPECTRUM_CLOSE_PATTERN.search(data_chunk)
-            if match is None:
-                match = regex_patterns.CHROMATOGRAM_CLOSE_PATTERN.search(data_chunk)
-            if match is not None:
-                return (start_pos, start_pos + match.end())
-
-            next_chunk = seeker.read(chunk_size)
-            tag_end, seeker = self._read_until_tag_end(seeker)
-            if not next_chunk and not tag_end:
-                # Reached EOF without a closing tag (e.g. a truncated final element). Stop instead
-                # of looping forever on a buffer that can no longer grow.
-                raise ValueError("Could not find end of spectrum or chromatogram (file may be truncated)")
-            data_chunk += next_chunk + tag_end
-
-    def _read_until_tag_end(self, seeker: BinaryIO, max_search_len: int = 12) -> tuple[bytes, BinaryIO]:
-        """Read bytes until tag boundary to avoid splitting XML tags in chunks."""
-        count = 0
-        string = b""
-        curr_byte = ""
-        while count < max_search_len and curr_byte != b">" and curr_byte != b"<" and curr_byte != b" ":
-            curr_byte = seeker.read(1)
-            string += curr_byte
-            count += 1
-        return string, seeker
+        parser.StartElementHandler = on_start
+        seeker.seek(0)
+        try:
+            while chunk := seeker.read(1024 * 1024):
+                parser.Parse(chunk, False)
+            parser.Parse(b"", True)
+        except expat.ExpatError as error:
+            # Retain complete records from interrupted acquisitions. Iteration and access to
+            # the unfinished record still raise a contextual parse error.
+            warnings.warn(f"Incomplete or invalid XML while indexing: {error}", stacklevel=2)
+        finally:
+            parser.StartElementHandler = None
+        found = {"spectrum": len(self.spectrum_offsets), "chromatogram": len(self.chromatogram_offsets)}
+        if any(found[kind] != count for kind, count in expected.items()):
+            warnings.warn(
+                f"Found {found['spectrum']} spectra and {found['chromatogram']} chromatograms. "
+                "Declared counts differ. The file may be truncated.",
+                stacklevel=2,
+            )
+        self._finalize_index()
 
     def read(self, size: int = -1) -> str:
         """Read data from file. Default (-1) reads entire file."""
@@ -465,12 +408,13 @@ class BytesMzml(AbstractRandomAccessMzml):
 
     def __init__(self, binary: BytesIO, encoding: str, build_index_from_scratch: bool = False) -> None:
         self.binary: BytesIO = binary
+        self._data = binary.getvalue()
         # Reset position for initial reads
         self.binary.seek(0)
         super().__init__(encoding, build_index_from_scratch)
 
     def get_binary_file_handler(self) -> BinaryIO:
-        return io.BufferedReader(cast(io.RawIOBase, _MemoryViewReader(self.binary.getbuffer())))
+        return io.BufferedReader(cast(io.RawIOBase, _MemoryViewReader(memoryview(self._data))))
 
     def get_file_handler(self, encoding: str) -> TextIO:
-        return TextIOWrapper(BytesIO(self.binary.getbuffer()), encoding=encoding)
+        return TextIOWrapper(self.get_binary_file_handler(), encoding=encoding)

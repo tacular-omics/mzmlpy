@@ -6,6 +6,7 @@ import logging
 import os
 from collections import OrderedDict
 from io import TextIOWrapper
+from pathlib import Path
 from re import Pattern
 from typing import BinaryIO, TextIO
 
@@ -14,7 +15,7 @@ try:
 except ImportError:
     RapidgzipFile = None  # type: ignore[assignment, misc]
 
-from ..util import atomic_write_path, cache_is_current, write_cache_signature
+from ..util import atomic_write_path, cache_is_current, source_signature, write_cache_signature
 from .standardMzml import AbstractRandomAccessMzml
 
 logger = logging.getLogger(__name__)
@@ -22,10 +23,10 @@ logger = logging.getLogger(__name__)
 
 def has_cached_indexes(path: str) -> bool:
     """Return whether rapidgzip and mzML sidecars are installed, complete, and current."""
-    if RapidgzipFile is None or not path.endswith(".gz"):
+    if RapidgzipFile is None or not path.endswith((".gz", ".igz")):
         return False
     gzip_index_path = path + "idx"
-    mzml_index_path = path.removesuffix(".gz") + "idx"
+    mzml_index_path = str(Path(path).with_suffix("")) + "idx"
     return cache_is_current(gzip_index_path, path) and cache_is_current(mzml_index_path, path)
 
 
@@ -102,12 +103,11 @@ class IndexedGzip(AbstractRandomAccessMzml):
     ) -> None:
         if RapidgzipFile is None:
             raise ImportError(
-                "rapidgzip is required for gzip_mode='indexed'. "
-                "Install it with: pip install mzmlpy[rapidgzip]"
+                "rapidgzip is required for gzip_mode='indexed'. Install it with: pip install mzmlpy[rapidgzip]"
             )
         self.path: str = path
         self._gzip_index_path: str = path + "idx"  # e.g. data.mzML.gzidx
-        self._mzml_index_path: str = path.removesuffix(".gz") + "idx"  # e.g. data.mzMLidx
+        self._mzml_index_path: str = str(Path(path).with_suffix("")) + "idx"  # e.g. data.mzMLidx
 
         self._ensure_gzip_index()
 
@@ -124,27 +124,38 @@ class IndexedGzip(AbstractRandomAccessMzml):
 
     # -- gzip seek index ---------------------------------------------------
 
-    def _ensure_gzip_index(self) -> None:
+    def _ensure_gzip_index(self, force: bool = False) -> None:
         """Load existing .gzidx or build and save one."""
-        if cache_is_current(self._gzip_index_path, self.path):
+        if not force and cache_is_current(self._gzip_index_path, self.path):
             logger.debug("Using cached gzip index: %s", self._gzip_index_path)
             return
 
         logger.debug("Building gzip index for: %s", self.path)
         # Atomic write so an interrupted build never leaves a truncated index that the currency
         # check would later trust.
+        signature = source_signature(self.path)
         with atomic_write_path(self._gzip_index_path) as tmp_path:
             with RapidgzipFile(self.path, parallelization=os.cpu_count() or 1) as f:
                 # Seek to end to force full decompression and index building
                 f.seek(0, 2)
                 f.export_index(tmp_path)
-        write_cache_signature(self._gzip_index_path, self.path)
+        write_cache_signature(self._gzip_index_path, self.path, signature)
         logger.debug("Saved gzip index to: %s", self._gzip_index_path)
 
     def _open_indexed(self) -> RapidgzipFile:
         """Open a new RapidgzipFile with the cached seek index."""
         fh = RapidgzipFile(self.path, parallelization=os.cpu_count() or 1)
-        fh.import_index(self._gzip_index_path)
+        try:
+            fh.import_index(self._gzip_index_path)
+        except Exception:
+            fh.close()
+            self._ensure_gzip_index(force=True)
+            fh = RapidgzipFile(self.path, parallelization=os.cpu_count() or 1)
+            try:
+                fh.import_index(self._gzip_index_path)
+            except BaseException:
+                fh.close()
+                raise
         return fh
 
     # -- mzML spectrum/chromatogram index ----------------------------------
@@ -157,12 +168,19 @@ class IndexedGzip(AbstractRandomAccessMzml):
         delegates to the base class to parse the file, then caches the result.
         """
         if not from_scratch and cache_is_current(self._mzml_index_path, self.path):
-            self._load_mzml_index()
-            return
+            try:
+                self._load_mzml_index()
+                self._finalize_index()
+                return
+            except (OSError, ValueError, KeyError, TypeError):
+                logger.warning("Rebuilding invalid mzML sidecar for %s", self.path)
+                self.spectrum_offsets.clear()
+                self.chromatogram_offsets.clear()
 
         # Delegate to base class to parse offsets from the file
+        signature = source_signature(self.path)
         super()._build_index(from_scratch=from_scratch)
-        self._save_mzml_index()
+        self._save_mzml_index(signature)
 
     def _load_mzml_index(self) -> None:
         """Load cached mzML offsets from the .mzidx JSON file."""
@@ -172,10 +190,15 @@ class IndexedGzip(AbstractRandomAccessMzml):
 
         self.spectrum_offsets = OrderedDict(data["spectrum_offsets"])
         self.chromatogram_offsets = OrderedDict(data["chromatogram_offsets"])
-        self._spectrum_keys = list(self.spectrum_offsets.keys())
-        self._chromatogram_keys = list(self.chromatogram_offsets.keys())
+        if len(self.spectrum_offsets) != len(data["spectrum_offsets"]) or len(self.chromatogram_offsets) != len(
+            data["chromatogram_offsets"]
+        ):
+            raise ValueError("Duplicate IDs in cached mzML index")
+        expected_spectra = self._header[1]
+        if expected_spectra is not None and len(self.spectrum_offsets) != expected_spectra:
+            raise ValueError("Cached spectrum count does not match the file")
 
-    def _save_mzml_index(self) -> None:
+    def _save_mzml_index(self, expected_source: str | None = None) -> None:
         """Save mzML offsets to the .mzidx JSON file."""
         data = {
             "spectrum_offsets": list(self.spectrum_offsets.items()),
@@ -183,7 +206,7 @@ class IndexedGzip(AbstractRandomAccessMzml):
         }
         with atomic_write_path(self._mzml_index_path) as tmp_path, open(tmp_path, "w") as f:
             json.dump(data, f)
-        write_cache_signature(self._mzml_index_path, self.path)
+        write_cache_signature(self._mzml_index_path, self.path, expected_source)
         logger.debug("Saved mzML index to: %s", self._mzml_index_path)
 
     # -- file handlers -----------------------------------------------------

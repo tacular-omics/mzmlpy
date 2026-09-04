@@ -253,3 +253,84 @@ with Mzml("tests/data/example.mzML") as reader:
     _ = reader.scan_settings
     _ = reader.run
 ```
+
+## Validation
+
+Use `validate` to check a file directly without creating or repairing caches. The default
+scans XML, checks list counts, duplicate IDs, references, index ID agreement, and supported
+array metadata. It does not decode binary arrays.
+
+```python
+from mzmlpy import validate
+
+report = validate("tests/data/example.mzML")
+print(report.valid, report.spectrum_count, report.chromatogram_count)
+for issue in report.issues:
+    print(issue.code, issue.location, issue.message)
+```
+
+Set `decode_binary=True` to decode arrays and compare their lengths. Set `check_index=True`
+to seek to XML footer offsets and verify their targets. These checks may be expensive,
+especially offset verification on ordinary gzip files. The report states which checks ran,
+how many arrays and index entries were checked, and whether XML parsing completed.
+`report.to_dict()` returns JSON-serializable results. File-open errors raise `OSError`.
+Malformed content is reported through `report.issues`.
+
+An open reader also has `reader.validate(...)`. It uses a fresh handle to the selected
+representation and preserves the lookup cursor. Use standalone `validate(path)` when the
+original source file, rather than a cached representation, is what you want to inspect.
+These checks do not constitute full XSD or controlled-vocabulary validation, and they do
+not verify the embedded gzip index itself.
+
+## Lazy filtering
+
+`reader.spectra.filter(...)` selects spectra from metadata without decoding their binary
+arrays. All supplied criteria must match. Bounds are inclusive, and `None` leaves an
+endpoint open. Retention times are expressed in seconds, with source units normalized.
+
+```python
+from mzmlpy import Mzml
+
+with Mzml("tests/data/example.mzML", in_memory=False) as reader:
+    selected = reader.spectra.filter(ms_level=2, retention_time=(0, None))
+    for spectrum in selected:
+        print(spectrum.id, spectrum.ms_level)
+```
+
+Available criteria are `ms_level`, `retention_time=(lower_seconds, upper_seconds)`,
+`polarity="positive"` or `"negative"`, and `precursor_mz=(lower_mz, upper_mz)`.
+Retention time matches any scan. Precursor m/z matches overlap with any reported isolation
+window. Selected-ion m/z values are used when a precursor has no usable isolation window.
+Missing metadata does not match a requested criterion. Invalid numeric metadata raises its
+normal contextual error. `SpectrumFilter` provides the same reusable predicate through
+its `matches(spectrum)` method.
+
+Filtering is a sequential scan. Keep the reader open while consuming the returned iterator.
+It neither builds a retention-time index nor changes the cursor used by `reader.spectra.next()`.
+
+## Command-line inspection
+
+The CLI emits JSON and needs no additional installation:
+
+```bash
+python -m mzmlpy inspect data.mzML
+python -m mzmlpy validate data.mzML --decode-binary --check-index
+python -m mzmlpy index-gzip data.mzML data.indexed.mzML.gz
+```
+
+Exit codes are `0` for success, `1` for validation findings with errors, and `2` for an
+operational error. Inspection reads metadata and counts without decoding arrays.
+
+## Memory and extracted caches
+
+`in_memory=True` remains the reader default. Use `in_memory=False` for large files and to
+activate gzip access strategies. Extraction copies decompressed chunks directly to disk.
+Sequential iteration detaches completed spectra and chromatograms, including records that
+are skipped while finding the requested kind. Keeping returned spectra in a list still
+retains their XML in your own code.
+
+Both the default cache and a custom `extract_dir` use filenames based on source identity
+and filesystem revision. Files with matching basenames in different directories do not
+share an extracted file. Replacing a source creates a new cache path, so existing readers
+can continue using their previous extracted copy. Older cache files can remain until you
+clean the directory. `clear_cache()` removes the default cache only.

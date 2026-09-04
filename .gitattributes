@@ -1,0 +1,2 @@
+# Preserve fixture bytes, including XML byte offsets and compressed counterparts.
+tests/data/** -text

@@ -1,6 +1,7 @@
 """Second adversarial round: cross-mode consistency, namespace/CV robustness, scan-window units."""
 
 import warnings
+from importlib.util import find_spec
 
 import pytest
 
@@ -41,9 +42,10 @@ def test_all_access_modes_agree():
         Mzml(EXAMPLE, in_memory=False),
         Mzml(EXAMPLE_GZ, gzip_mode="extract"),
         Mzml(EXAMPLE_GZ, gzip_mode="extract", in_memory=False),
-        Mzml(EXAMPLE_GZ, gzip_mode="indexed", in_memory=False),
         Mzml(EXAMPLE_GZ, gzip_mode="stream", in_memory=False),
     ]
+    if find_spec("rapidgzip") is not None:
+        variants.append(Mzml(EXAMPLE_GZ, gzip_mode="indexed", in_memory=False))
     for r in variants:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")  # stream mode warns on random access

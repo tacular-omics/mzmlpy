@@ -26,6 +26,8 @@ EXPECTED_INT = np.array([2163.010498046875, 22231.859375, 2310.19091796875])
 
 @pytest.mark.parametrize("filename", LOSSLESS_FILES)
 def test_lossless_structural(filename):
+    if "zstd" in filename:
+        pytest.importorskip("zstd")
     reader = Mzml(filename)
     assert len(reader.spectra) == 10
     assert len(reader.chromatograms) == 1
@@ -39,6 +41,8 @@ def test_lossless_structural(filename):
 
 @pytest.mark.parametrize("filename", LOSSLESS_FILES)
 def test_lossless_values(filename):
+    if "zstd" in filename:
+        pytest.importorskip("zstd")
     reader = Mzml(filename)
     s = reader.spectra[0]
     np.testing.assert_array_equal(s.mz[:3], EXPECTED_MZ)
@@ -47,6 +51,7 @@ def test_lossless_values(filename):
 
 def test_lossless_cross_compression():
     """Verify zlib and zstd produce identical binary data (both are lossless)."""
+    pytest.importorskip("zstd")
     zlib_reader = Mzml(LOSSLESS_FILES[0])
     zstd_reader = Mzml(LOSSLESS_FILES[1])
 
@@ -83,4 +88,3 @@ def test_numpress_values(filename):
     # Numpress is lossy -- values should be close but not necessarily exact
     np.testing.assert_allclose(s.mz[:3], EXPECTED_MZ, rtol=1e-4)
     np.testing.assert_allclose(s.intensity[:3], EXPECTED_INT, rtol=1e-2)
-

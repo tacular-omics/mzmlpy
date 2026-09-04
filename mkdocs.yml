@@ -19,6 +19,7 @@ nav:
     - Spectrum: api/spectrum.md
     - Chromatogram: api/chromatogram.md
     - Lookup: api/lookup.md
+    - Validation & Filtering: api/validation.md
     - Precursor & Ions: api/precursor.md
     - File Description: api/file-description.md
     - Instrument: api/instrument.md

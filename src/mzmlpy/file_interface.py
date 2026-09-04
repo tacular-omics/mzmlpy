@@ -5,6 +5,7 @@ import gzip
 import hashlib
 import logging
 import os
+import shutil
 import tempfile
 import warnings
 from collections.abc import Iterator
@@ -16,6 +17,7 @@ from re import Pattern
 from typing import BinaryIO, Literal, overload
 from xml.etree import ElementTree as ET
 
+from ._xml import iter_records
 from .constants import ChromatogramTypeAccession
 from .embedded_indexed_gzip import is_embedded_indexed_gzip
 from .file_classes import (
@@ -37,6 +39,8 @@ from .util import (
     expand_param_group_refs,
     get_tag,
     gzip_decompress,
+    gzip_open_binary,
+    source_signature,
     write_cache_signature,
 )
 
@@ -165,9 +169,7 @@ class FileInterface:
                 try:
                     embedded = EmbeddedIndexedGzip(path, self.encoding)
                 except ValueError as error:
-                    logger.warning(
-                        "Ignoring invalid embedded gzip index in %s: %s", path, error
-                    )
+                    logger.warning("Ignoring invalid embedded gzip index in %s: %s", path, error)
                 else:
                     self.access_strategy = AccessStrategy.EMBEDDED
                     return embedded
@@ -216,9 +218,13 @@ class FileInterface:
             logger.debug("Using cached extraction: %s", target)
         else:
             logger.debug("Extracting %s to %s", gz_path, target)
-            with atomic_write_path(target) as temporary_path, open(temporary_path, "wb") as output:
-                output.write(gzip_decompress(gz_path))
-            write_cache_signature(target, gz_path)
+            signature = source_signature(gz_path)
+            with atomic_write_path(target) as temporary_path:
+                with open(temporary_path, "wb") as output, gzip_open_binary(gz_path) as source:
+                    shutil.copyfileobj(source, output, length=1024 * 1024)
+                if source_signature(gz_path) != signature:
+                    raise OSError("Source changed during extraction. Reopen the reader to retry.")
+            write_cache_signature(target, gz_path, signature)
         return StandardMzml(
             target,
             self.encoding,
@@ -227,20 +233,10 @@ class FileInterface:
         )
 
     def _get_extract_path(self, gz_path: str) -> str:
-        """Return the path for the extracted mzML file.
-
-        If ``extract_dir`` was provided, uses that directory with the original
-        filename (minus ``.gz``). Otherwise, uses ``<tmpdir>/mzmlpy/`` with a
-        hash-based filename to avoid collisions.
-        """
-        if self._extract_dir is not None:
-            os.makedirs(self._extract_dir, exist_ok=True)
-            filename = Path(gz_path).name.removesuffix(".gz")
-            return os.path.join(self._extract_dir, filename)
-
-        cache_dir = os.path.join(tempfile.gettempdir(), "mzmlpy")
+        """Use a source-specific, revision-specific filename in either cache directory."""
+        cache_dir = self._extract_dir or os.path.join(tempfile.gettempdir(), "mzmlpy")
         os.makedirs(cache_dir, exist_ok=True)
-        path_hash = hashlib.sha256(os.path.abspath(gz_path).encode()).hexdigest()[:16]
+        path_hash = hashlib.sha256(source_signature(gz_path).encode()).hexdigest()[:24]
         filename = Path(gz_path).stem + f"_{path_hash}.mzML"
         return os.path.join(cache_dir, filename)
 
@@ -318,49 +314,13 @@ class FileInterface:
     def _iter_xml_elements(
         self, tag_suffix: Literal["spectrum", "chromatogram"]
     ) -> Iterator[SpectrumElement] | Iterator[ChromatogramElement]:
-        """Iterate over XML elements with a specific tag suffix.
-
-        Uses ``start``/``end`` events to track each element's parent so that, after an element is
-        yielded, it can be detached from the tree with ``parent.remove(...)``. This keeps peak
-        memory bounded — the container element does not accumulate every parsed spectrum as
-        iteration proceeds — while the yielded element stays fully intact and usable even after
-        iteration advances (e.g. ``list(reader.spectra)`` or a deferred ``spectrum.mz``).
-        ``element.clear()`` would instead empty a spectrum the caller is still holding.
-        """
-        # Get a fresh file handle for iteration
-        file_handle = self.file_handler.get_file_handler(self.encoding)
-        try:
-            # We must seek to 0 for a fresh iterator
-            # Note: get_file_handler usually returns a new handle at pos 0,
-            # but seeking ensures it for implementations that might recycle handles.
-            if hasattr(file_handle, "seek"):
-                file_handle.seek(0)
-
-            # Stack of currently-open elements: pushed on "start", popped on "end". After popping a
-            # matched element, the new top of the stack is its parent.
-            open_elements: list[ET.Element] = []
-            for event, element in ET.iterparse(file_handle, events=("start", "end")):
-                if event == "start":
-                    open_elements.append(element)
-                    continue
-
-                # end event
-                open_elements.pop()
-                if get_tag(element) != tag_suffix:
-                    continue
-
+        """Iterate with a private handle and bounded memory for either record kind."""
+        with self.file_handler.get_file_handler(self.encoding) as handle:
+            for element in iter_records(handle, tag_suffix):
                 if tag_suffix == "spectrum":
                     yield MzmlXMLElement(element=element, element_type="spectrum")
                 else:
                     yield MzmlXMLElement(element=element, element_type="chromatogram")
-
-                # Detach the just-yielded (and now consumed) element from its parent so the
-                # container does not keep growing. The element itself is unaffected and remains
-                # fully usable through the reference the caller now holds.
-                if open_elements:
-                    open_elements[-1].remove(element)
-        finally:
-            file_handle.close()
 
     def iter_spectra(self) -> Iterator[Spectrum]:
         """Iterate over all spectra in the file."""

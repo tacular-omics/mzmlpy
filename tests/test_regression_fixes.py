@@ -164,6 +164,7 @@ def test_gzip_mode_indexed_with_in_memory_false_does_not_warn(tmp_path: Path) ->
     because ``gzip_mode='indexed'`` writes ``.gzidx``/``.mzMLidx`` cache files next to the
     source path, and this keeps that side effect out of the repo's test-data directory.
     """
+    pytest.importorskip("rapidgzip")
     gz_copy = tmp_path / "example.mzML.gz"
     shutil.copy(EXAMPLE_GZ, gz_copy)
 
@@ -221,8 +222,6 @@ def test_id_dict_round_trips_real_spectrum_id() -> None:
 # 5. Dictionary-encoded zstd decode with fewer unique values than points (U < N)
 # --------------------------------------------------------------------------------------------
 
-zstd = pytest.importorskip("zstd")
-
 
 def _shuffle(raw: bytes, element_size: int) -> bytes:
     """Group same-position bytes together, mirroring MSDecoder's byte-shuffle encoding."""
@@ -236,6 +235,7 @@ def _build_dict_encoded_zstd_payload(values: NDArray[np.float64], indices: NDArr
     idx_bytes = indices.tobytes() if idx_element_size == 1 else _shuffle(indices.tobytes(), idx_element_size)
     index_offset = 16 + len(value_bytes)
     decompressed = struct.pack("<QQ", index_offset, len(indices)) + value_bytes + idx_bytes
+    zstd = pytest.importorskip("zstd")
     return zstd.compress(decompressed)
 
 

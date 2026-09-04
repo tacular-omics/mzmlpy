@@ -5,15 +5,19 @@ from mzmlpy import Mzml
 GZ_FILE = "tests/data/example.mzML.gz"
 MZML_FILE = "tests/data/example.mzML"
 
+pytest.importorskip("rapidgzip")
+
 
 @pytest.fixture()
 def indexed_reader():
-    return Mzml(GZ_FILE, gzip_mode="indexed", in_memory=False)
+    with Mzml(GZ_FILE, gzip_mode="indexed", in_memory=False) as reader:
+        yield reader
 
 
 @pytest.fixture()
 def reference_reader():
-    return Mzml(MZML_FILE)
+    with Mzml(MZML_FILE) as reader:
+        yield reader
 
 
 def test_spectrum_ids(indexed_reader, reference_reader):

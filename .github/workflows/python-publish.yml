@@ -36,6 +36,7 @@ jobs:
         just lint
         just ty
         just test
+        just docs-build
     - name: Build package with uv
       run: uv build
     - name: Verify tag and distributions
@@ -43,6 +44,11 @@ jobs:
         package_version=$(uv run python -c "print(__import__('mzmlpy').__version__)")
         test "v$package_version" = "$GITHUB_REF_NAME"
         uvx twine check dist/*
+    - name: Smoke test the wheel without optional dependencies
+      run: |
+        uv venv .wheel-venv
+        uv pip install --python .wheel-venv/bin/python dist/*.whl
+        uv run --no-project --no-sync --python .wheel-venv/bin/python python tests/wheel_smoke.py --base-only --require-wheel
     - name: Publish package
       uses: pypa/gh-action-pypi-publish@release/v1
       with:

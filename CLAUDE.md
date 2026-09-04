@@ -4,7 +4,7 @@
 
 **mzmlpy** — lightweight Python library for parsing mzML mass spectrometry files. Exposes a type-safe, lazy-loading API for spectra, chromatograms, and file metadata. Python 3.12+ only.
 
-Current version: **0.6.0** (Beta).
+Current version: **0.8.0** (Beta).
 
 ## Commands
 
@@ -89,3 +89,13 @@ Tests are parametrized over both example files. No mocking — tests run against
   throughput, gzip handling); see `benchmarks/README.md` for current results.
 - `llms.txt` — compact, verified API guide for AI coding assistants.
 - `CHANGELOG.md` — Keep-a-Changelog format, updated per release.
+
+## Validation and selection
+
+- `validation.py` provides `validate(path)` and typed reports. Structural checks are the default.
+- `decode_binary=True` and `check_index=True` enable expensive checks explicitly.
+- `filtering.py` provides `SpectrumFilter`. `reader.spectra.filter(...)` returns a lazy iterator.
+- Retention-time bounds use seconds. Filtering never requests binary arrays.
+- `_xml.py` contains streaming record and fragment helpers shared across backends.
+- `just test` accepts extra pytest arguments. `just test-cov` emits coverage and JUnit in one run.
+- `just docs-build` builds documentation in strict mode.

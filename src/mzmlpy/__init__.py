@@ -1,4 +1,4 @@
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 from .content import CVElement
 from .elems import (
@@ -30,6 +30,7 @@ from .embedded_indexed_gzip import (
     write_indexed_gzip,
 )
 from .file_interface import AccessStrategy
+from .filtering import SpectrumFilter
 from .lookup import ChromatogramLookup, SpectrumLookup
 from .run import Mzml, peek_spectrum_count
 from .spectra import (
@@ -45,9 +46,14 @@ from .spectra import (
     Spectrum,
 )
 from .util import clear_cache
+from .validation import ValidationIssue, ValidationReport, validate
 
 __all__ = [
     "__version__",
+    "validate",
+    "ValidationIssue",
+    "ValidationReport",
+    "SpectrumFilter",
     "Mzml",
     "peek_spectrum_count",
     "clear_cache",

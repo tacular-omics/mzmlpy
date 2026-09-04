@@ -36,13 +36,12 @@ def test_construction_failure_closes_file_object(monkeypatch):
     assert closed, "FileInterface.close() must be called when metadata parsing fails"
 
 
-def test_read_to_spec_end_truncated_raises_not_hangs():
-    """#3 — a truncated element (no closing tag before EOF) raises instead of looping forever."""
-    with Mzml(EXAMPLE) as reader:
-        handler = reader._file_object.file_handler  # StandardMzml
-        truncated = BytesIO(b"<spectrum id='x'>payload with no closing tag before EOF")
-        with pytest.raises(ValueError):
-            handler._read_to_spec_end(truncated)
+def test_random_access_truncated_raises_not_hangs():
+    """A truncated record produces a contextual error through the public lookup API."""
+    data = BytesIO(b'<mzML><run><spectrumList count="1"><spectrum id="x">')
+    with pytest.warns(UserWarning, match="Incomplete"), Mzml(data) as reader:
+        with pytest.raises(ValueError, match="Could not find end"):
+            _ = reader.spectra["x"]
 
 
 def test_next_advances_and_reset():
