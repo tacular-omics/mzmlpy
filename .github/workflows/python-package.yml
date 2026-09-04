@@ -83,3 +83,32 @@ jobs:
           uv venv .wheel-venv
           uv pip install --python .wheel-venv/bin/python dist/*.whl
           uv run --no-project --no-sync --python .wheel-venv/bin/python python tests/wheel_smoke.py --base-only --require-wheel
+
+      - name: Test the wheel with the MCP extra
+        run: |
+          for task_wheel in dist/*.whl
+          do
+            uv pip install --python .wheel-venv/bin/python "${task_wheel}[mcp]" pytest
+          done
+          uv run --no-project --python .wheel-venv/bin/python python -c "from mcp.server import MCPServer"
+          uv run --no-project --python .wheel-venv/bin/python python -m pytest tests/test_mcp_protocol.py
+
+  mcp-install:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+        python-version: ["3.12", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v4
+      - name: Install only the MCP extra and test dependencies
+        run: uv sync --locked --no-default-groups --group test --extra mcp --python ${{ matrix.python-version }}
+      - name: Check optional SDK availability
+        run: uv run --no-sync python -c "from mcp.server import MCPServer"
+      - name: Test local tools and stdio protocol
+        run: uv run --no-sync pytest tests/test_mcp.py tests/test_mcp_protocol.py

@@ -26,6 +26,13 @@ pip install mzmlpy[zstd]       # Zstandard compression
 pip install mzmlpy[rapidgzip]  # Parallel gzip decompression (recommended for .gz files)
 ```
 
+## MCP integration (development)
+
+An optional local MCP server exposes file inspection, validation, spectrum filtering, and
+bounded spectrum and chromatogram data to AI clients. It is not included in 0.8.0.
+From a checkout containing the feature, install with `pip install ".[mcp]"` and launch with
+`python -m mzmlpy mcp --root /absolute/path/to/data`. See the [MCP guide](docs/mcp.md).
+
 ## Quick Start
 
 ```python

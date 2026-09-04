@@ -22,8 +22,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     index = commands.add_parser("index-gzip", help="Create a self-indexed gzip file")
     index.add_argument("file")
     index.add_argument("output")
+    mcp = commands.add_parser("mcp", help="Serve local read-only MCP tools (requires the mcp extra)")
+    mcp.add_argument("--root", required=True, help="Existing directory containing permitted mzML files")
     args = parser.parse_args(argv)
     try:
+        if args.command == "mcp":
+            from .mcp import create_server
+
+            create_server(args.root).run(transport="stdio")
+            return 0
         if args.command == "validate":
             report = validate(args.file, decode_binary=args.decode_binary, check_index=args.check_index)
             print(json.dumps(report.to_dict(), indent=2))

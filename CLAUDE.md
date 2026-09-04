@@ -99,3 +99,11 @@ Tests are parametrized over both example files. No mocking — tests run against
 - `_xml.py` contains streaming record and fragment helpers shared across backends.
 - `just test` accepts extra pytest arguments. `just test-cov` emits coverage and JUnit in one run.
 - `just docs-build` builds documentation in strict mode.
+
+## Optional MCP server
+
+- `mcp.py` adapts the public reader API into five local read-only tools.
+- The SDK is imported only by `create_server`, not by the core package.
+- Run `uv sync --locked --extra mcp` and `UV_NO_SYNC=1 just check` for protocol tests.
+- `tests/test_mcp_protocol.py` checks current and legacy clients and the stdio subprocess.
+- Base installations must still work without the MCP SDK.

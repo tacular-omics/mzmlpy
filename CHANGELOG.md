@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- Optional `mcp` extra and local stdio server via `python -m mzmlpy mcp --root DIR`.
+- Read-only tools for file inspection, validation, spectrum filtering, peak retrieval, and
+  chromatograms, with explicit units, paging, file revisions, and restricted data paths.
+- MCP client integration tests, stdio smoke tests, and optional-install CI coverage.
+
 ## [0.8.0] - 2026-09-04
 
 ### Added

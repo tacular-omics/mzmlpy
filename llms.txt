@@ -195,3 +195,13 @@ with Mzml("run.mzML", spectrum_id_regex=r"scan=(\d+)") as reader:
 - `SpectrumFilter(...).matches(spectrum)` exposes the same predicate. Missing metadata does not match.
 - `python -m mzmlpy` supports `inspect`, `validate`, and `index-gzip`, with JSON output.
 - Custom extraction directories use source-specific, revision-specific filenames.
+
+## MCP integration (development, after 0.8.0)
+
+- Install from a checkout with `pip install ".[mcp]"`.
+- Launch `python -m mzmlpy mcp --root /absolute/path/to/data`.
+- Tools: inspect_file, validate_file, find_spectra, get_spectrum, get_chromatogram.
+- Tools are local and read-only. Paths must stay inside the configured directory.
+- Results contain file, revision, and data. Follow next_index with unchanged filters and expected_revision.
+- Search and chromatogram times use seconds. Peak decoding is opt-in and decodes full arrays before paging.
+- See docs/mcp.md for controls, limits, and validation scope.
