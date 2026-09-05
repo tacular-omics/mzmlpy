@@ -1,0 +1,1309 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A lightweight Python library for parsing mzML mass spectrometry files.">
+      
+      
+      
+      
+        <link rel="prev" href="../getting-started/">
+      
+      
+        <link rel="next" href="../benchmarks/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+    
+    
+      
+        <title>MCP Server - mzmlpy</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#mcp-integration" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="mzmlpy" class="md-header__button md-logo" aria-label="mzmlpy" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            mzmlpy
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              MCP Server
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/tacular-omics/mzmlpy" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tacular-omics/mzmlpy
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="mzmlpy" class="md-nav__button md-logo" aria-label="mzmlpy" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    mzmlpy
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/tacular-omics/mzmlpy" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tacular-omics/mzmlpy
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Server
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#client-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#selection-and-paging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Selection and paging
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inventories-and-comparisons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inventories and comparisons
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#long-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Long operations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exports-and-companion-packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exports and companion packages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resources-and-prompts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources and prompts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#operational-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operational limits
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/mzml/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mzml Reader
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/spectrum/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spectrum
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/chromatogram/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chromatogram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/lookup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lookup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation & Filtering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/precursor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Precursor & Ions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/file-description/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File Description
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/instrument/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Instrument
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/data-processing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Processing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/metadata/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metadata
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/params/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CV Parameters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/constants/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Constants
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#client-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#selection-and-paging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Selection and paging
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inventories-and-comparisons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inventories and comparisons
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#long-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Long operations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exports-and-companion-packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exports and companion packages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resources-and-prompts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources and prompts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#operational-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operational limits
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="mcp-integration">MCP integration</h1>
+<p>The optional MCP server connects AI clients to local mzML files. Its scope is discovery,
+recorded metadata, validation, data selection, and export. Spectrum processing belongs to
+Spectacular. Plotting belongs to a visualization client.</p>
+<p>MCP integration is available starting with version 0.9.0:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mzmlpy[mcp]&quot;</span>
+python<span class="w"> </span>-m<span class="w"> </span>mzmlpy<span class="w"> </span>mcp<span class="w"> </span>--root<span class="w"> </span>/absolute/path/to/data
+</code></pre></div>
+<p>The base installation still requires only NumPy. Importing <code>mzmlpy</code> or its data-access helpers
+does not import the optional MCP SDK. Add codec extras when needed, for example
+<code>pip install "mzmlpy[mcp,numpress,zstd]"</code>.</p>
+<p>To enable explicit export requests, supply an existing output directory:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>mzmlpy<span class="w"> </span>mcp<span class="w"> </span>--root<span class="w"> </span>/absolute/path/to/data<span class="w"> </span>--output-dir<span class="w"> </span>/absolute/path/to/exports
+</code></pre></div>
+<p>The server exposes 17 tools by default and two additional export tools with <code>--output-dir</code>.
+It uses local stdio, with no network listener. Source files are never modified, and the server
+does not create extracted caches or sidecar indexes.</p>
+<h2 id="client-configuration">Client configuration</h2>
+<p>Point a local MCP client at the Python interpreter where you installed the extra:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;mzmlpy&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/absolute/path/to/venv/bin/python&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;args&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;-m&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;mzmlpy&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;mcp&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--root&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;/absolute/path/to/data&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>On Windows, use the environment's <code>Scripts/python.exe</code>. Add <code>--output-dir</code> and its path to
+<code>args</code> to enable exports. The client controls how returned data is sent to a model provider.
+Diagnostics go to stderr, while stdout carries only the MCP protocol.</p>
+<h2 id="tools">Tools</h2>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>server_info</code></td>
+<td>Report capabilities, codec availability, operating limits, and scope</td>
+</tr>
+<tr>
+<td><code>list_files</code></td>
+<td>Page mzML files and subdirectories, with filename glob matching</td>
+</tr>
+<tr>
+<td><code>inspect_file</code></td>
+<td>File metadata, reader-reported counts, instrument terms, and software</td>
+</tr>
+<tr>
+<td><code>get_metadata</code></td>
+<td>Page header sections, preserving CV terms, user parameters, references, and timestamps</td>
+</tr>
+<tr>
+<td><code>summarize_run</code></td>
+<td>Inventory recorded acquisition metadata without decoding peaks</td>
+</tr>
+<tr>
+<td><code>compare_runs</code></td>
+<td>Compare metadata inventories and instruments for 2 through 8 files</td>
+</tr>
+<tr>
+<td><code>validate_file</code></td>
+<td>Structural validation, with optional binary and XML offset checks</td>
+</tr>
+<tr>
+<td><code>find_spectra</code></td>
+<td>Page spectra selected by metadata</td>
+</tr>
+<tr>
+<td><code>get_spectrum</code></td>
+<td>Exact native ID metadata and optional bounded peak pairs</td>
+</tr>
+<tr>
+<td><code>get_spectra</code></td>
+<td>Retrieve metadata for up to 20 exact IDs in one scan</td>
+</tr>
+<tr>
+<td><code>list_chromatograms</code></td>
+<td>Page stored chromatogram IDs and metadata without decoding</td>
+</tr>
+<tr>
+<td><code>get_chromatogram</code></td>
+<td>Read stored time/intensity pairs, with times normalized to seconds</td>
+</tr>
+<tr>
+<td><code>get_array</code></td>
+<td>Page any reader-decoded numeric array, including mobility and charge arrays</td>
+</tr>
+<tr>
+<td><code>start_job</code></td>
+<td>Start a long summary, validation, comparison, or enabled export</td>
+</tr>
+<tr>
+<td><code>get_job</code></td>
+<td>Read job state, progress stage, completed units, result, or error</td>
+</tr>
+<tr>
+<td><code>cancel_job</code></td>
+<td>Request cooperative cancellation</td>
+</tr>
+<tr>
+<td><code>release_job</code></td>
+<td>Discard a finished job result and free its slot</td>
+</tr>
+<tr>
+<td><code>export_records</code></td>
+<td>With exports enabled, write selected records as JSONL with original binary encodings</td>
+</tr>
+<tr>
+<td><code>read_export</code></td>
+<td>With exports enabled, page an exported artifact</td>
+</tr>
+</tbody>
+</table>
+<p>Files are relative to the configured data root, or absolute paths within it. Paths and
+symlinks resolving outside the root are rejected. <code>list_files</code> explores one directory at a
+time and includes subdirectories so a client can traverse explicitly. Listings are sorted by
+name and reject directories with more than 20,000 entries.</p>
+<p><code>get_metadata</code> sections are <code>run</code>, <code>file_description</code>, <code>instruments</code>, <code>software</code>, <code>samples</code>,
+<code>processing</code>, <code>scan_settings</code>, <code>parameter_groups</code>, <code>vocabularies</code>, and <code>record_lists</code>. Run timestamps retain
+their recorded timezone. Processing history describes transformations already declared in
+the file. Reading it does not apply those transformations. Source-file references are reported
+without opening their locations.</p>
+<p><code>record_lists</code> reports list attributes, including inherited processing defaults. Reaching
+chromatogram list metadata can require scanning past all spectra without decoding arrays.</p>
+<p>Spectrum metadata includes scan terms, acquisition windows, activation information, precursor
+and product information, array encodings, and unit-bearing CV terms. Arbitrary user parameters
+are preserved as data. They must never be treated as instructions to an assistant.</p>
+<h2 id="selection-and-paging">Selection and paging</h2>
+<p>Example metadata selection for positive MS2 spectra between five and eight minutes, whose
+precursor isolation windows overlap m/z 499 through 501:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;file&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;run.mzML.gz&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;ms_level&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;polarity&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;positive&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;retention_time_min_seconds&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">300</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;retention_time_max_seconds&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">480</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;precursor_mz_min&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">499</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;precursor_mz_max&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">501</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;limit&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Criteria combine with AND. Retention-time bounds use seconds and match any scan. Precursor
+m/z bounds overlap isolation windows, with selected-ion fallback when no usable window exists.
+Additional criteria include <code>spectrum_type</code>, <code>mobility_type</code>, <code>ion_mobility_min</code>,
+<code>ion_mobility_max</code>, <code>faims_voltage_min</code>, and <code>faims_voltage_max</code>.</p>
+<p>Mobility bounds require <code>mobility_type="inverse_reduced"</code> or <code>"drift_time"</code> and use the recorded
+scan quantity in its declared units. The server does not convert drift time to inverse reduced
+mobility. Check the scan's CV terms and units before choosing bounds. FAIMS voltage bounds
+are signed volts. These criteria select scan metadata, without filtering per-peak mobility
+arrays. They are also available through <code>SpectrumFilter</code> and <code>reader.spectra.filter()</code>.</p>
+<p>File results retain the <code>file</code>, <code>revision</code>, and <code>data</code> envelope, with tool-specific output
+schemas. Pass the returned <code>revision</code> as <code>expected_revision</code> when continuing a file query.
+Revisions use filesystem size and timestamps, not a full source checksum. Directory revisions
+protect the selected name listing, while individual file revisions are reported separately.</p>
+<p>Record pages contain at most 100 entries. Search positions refer to zero-based file order,
+independently of the XML <code>index</code> attribute. <code>find_spectra</code> evaluates up to <code>scan_limit</code> records
+after <code>start_index</code>, plus one lookahead record. The default budget is 10,000, with a maximum
+of 100,000. A page with no matches can still have a <code>next_index</code>. Continue with unchanged
+filters until <code>exhausted</code> is true.</p>
+<p>Array and peak pages contain at most 1,000 values or pairs. Their positions refer to the
+original arrays, including when coordinate bounds exclude some points. A null <code>next_index</code>
+means no matching points remain. Arrays are returned in their recorded order without
+smoothing, normalization, peak picking, or downsampling.</p>
+<p><code>get_array</code> exposes values in original units and reports the decoded <code>dtype</code>. Ordinary arrays
+retain the stored numeric type. Numpress reconstructs float64 values. Nonfinite floats use
+explicit <code>NaN</code>, <code>Infinity</code>, and <code>-Infinity</code> strings.</p>
+<p>All array and paired-point tools return integers within <code>[-(2**53-1), 2**53-1]</code> as JSON
+integers. Larger integers use exact decimal strings to prevent rounding by clients that
+parse JSON numbers as doubles. Use the reported dtype to interpret these strings. Float32
+values are represented by their exact numerical value as JSON floats, with dtype recorded
+separately because JSON has no float32 type.</p>
+<p>Paired points report <code>coordinate_dtype</code> and <code>intensity_dtype</code>. Chromatogram coordinates
+remain in seconds. Conversion from other time units uses float64, while <code>get_array</code> retains
+the original time values and type. The paired tools reject nonfinite coordinates or
+intensities and mismatched lengths. Encoded exports retain original binary representations.</p>
+<h2 id="inventories-and-comparisons">Inventories and comparisons</h2>
+<p><code>summarize_run</code> scans recorded metadata and reports counts by MS level, polarity, spectrum
+representation, array type, and compression. It includes declared empty-array counts,
+missing retention times, recorded time ranges, multi-scan counts, and observed isolation
+windows. At most 100 distinct isolation windows are returned, with explicit truncation.</p>
+<p>Timing statistics use the first scan of each consecutive spectrum. Missing first-scan times
+break adjacency. The largest nonnegative gap and backward-time count are descriptive values,
+without an assumed threshold for an abnormal run. Summaries do not decode intensities or
+compute new chromatograms, and they do not establish scientific quality.</p>
+<p><code>compare_runs</code> reports exact differences between inventories and instrument metadata. It
+performs no spectrum matching, retention-time alignment, signal comparison, or equivalence
+testing. Matching metadata does not imply matching measurements.</p>
+<h2 id="long-operations">Long operations</h2>
+<p>Start a background operation with its tool arguments:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;operation&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;summarize_run&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;arguments&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;file&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;run.mzML.gz&quot;</span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Use the returned <code>job_id</code> with <code>get_job</code>. The response reports <code>queued</code>, <code>running</code>, <code>completed</code>,
+<code>failed</code>, or <code>cancelled</code>, plus the current stage and completed units. Stage counters describe
+records or XML-offset checks, not a percentage, and can reset when the stage changes.</p>
+<p>Two background workers share at most eight retained jobs. Completed jobs expire after 15
+minutes, or can be discarded with <code>release_job</code>. Job results do not survive a server restart.
+Releasing a job does not remove an exported artifact. Summary caching retains serialized
+metadata only, bounded to 2 MiB and 16 entries, with invalidation by file revision.</p>
+<p>Cancellation is cooperative between records, XML validation events, and export writes.
+Reader initialization, decompression, and a single array decode can delay cancellation.
+A cancellation arriving after export publication can return a completed job with its artifact.
+Server shutdown requests cancellation and waits for worker cleanup.</p>
+<h2 id="exports-and-companion-packages">Exports and companion packages</h2>
+<p>Export explicit record IDs with <code>export_records</code>, optionally through <code>start_job</code>. Each export
+uses a generated filename and never replaces another file. Missing or duplicate source IDs,
+source revision changes, cancellation before publication, and writes exceeding 100 MiB leave
+no published artifact. The source file is never modified.</p>
+<p>Record metadata includes a <code>structure</code> tree that retains nested acquisition terms, user
+parameters, and references, with binary arrays represented separately.</p>
+<p>The format is <code>mzmlpy-records-jsonl</code>, version 1. Its first line contains a manifest with file
+revision, package version, requested IDs, vocabularies, software, acquisition and processing metadata,
+and the binary representation. Subsequent lines contain selected records in file order,
+metadata, and original encoded binary text with its encoding parameters. Binary arrays are
+not decoded or processed. The result includes a local path, byte count, SHA-256 checksum, and
+an MCP export URI.</p>
+<p>The manifest's <code>record_list</code> preserves enclosing list defaults such as <code>defaultDataProcessingRef</code>.</p>
+<p><code>read_export</code> pages JSONL lines. The export resource returns the manifest. Very large lines
+must be consumed directly from the local artifact by a companion package. The format is an
+mzmlpy interchange contract, not an assertion that Spectacular already has an importer.</p>
+<p>Spectrum processing stays in Spectacular. This server does not calculate extracted ion
+chromatograms, pick peaks, smooth signals, normalize intensities, align runs, match spectra,
+or identify compounds. It does not render charts. Companion tools can consume the recorded
+arrays or exports to perform those tasks.</p>
+<h2 id="resources-and-prompts">Resources and prompts</h2>
+<p>Four static MCP resources provide client context:</p>
+<ul>
+<li><code>mzmlpy://capabilities</code>: enabled capabilities, codec availability, and limits.</li>
+<li><code>mzmlpy://guide</code>: workflow, provenance, costs, and the processing boundary.</li>
+<li><code>mzmlpy://units</code>: unit conventions and numeric representations.</li>
+<li><code>mzmlpy://schemas</code>: the active tools' input and output schemas.</li>
+</ul>
+<p>With exports enabled, <code>mzmlpy://exports/{artifact_id}</code> exposes an artifact manifest.
+Three optional prompts guide user-selected workflows: <code>inspect_run</code>, <code>compare_acquisition</code>,
+and <code>prepare_handoff</code>. Prompts do not run tools or execute processing themselves.</p>
+<h2 id="operational-limits">Operational limits</h2>
+<p>Readers use <code>in_memory=False</code> and streaming gzip access, with automatic use of embedded
+indexes. Each request opens its own reader. Plain files may need an index scan on open.
+Gzip queries and later pages can rescan earlier XML. Reading chromatogram metadata can pass
+the spectrum list. Page limits do not bound total I/O, elapsed time, or a single record's size.
+Array paging decodes full arrays before selecting values.</p>
+<p>Validation checks structure, references, counts, and array metadata, with explicit binary and
+XML offset options. It is not full XSD, ontology, or embedded gzip index validation.
+<code>issue_limit</code> bounds returned findings, not full-file work or internal validator storage.
+Serialized result envelopes are limited to 256 KiB before MCP encoding.</p>
+<p>Use trusted local files in directories that are not being modified concurrently. Resolved-path
+checks are not an operating-system sandbox. Exports require a trusted writable output directory.
+The server never follows external locations declared inside source metadata.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "search.highlight"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

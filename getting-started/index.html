@@ -1,0 +1,1495 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A lightweight Python library for parsing mzML mass spectrometry files.">
+      
+      
+      
+      
+        <link rel="prev" href="..">
+      
+      
+        <link rel="next" href="../mcp/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+    
+    
+      
+        <title>Getting Started - mzmlpy</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#getting-started" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="mzmlpy" class="md-header__button md-logo" aria-label="mzmlpy" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            mzmlpy
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Getting Started
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/tacular-omics/mzmlpy" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tacular-omics/mzmlpy
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="mzmlpy" class="md-nav__button md-logo" aria-label="mzmlpy" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    mzmlpy
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/tacular-omics/mzmlpy" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tacular-omics/mzmlpy
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#basic-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Usage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reading-gzipped-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading Gzipped Files
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iterating-spectra" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Iterating Spectra
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#native-ids-and-summary-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Native IDs and Summary Values
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#accessing-binary-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessing Binary Data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-with-scan-timing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Working with Scan Timing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-with-ion-mobility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Working with Ion Mobility
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-with-chromatograms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Working with Chromatograms
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#accessing-file-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessing File Metadata
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#numeric-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Numeric types
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lazy-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lazy filtering
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#command-line-inspection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command-line inspection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#memory-and-extracted-caches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory and extracted caches
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/mzml/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mzml Reader
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/spectrum/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spectrum
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/chromatogram/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chromatogram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/lookup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lookup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation & Filtering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/precursor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Precursor & Ions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/file-description/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File Description
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/instrument/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Instrument
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/data-processing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Processing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/metadata/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metadata
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/params/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CV Parameters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/constants/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Constants
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#basic-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Usage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reading-gzipped-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading Gzipped Files
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iterating-spectra" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Iterating Spectra
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#native-ids-and-summary-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Native IDs and Summary Values
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#accessing-binary-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessing Binary Data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-with-scan-timing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Working with Scan Timing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-with-ion-mobility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Working with Ion Mobility
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-with-chromatograms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Working with Chromatograms
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#accessing-file-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessing File Metadata
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#numeric-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Numeric types
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lazy-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lazy filtering
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#command-line-inspection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command-line inspection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#memory-and-extracted-caches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory and extracted caches
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="getting-started">Getting Started</h1>
+<h2 id="installation">Installation</h2>
+<p>Install from PyPI:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>mzmlpy
+</code></pre></div>
+<p>If you need MS-Numpress decoding support, install the optional extra:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>mzmlpy<span class="o">[</span>numpress<span class="o">]</span>
+</code></pre></div>
+<h2 id="basic-usage">Basic Usage</h2>
+<p>Open an mzML file with the context manager to ensure proper cleanup:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mzmlpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mzml</span>
+
+<span class="k">with</span> <span class="n">Mzml</span><span class="p">(</span><span class="s2">&quot;tests/data/example.mzML&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File ID: </span><span class="si">{</span><span class="n">reader</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mzML version: </span><span class="si">{</span><span class="n">reader</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>Both <code>.mzML</code> and <code>.mzML.gz</code> files are supported. The reader lazily parses the file, so metadata is available immediately while binary data is decoded only on access.</p>
+<h2 id="reading-gzipped-files">Reading Gzipped Files</h2>
+<p>When working with <code>.mzML.gz</code> files, the <code>gzip_mode</code> parameter controls how the compressed file is accessed:</p>
+<p><code>gzip_mode="auto"</code> is the default. With <code>in_memory=False</code>, it selects an embedded index, a current
+extracted cache, or complete rapidgzip sidecars in that order. If none exists, it creates an
+extracted cache. Inspect <code>reader.access_strategy</code> to see the concrete route.</p>
+<p>For fast random access without cache files, create a self-indexed gzip file once:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tempfile</span><span class="w"> </span><span class="kn">import</span> <span class="n">TemporaryDirectory</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">mzmlpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mzml</span><span class="p">,</span> <span class="n">write_indexed_gzip</span>
+
+<span class="k">with</span> <span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">directory</span><span class="p">:</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">directory</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;input.indexed.mzML.gz&quot;</span>
+    <span class="n">write_indexed_gzip</span><span class="p">(</span><span class="s2">&quot;tests/data/example.mzML&quot;</span><span class="p">,</span> <span class="n">output</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">Mzml</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">in_memory</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+        <span class="n">spectrum</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">spectra</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</code></pre></div>
+<p>mzMLPy detects this pyMZML-compatible embedded format automatically. The file remains a standard
+concatenated gzip stream, and decompressing it reconstructs the original mzML bytes exactly.</p>
+<ul>
+<li><strong><code>"auto"</code></strong> (default) selects the best valid representation already available and otherwise extracts into the central cache.</li>
+<li><strong><code>"extract"</code></strong> decompresses to a cached file under the OS temp directory (<code>&lt;tmpdir&gt;/mzmlpy/</code>), then reads with full random access. The cache persists across Python sessions so subsequent opens of the same file skip decompression entirely. The OS clears the temp directory on reboot. Call <code>clear_cache()</code> to reclaim space sooner.</li>
+<li><strong><code>"indexed"</code></strong> — Use the <code>rapidgzip</code> library for seekable access to the compressed file without extracting to disk. Requires <code>pip install mzmlpy[rapidgzip]</code>. Builds a gzip seek index (<code>.gzidx</code>) and mzML offset index (<code>.mzMLidx</code>) on first open, cached alongside the file for instant startup on subsequent opens.</li>
+<li><strong><code>"stream"</code></strong> — Stream the file sequentially with no index. Lowest startup cost, but random access (e.g. <code>reader.spectra[0]</code>) scans from the beginning each time — a warning is emitted.</li>
+</ul>
+<p><code>"extract"</code> pays a one-time decompression cost then matches plain <code>.mzML</code> speed on later opens of
+the same file (the extracted copy is cached). <code>"indexed"</code> pays a one-time index-build cost for
+seekable access with no disk copy, then fast random access on later opens (the index is cached
+alongside the file). <code>"stream"</code> has the lowest startup cost, but random access re-scans from the
+start each time. For a reproducible benchmark with real numbers — including a comparison against
+pyteomics and pymzml — see <a href="https://github.com/tacular-omics/mzmlpy/tree/main/benchmarks"><code>benchmarks/</code></a>
+in the repository.</p>
+<p>For best performance with <code>.mzML.gz</code> files, use <code>"extract"</code> or <code>"indexed"</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mzmlpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mzml</span>
+
+<span class="c1"># Indexed mode — no extraction, seekable (requires rapidgzip)</span>
+<span class="k">with</span> <span class="n">Mzml</span><span class="p">(</span><span class="s2">&quot;tests/data/example.mzML.gz&quot;</span><span class="p">,</span> <span class="n">gzip_mode</span><span class="o">=</span><span class="s2">&quot;indexed&quot;</span><span class="p">,</span> <span class="n">in_memory</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Spectra: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">reader</span><span class="o">.</span><span class="n">spectra</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">spec</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">spectra</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+</code></pre></div>
+<p>To reclaim disk space before the OS clears the temp directory on reboot:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mzmlpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">clear_cache</span>
+<span class="n">clear_cache</span><span class="p">()</span>
+</code></pre></div>
+<h2 id="iterating-spectra">Iterating Spectra</h2>
+<p>The <code>reader.spectra</code> property returns a lookup object that supports iteration, integer indexing, slicing, and string ID lookup:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mzmlpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mzml</span>
+
+<span class="k">with</span> <span class="n">Mzml</span><span class="p">(</span><span class="s2">&quot;tests/data/example.mzML&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+    <span class="c1"># Iterate all spectra</span>
+    <span class="k">for</span> <span class="n">spectrum</span> <span class="ow">in</span> <span class="n">reader</span><span class="o">.</span><span class="n">spectra</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Scan </span><span class="si">{</span><span class="n">spectrum</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2"> (MS</span><span class="si">{</span><span class="n">spectrum</span><span class="o">.</span><span class="n">ms_level</span><span class="si">}</span><span class="s2">) - TIC: </span><span class="si">{</span><span class="n">spectrum</span><span class="o">.</span><span class="n">TIC</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Access by index</span>
+    <span class="n">first</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">spectra</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># Access by slice</span>
+    <span class="n">batch</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">spectra</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span>
+
+    <span class="c1"># Access by string ID</span>
+    <span class="n">scan</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">spectra</span><span class="p">[</span><span class="s2">&quot;scan=19&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Filter with a list comprehension</span>
+    <span class="n">ms2_spectra</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">reader</span><span class="o">.</span><span class="n">spectra</span> <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">ms_level</span> <span class="o">==</span> <span class="mi">2</span><span class="p">]</span>
+</code></pre></div>
+<h2 id="native-ids-and-summary-values">Native IDs and Summary Values</h2>
+<p>The native <code>id</code> string encodes vendor-specific components (e.g. Thermo's <code>controllerType=0 controllerNumber=1 scan=19</code>); <code>id_dict</code> parses it into a dict with numeric components coerced to <code>int</code>. Common summary values and the instrument scan filter are also exposed directly, instead of requiring a manual <code>get_cvparm</code> lookup:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mzmlpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mzml</span>
+
+<span class="k">with</span> <span class="n">Mzml</span><span class="p">(</span><span class="s2">&quot;tests/data/example.mzML&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+    <span class="n">spec</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">spectra</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">id_dict</span><span class="p">)</span>  <span class="c1"># e.g. {&quot;scan&quot;: 19}</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">base_peak_mz</span><span class="p">,</span> <span class="n">spec</span><span class="o">.</span><span class="n">base_peak_intensity</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">lowest_observed_mz</span><span class="p">,</span> <span class="n">spec</span><span class="o">.</span><span class="n">highest_observed_mz</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">filter_string</span><span class="p">)</span>  <span class="c1"># e.g. Thermo scan filter string</span>
+</code></pre></div>
+<p>To cheaply check how many spectra a file contains without opening it fully -- no reader is constructed and no random-access index is built, so this is much cheaper than <code>len(Mzml(path).spectra)</code> when you only need the count -- use the standalone <code>peek_spectrum_count</code> function:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mzmlpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">peek_spectrum_count</span>
+
+<span class="n">count</span> <span class="o">=</span> <span class="n">peek_spectrum_count</span><span class="p">(</span><span class="s2">&quot;tests/data/example.mzML&quot;</span><span class="p">)</span>  <span class="c1"># int | None</span>
+</code></pre></div>
+<h2 id="accessing-binary-data">Accessing Binary Data</h2>
+<p>Spectra expose <code>mz</code> and <code>intensity</code> as convenience properties. Access is lazy -- the binary data is decoded on every call, so save the result to a local variable when you need it more than once:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mzmlpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mzml</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">mzmlpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">constants</span> <span class="k">as</span> <span class="n">c</span>
+
+<span class="k">with</span> <span class="n">Mzml</span><span class="p">(</span><span class="s2">&quot;tests/data/example.mzML&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+    <span class="n">spec</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">spectra</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">mz</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">mz</span>  <span class="c1"># np.ndarray | None</span>
+    <span class="n">intensity</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">intensity</span>  <span class="c1"># np.ndarray | None</span>
+    <span class="n">charge</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">charge</span>  <span class="c1"># np.ndarray | None</span>
+
+    <span class="c1"># For less common array types, use get_binary_array with a CV accession</span>
+    <span class="n">barr</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">get_binary_array</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">BinaryDataArrayAccession</span><span class="o">.</span><span class="n">RAW_ION_MOBILITY</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">barr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="n">barr</span><span class="o">.</span><span class="n">data</span>
+
+    <span class="c1"># Iterate all binary arrays on a spectrum</span>
+    <span class="k">for</span> <span class="n">ba</span> <span class="ow">in</span> <span class="n">spec</span><span class="o">.</span><span class="n">binary_arrays</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">ba</span><span class="o">.</span><span class="n">binary_array_type</span><span class="p">,</span> <span class="n">ba</span><span class="o">.</span><span class="n">compression</span><span class="p">,</span> <span class="n">ba</span><span class="o">.</span><span class="n">encoding</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="working-with-scan-timing">Working with Scan Timing</h2>
+<p>Retention time and ion injection time are accessible as <code>timedelta</code> objects through the spectrum, which delegates to the first scan:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mzmlpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mzml</span>
+
+<span class="k">with</span> <span class="n">Mzml</span><span class="p">(</span><span class="s2">&quot;tests/data/example.mzML&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+    <span class="n">spec</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">spectra</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">spec</span><span class="o">.</span><span class="n">scan_start_time</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">rt_seconds</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">scan_start_time</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span>
+        <span class="n">rt_minutes</span> <span class="o">=</span> <span class="n">rt_seconds</span> <span class="o">/</span> <span class="mi">60</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;RT: </span><span class="si">{</span><span class="n">rt_minutes</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> min&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">spec</span><span class="o">.</span><span class="n">ion_injection_time</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">iit_ms</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">ion_injection_time</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ion injection time: </span><span class="si">{</span><span class="n">iit_ms</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> ms&quot;</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Lower m/z: </span><span class="si">{</span><span class="n">spec</span><span class="o">.</span><span class="n">lower_mz</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Upper m/z: </span><span class="si">{</span><span class="n">spec</span><span class="o">.</span><span class="n">upper_mz</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="working-with-ion-mobility">Working with Ion Mobility</h2>
+<p>Check whether a spectrum carries ion mobility data and retrieve the relevant arrays:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mzmlpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mzml</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">mzmlpy.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">BinaryDataArrayAccession</span>
+
+<span class="k">with</span> <span class="n">Mzml</span><span class="p">(</span><span class="s2">&quot;tests/data/example.mzML&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+    <span class="n">spec</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">spectra</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">spec</span><span class="o">.</span><span class="n">has_im</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;IM types: </span><span class="si">{</span><span class="n">spec</span><span class="o">.</span><span class="n">im_types</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">im_array</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">get_binary_array</span><span class="p">(</span>
+            <span class="n">BinaryDataArrayAccession</span><span class="o">.</span><span class="n">MEAN_INVERSE_REDUCED_ION_MOBILITY</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">im_array</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">values</span> <span class="o">=</span> <span class="n">im_array</span><span class="o">.</span><span class="n">data</span>
+</code></pre></div>
+<h2 id="working-with-chromatograms">Working with Chromatograms</h2>
+<p>Chromatograms work similarly to spectra -- access by index, ID, or iteration:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mzmlpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mzml</span>
+
+<span class="k">with</span> <span class="n">Mzml</span><span class="p">(</span><span class="s2">&quot;tests/data/example.mzML&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+    <span class="n">tic</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">chromatograms</span><span class="p">[</span><span class="s2">&quot;tic&quot;</span><span class="p">]</span>
+
+    <span class="n">time</span> <span class="o">=</span> <span class="n">tic</span><span class="o">.</span><span class="n">time</span>  <span class="c1"># np.ndarray | None</span>
+    <span class="n">intensity</span> <span class="o">=</span> <span class="n">tic</span><span class="o">.</span><span class="n">intensity</span>  <span class="c1"># np.ndarray | None</span>
+
+    <span class="c1"># Precursor and product info (SRM chromatograms)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">tic</span><span class="o">.</span><span class="n">precursor</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">tic</span><span class="o">.</span><span class="n">product</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">tic</span><span class="o">.</span><span class="n">chromatogram_type</span><span class="p">)</span>  <span class="c1"># &quot;tic&quot;, &quot;basepeak&quot;, &quot;srm&quot;, etc.</span>
+</code></pre></div>
+<h2 id="accessing-file-metadata">Accessing File Metadata</h2>
+<p>The reader exposes instrument configuration, software, and other file-level metadata:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mzmlpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mzml</span>
+
+<span class="k">with</span> <span class="n">Mzml</span><span class="p">(</span><span class="s2">&quot;tests/data/example.mzML&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+    <span class="c1"># Instrument configurations</span>
+    <span class="k">for</span> <span class="n">config_id</span><span class="p">,</span> <span class="n">config</span> <span class="ow">in</span> <span class="n">reader</span><span class="o">.</span><span class="n">instrument_configurations</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Instrument: </span><span class="si">{</span><span class="n">config_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Sources: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">source_components</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Analyzers: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">analyzer_components</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Detectors: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">detector_components</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Software</span>
+    <span class="k">for</span> <span class="n">sw</span> <span class="ow">in</span> <span class="n">reader</span><span class="o">.</span><span class="n">softwares</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">sw</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2"> v</span><span class="si">{</span><span class="n">sw</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Other metadata</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">cvs</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">file_description</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">referenceable_param_groups</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">data_processes</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">samples</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">scan_settings</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">run</span>
+</code></pre></div>
+<h2 id="validation">Validation</h2>
+<p>Use <code>validate</code> to check a file directly without creating or repairing caches. The default
+scans XML, checks list counts, duplicate IDs, references, index ID agreement, and supported
+array metadata. It does not decode binary arrays.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mzmlpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate</span>
+
+<span class="n">report</span> <span class="o">=</span> <span class="n">validate</span><span class="p">(</span><span class="s2">&quot;tests/data/example.mzML&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">report</span><span class="o">.</span><span class="n">valid</span><span class="p">,</span> <span class="n">report</span><span class="o">.</span><span class="n">spectrum_count</span><span class="p">,</span> <span class="n">report</span><span class="o">.</span><span class="n">chromatogram_count</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">issue</span> <span class="ow">in</span> <span class="n">report</span><span class="o">.</span><span class="n">issues</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">issue</span><span class="o">.</span><span class="n">code</span><span class="p">,</span> <span class="n">issue</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">issue</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
+</code></pre></div>
+<p>Set <code>decode_binary=True</code> to decode arrays and compare their lengths. Set <code>check_index=True</code>
+to seek to XML footer offsets and verify their targets. These checks may be expensive,
+especially offset verification on ordinary gzip files. The report states which checks ran,
+how many arrays and index entries were checked, and whether XML parsing completed.
+<code>report.to_dict()</code> returns JSON-serializable results. File-open errors raise <code>OSError</code>.
+Malformed content is reported through <code>report.issues</code>.</p>
+<p>An open reader also has <code>reader.validate(...)</code>. It uses a fresh handle to the selected
+representation and preserves the lookup cursor. Use standalone <code>validate(path)</code> when the
+original source file, rather than a cached representation, is what you want to inspect.
+These checks do not constitute full XSD or controlled-vocabulary validation, and they do
+not verify the embedded gzip index itself.</p>
+<h2 id="numeric-types">Numeric types</h2>
+<p>Decoded arrays now preserve the numeric type declared in the file: <code>float32</code>, <code>float64</code>,
+<code>int32</code>, or <code>int64</code>. This applies to spectrum, chromatogram, charge, and mobility arrays,
+including empty arrays. Arrays remain writable and each access decodes a fresh array.</p>
+<p>This changes the previous behavior, which converted ordinary arrays to float64. Preserving
+the stored type avoids rounding large integers and uses half the array memory for float32
+and int32 data. Code that needs float64 for calculations can convert explicitly:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">mzmlpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mzml</span>
+
+<span class="k">with</span> <span class="n">Mzml</span><span class="p">(</span><span class="s2">&quot;tests/data/example.mzML&quot;</span><span class="p">,</span> <span class="n">in_memory</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+    <span class="n">spectrum</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">spectra</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">intensity</span> <span class="o">=</span> <span class="n">spectrum</span><span class="o">.</span><span class="n">intensity</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+</code></pre></div>
+<p>Choose calculation types deliberately. Arithmetic on integer arrays can overflow, and
+float32 arithmetic can round differently from float64. Existing consumers that require
+double precision should use the explicit conversion above.</p>
+<p>Numpress is a compressed numerical representation with its own reconstruction rules.
+Its decoded output remains float64, including empty arrays, without an extra narrowing cast.
+Decoding cannot recover precision discarded during lossy encoding. See the
+<a href="https://github.com/ms-numpress/ms-numpress">Numpress format description</a>.
+For arrays without a declared numeric type, the existing warning and float64 fallback remain.</p>
+<h2 id="lazy-filtering">Lazy filtering</h2>
+<p><code>reader.spectra.filter(...)</code> selects spectra from metadata without decoding their binary
+arrays. All supplied criteria must match. Bounds are inclusive, and <code>None</code> leaves an
+endpoint open. Retention times are expressed in seconds, with source units normalized.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mzmlpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mzml</span>
+
+<span class="k">with</span> <span class="n">Mzml</span><span class="p">(</span><span class="s2">&quot;tests/data/example.mzML&quot;</span><span class="p">,</span> <span class="n">in_memory</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+    <span class="n">selected</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">spectra</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">ms_level</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">retention_time</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">spectrum</span> <span class="ow">in</span> <span class="n">selected</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">spectrum</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">spectrum</span><span class="o">.</span><span class="n">ms_level</span><span class="p">)</span>
+</code></pre></div>
+<p>Available criteria are <code>ms_level</code>, <code>retention_time=(lower_seconds, upper_seconds)</code>,
+<code>polarity="positive"</code> or <code>"negative"</code>, <code>precursor_mz=(lower_mz, upper_mz)</code>,
+<code>spectrum_type="centroid"</code> or <code>"profile"</code>, and scan-level mobility or FAIMS selection.
+Retention time matches any scan. Precursor m/z matches overlap with any reported isolation
+window. Selected-ion m/z values are used when a precursor has no usable isolation window.
+Missing metadata does not match a requested criterion. Invalid numeric metadata raises its
+normal contextual error. <code>SpectrumFilter</code> provides the same reusable predicate through
+its <code>matches(spectrum)</code> method.</p>
+<p>For mobility selection, use <code>mobility_type="inverse_reduced"</code> or <code>"drift_time"</code> and
+optionally <code>ion_mobility=(lower, upper)</code>. Bounds use the recorded scan quantity and require
+an explicit mobility type. <code>faims_voltage=(lower, upper)</code> accepts signed volts. These
+criteria inspect scan metadata and do not process per-peak mobility arrays.</p>
+<p>Filtering is a sequential scan. Keep the reader open while consuming the returned iterator.
+It neither builds a retention-time index nor changes the cursor used by <code>reader.spectra.next()</code>.</p>
+<h2 id="command-line-inspection">Command-line inspection</h2>
+<p>The CLI emits JSON and needs no additional installation:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>mzmlpy<span class="w"> </span>inspect<span class="w"> </span>data.mzML
+python<span class="w"> </span>-m<span class="w"> </span>mzmlpy<span class="w"> </span>validate<span class="w"> </span>data.mzML<span class="w"> </span>--decode-binary<span class="w"> </span>--check-index
+python<span class="w"> </span>-m<span class="w"> </span>mzmlpy<span class="w"> </span>index-gzip<span class="w"> </span>data.mzML<span class="w"> </span>data.indexed.mzML.gz
+</code></pre></div>
+<p>Exit codes are <code>0</code> for success, <code>1</code> for validation findings with errors, and <code>2</code> for an
+operational error. Inspection reads metadata and counts without decoding arrays.</p>
+<h2 id="memory-and-extracted-caches">Memory and extracted caches</h2>
+<p><code>in_memory=True</code> remains the reader default. Use <code>in_memory=False</code> for large files and to
+activate gzip access strategies. Extraction copies decompressed chunks directly to disk.
+Sequential iteration detaches completed spectra and chromatograms, including records that
+are skipped while finding the requested kind. Keeping returned spectra in a list still
+retains their XML in your own code.</p>
+<p>Both the default cache and a custom <code>extract_dir</code> use filenames based on source identity
+and filesystem revision. Files with matching basenames in different directories do not
+share an extracted file. Replacing a source creates a new cache path, so existing readers
+can continue using their previous extracted copy. Older cache files can remain until you
+clean the directory. <code>clear_cache()</code> removes the default cache only.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "search.highlight"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
