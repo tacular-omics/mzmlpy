@@ -20,6 +20,16 @@ All notable changes to this project are documented here. The format is based on
 - Spectrum representation, scan mobility, and signed FAIMS voltage metadata filters.
 - MCP client integration tests, stdio smoke tests, and optional-install CI coverage.
 
+### Changed
+
+- Breaking change: decoded raw numeric arrays now retain their declared float32, float64,
+  int32, or int64 type instead of converting everything to float64. This includes empty,
+  dictionary-compressed, byte-shuffled, and predictive arrays. Numpress continues to return
+  reconstructed float64 values. Arrays remain writable.
+- Callers that require float64 for computation should explicitly use `.astype(np.float64)`.
+- MCP array replies report decoded types and preserve large integers as exact decimal strings
+  outside the interoperable JSON integer range. Paired-point replies follow the same convention.
+
 ## [0.8.0] - 2026-09-04
 
 ### Added

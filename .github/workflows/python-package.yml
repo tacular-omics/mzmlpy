@@ -91,7 +91,7 @@ jobs:
             uv pip install --python .wheel-venv/bin/python "${task_wheel}[mcp]" pytest
           done
           uv run --no-project --python .wheel-venv/bin/python python -c "from mcp.server import MCPServer"
-          uv run --no-project --python .wheel-venv/bin/python python -m pytest tests/test_mcp_protocol.py
+          uv run --no-project --python .wheel-venv/bin/python python -m pytest tests/test_mcp_protocol.py tests/test_native_precision.py
 
   mcp-install:
     runs-on: ${{ matrix.os }}
@@ -111,4 +111,4 @@ jobs:
       - name: Check optional SDK availability
         run: uv run --no-sync python -c "from mcp.server import MCPServer"
       - name: Test local tools and stdio protocol
-        run: uv run --no-sync pytest tests/test_mcp.py tests/test_mcp_extended.py tests/test_mcp_protocol.py
+        run: uv run --no-sync pytest tests/test_mcp.py tests/test_mcp_extended.py tests/test_mcp_protocol.py tests/test_native_precision.py

@@ -74,6 +74,17 @@ def _params(group: _ParamGroup) -> list[dict[str, Any]]:
 _spectrum = spectrum_metadata
 
 
+def _json_number(value: Any) -> int | float | str:
+    """Keep integer values exact even in clients that parse JSON numbers as doubles."""
+    if isinstance(value, int | np.integer):
+        integer = int(value)
+        return integer if abs(integer) <= 2**53 - 1 else str(integer)
+    number = float(value)
+    if np.isfinite(number):
+        return number
+    return "NaN" if np.isnan(number) else "Infinity" if number > 0 else "-Infinity"
+
+
 def _points(
     x: np.ndarray | None,
     y: np.ndarray | None,
@@ -95,13 +106,13 @@ def _points(
     for index in range(start, len(x)):
         if index % 4096 == 0:
             checkpoint("reading array", index)
-        value = float(x[index])
+        value = x[index].item()
         if (lower is not None and value < lower) or (upper is not None and value > upper):
             continue
         if len(points) == limit:
             next_index = index
             break
-        points.append([value, float(y[index])])
+        points.append([_json_number(value), _json_number(y[index])])
     return {
         "points": points,
         "total_points": len(x),
@@ -109,6 +120,8 @@ def _points(
         "next_index": next_index,
         "truncated": next_index is not None,
         "selection": "original array order, inclusive coordinate bounds, no downsampling",
+        "coordinate_dtype": x.dtype.name,
+        "intensity_dtype": y.dtype.name,
     }
 
 
@@ -352,7 +365,11 @@ class MzmlTools:
                 raise ValueError("Chromatogram time array has missing or unsupported time units")
             time = chromatogram.time
             points = _points(
-                time * factor if time is not None else None, chromatogram.intensity, start_index, limit, bounds
+                time.astype(np.float64) * factor if time is not None and factor != 1 else time,
+                chromatogram.intensity,
+                start_index,
+                limit,
+                bounds,
             )
             data = {
                 "id": chromatogram.id,
@@ -671,8 +688,8 @@ class MzmlTools:
         array_index is its zero-based position in the record's arrays metadata. Values retain
         original units and ordering. Full-array decoding precedes paging. Nonfinite values are
         represented as the strings NaN, Infinity, or -Infinity, with no replacement or filtering.
-        Some reader codecs expose float64 convenience values. Use export_records to retain
-        exact original encodings, including integers beyond float64 precision.
+        dtype identifies the decoded numeric type. Integers outside the interoperable JSON
+        range of -(2**53-1) through 2**53-1 use exact decimal strings. Numpress reconstructs float64.
         """
         _integer("array_index", array_index, 0)
         _integer("start_index", start_index, 0)
@@ -693,18 +710,7 @@ class MzmlTools:
             values = array.data
             if start_index > len(values):
                 raise ValueError("start_index exceeds the array length")
-            result = []
-            for value in values[start_index : start_index + limit]:
-                number = float(value)
-                result.append(
-                    number
-                    if np.isfinite(number)
-                    else "NaN"
-                    if np.isnan(number)
-                    else "Infinity"
-                    if number > 0
-                    else "-Infinity"
-                )
+            result = [_json_number(value) for value in values[start_index : start_index + limit]]
         return self._result(
             path,
             revision,
@@ -714,9 +720,13 @@ class MzmlTools:
                 "array_index": array_index,
                 "metadata": array_metadata(array),
                 "values": result,
+                "dtype": values.dtype.name,
                 "total_values": len(values),
                 "next_index": start_index + limit if start_index + limit < len(values) else None,
-                "value_representation": "Reader-decoded values in recorded units. Nonfinite values use string tokens.",
+                "value_representation": (
+                    "Native decoded values in recorded units. Large integers use decimal strings, "
+                    "nonfinite floats use NaN/Infinity/-Infinity. Numpress reconstructs float64."
+                ),
             },
         )
 

@@ -148,7 +148,7 @@ def test_decode_truncation_delta_end_to_end(dtype_accession, np_dtype):
     stored = delta_encode(original).astype(np_dtype)
     bda = _binary_data_array_xml(stored, dtype_accession, TRUNCATION_DELTA_ZLIB)
     decoded = bda._decode()
-    assert decoded.dtype == np.float64
+    assert decoded.dtype == np_dtype
     np.testing.assert_allclose(decoded, original.astype(np.float64), rtol=1e-6, atol=1e-6)
 
 
@@ -160,7 +160,7 @@ def test_decode_truncation_linear_end_to_end(dtype_accession, np_dtype):
     stored = linear_encode(original).astype(np_dtype)
     bda = _binary_data_array_xml(stored, dtype_accession, TRUNCATION_LINEAR_ZLIB)
     decoded = bda._decode()
-    assert decoded.dtype == np.float64
+    assert decoded.dtype == np_dtype
     np.testing.assert_allclose(decoded, original.astype(np.float64), rtol=1e-6, atol=1e-6)
 
 

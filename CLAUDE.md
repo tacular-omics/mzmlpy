@@ -100,6 +100,14 @@ Tests are parametrized over both example files. No mocking — tests run against
 - `just test` accepts extra pytest arguments. `just test-cov` emits coverage and JUnit in one run.
 - `just docs-build` builds documentation in strict mode.
 
+## Numeric decoding
+
+- Preserve the declared dtype for raw numeric arrays, including empty arrays and dictionary tables.
+- Numpress uses float64 reconstruction. Avoid adding a narrowing cast based on the array declaration.
+- Public decoded arrays remain writable. Callers can explicitly convert with `.astype(np.float64)`.
+- MCP must preserve exact integers, including decimal-string transport outside the JSON safe range.
+- Cover numeric changes with `tests/test_native_precision.py` and predictive-codec regressions.
+
 ## Optional MCP server
 
 - `mcp.py` adapts the reader API for data access. `_mcp_server.py` owns optional SDK integration.

@@ -132,11 +132,20 @@ original arrays, including when coordinate bounds exclude some points. A null `n
 means no matching points remain. Arrays are returned in their recorded order without
 smoothing, normalization, peak picking, or downsampling.
 
-`get_array` exposes reader-decoded values in original units and represents nonfinite numbers
-with explicit `NaN`, `Infinity`, and `-Infinity` strings. Some reader codecs use float64
-convenience values, which cannot represent every 64-bit integer exactly. Use encoded exports
-when exact original numeric encodings are required. The paired spectrum and chromatogram
-tools reject nonfinite coordinates or intensities and mismatched lengths.
+`get_array` exposes values in original units and reports the decoded `dtype`. Ordinary arrays
+retain the stored numeric type. Numpress reconstructs float64 values. Nonfinite floats use
+explicit `NaN`, `Infinity`, and `-Infinity` strings.
+
+All array and paired-point tools return integers within `[-(2**53-1), 2**53-1]` as JSON
+integers. Larger integers use exact decimal strings to prevent rounding by clients that
+parse JSON numbers as doubles. Use the reported dtype to interpret these strings. Float32
+values are represented by their exact numerical value as JSON floats, with dtype recorded
+separately because JSON has no float32 type.
+
+Paired points report `coordinate_dtype` and `intensity_dtype`. Chromatogram coordinates
+remain in seconds. Conversion from other time units uses float64, while `get_array` retains
+the original time values and type. The paired tools reject nonfinite coordinates or
+intensities and mismatched lengths. Encoded exports retain original binary representations.
 
 ## Inventories and comparisons
 

@@ -46,7 +46,8 @@ class ArrayData(TypedDict):
     kind: Literal["spectrum", "chromatogram"]
     array_index: int
     metadata: dict[str, Any]
-    values: list[float | str]
+    values: list[int | float | str]
+    dtype: str
     total_values: int
     next_index: int | None
     value_representation: str
@@ -86,7 +87,9 @@ class ChromatogramData(TypedDict):
     coordinate_unit: str
     source_time_unit: dict[str, str | None]
     intensity_unit: dict[str, str | None]
-    points: list[list[float]]
+    points: list[list[int | float | str]]
+    coordinate_dtype: str
+    intensity_dtype: str
     total_points: int
     returned_points: int
     next_index: int | None
