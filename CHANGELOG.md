@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## Unreleased
 
+## [0.9.0] - 2026-09-05
+
 ### Added
 
 - Optional `mcp` extra and local stdio server via `python -m mzmlpy mcp --root DIR`.
@@ -268,6 +270,8 @@ affect existing code (see **Changed**).
 
 - First release on PyPI.
 
+[0.9.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.9.0
+[0.8.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.8.0
 [0.7.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.7.0
 [0.6.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.6.0
 [0.5.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.5.0

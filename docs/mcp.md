@@ -4,17 +4,16 @@ The optional MCP server connects AI clients to local mzML files. Its scope is di
 recorded metadata, validation, data selection, and export. Spectrum processing belongs to
 Spectacular. Plotting belongs to a visualization client.
 
-This is a development feature following 0.8.0 and is not included in that release. From a
-checkout containing the integration:
+MCP integration is available starting with version 0.9.0:
 
 ```bash
-pip install ".[mcp]"
+pip install "mzmlpy[mcp]"
 python -m mzmlpy mcp --root /absolute/path/to/data
 ```
 
 The base installation still requires only NumPy. Importing `mzmlpy` or its data-access helpers
 does not import the optional MCP SDK. Add codec extras when needed, for example
-`pip install ".[mcp,numpress,zstd]"`.
+`pip install "mzmlpy[mcp,numpress,zstd]"`.
 
 To enable explicit export requests, supply an existing output directory:
 

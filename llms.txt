@@ -3,7 +3,7 @@
 > mzmlpy is a lightweight, type-safe, lazy-loading Python library (3.12+) for reading mzML mass
 > spectrometry files. This file is written for AI coding assistants: it is a compact, accurate
 > reference for generating correct mzmlpy code. Everything below matches the public API as of
-> version 0.8.0. Only `numpy` is required at runtime.
+> version 0.9.0. Only `numpy` is required at runtime.
 
 ## Install
 
@@ -196,7 +196,7 @@ with Mzml("run.mzML", spectrum_id_regex=r"scan=(\d+)") as reader:
 - `python -m mzmlpy` supports `inspect`, `validate`, and `index-gzip`, with JSON output.
 - Custom extraction directories use source-specific, revision-specific filenames.
 
-## Numeric types (development, after 0.8.0)
+## Numeric types (0.9.0)
 
 - Decoded ordinary arrays retain their declared float32, float64, int32, or int64 dtype.
 - Empty arrays retain that dtype. Returned arrays are writable and freshly decoded per access.
@@ -205,9 +205,9 @@ with Mzml("run.mzML", spectrum_id_regex=r"scan=(\d+)") as reader:
 - Integer arithmetic may overflow. Choose calculation types in the consuming package.
 - MCP reports decoded dtypes and encodes integers outside `[-(2**53-1), 2**53-1]` as exact decimal strings.
 
-## MCP integration (development, after 0.8.0)
+## MCP integration (0.9.0)
 
-- Install from a checkout with `pip install ".[mcp]"`.
+- Install with `pip install "mzmlpy[mcp]"`.
 - Launch `python -m mzmlpy mcp --root /absolute/path/to/data`.
 - Seventeen default tools cover discovery, header metadata, validation, metadata inventories,
   comparisons, spectrum batches, stored chromatograms, arbitrary arrays, and background jobs.
