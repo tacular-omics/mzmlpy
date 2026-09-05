@@ -26,6 +26,19 @@ pip install mzmlpy[zstd]       # Zstandard compression
 pip install mzmlpy[rapidgzip]  # Parallel gzip decompression (recommended for .gz files)
 ```
 
+## MCP integration
+
+Version 0.9.0 preserves the stored numeric dtype when decoding arrays, including exact
+int64 values. Numpress retains its float64 reconstruction. Code requiring float64 can use
+`.astype(np.float64)`. See the [numeric type migration guide](docs/getting-started.md#numeric-types).
+
+An optional local MCP server exposes file discovery, full acquisition metadata, validation,
+metadata inventories and comparisons, and bounded array access to AI clients. Background jobs,
+reference resources, workflow prompts, and optional lossless JSONL exports support larger tasks.
+Spectrum processing stays in Spectacular, and plotting stays in companion visualization tools.
+Install with `pip install "mzmlpy[mcp]"` and launch with
+`python -m mzmlpy mcp --root /absolute/path/to/data`. See the [MCP guide](docs/mcp.md).
+
 ## Quick Start
 
 ```python

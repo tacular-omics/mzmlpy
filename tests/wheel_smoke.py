@@ -3,6 +3,8 @@
 import argparse
 import gzip
 import importlib.util
+import subprocess
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -18,11 +20,21 @@ def main() -> None:
     parser.add_argument("--require-wheel", action="store_true")
     args = parser.parse_args()
     if args.base_only:
-        assert all(importlib.util.find_spec(name) is None for name in ("rapidgzip", "zstd", "pynumpress"))
+        assert all(importlib.util.find_spec(name) is None for name in ("rapidgzip", "zstd", "pynumpress", "mcp"))
     if args.require_wheel:
         assert "site-packages" in Path(mzmlpy.__file__).parts
         assert Path(mzmlpy.__file__).with_name("py.typed").exists()
+    assert "mcp" not in sys.modules
     source = Path(__file__).parent / "data" / "example.mzML"
+    if args.base_only:
+        result = subprocess.run(
+            [sys.executable, "-m", "mzmlpy", "mcp", "--root", str(source.parent)],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        assert result.returncode == 2
+        assert 'pip install "mzmlpy[mcp]"' in result.stderr
     with TemporaryDirectory() as directory:
         output = Path(directory) / "indexed.mzML.gz"
         result = write_indexed_gzip(source, output)

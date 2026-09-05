@@ -4,6 +4,34 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+## [0.9.0] - 2026-09-05
+
+### Added
+
+- Optional `mcp` extra and local stdio server via `python -m mzmlpy mcp --root DIR`.
+- Read-only tools for file inspection, validation, spectrum filtering, peak retrieval, and
+  chromatograms, with explicit units, paging, file revisions, and restricted data paths.
+- Full local MCP data-access integration with discovery, paged header metadata, acquisition
+  inventories and comparisons, batched spectrum access, and arbitrary numeric arrays.
+- Background jobs with progress, cancellation and bounded retention, revision-aware summary
+  caching, typed output schemas, reference resources, and workflow prompts.
+- Optional JSONL record exports preserve original encoded binary data and provenance. Exports
+  require an explicit output directory. Spectrum processing remains in Spectacular.
+- Spectrum representation, scan mobility, and signed FAIMS voltage metadata filters.
+- MCP client integration tests, stdio smoke tests, and optional-install CI coverage.
+
+### Changed
+
+- Breaking change: decoded raw numeric arrays now retain their declared float32, float64,
+  int32, or int64 type instead of converting everything to float64. This includes empty,
+  dictionary-compressed, byte-shuffled, and predictive arrays. Numpress continues to return
+  reconstructed float64 values. Arrays remain writable.
+- Callers that require float64 for computation should explicitly use `.astype(np.float64)`.
+- MCP array replies report decoded types and preserve large integers as exact decimal strings
+  outside the interoperable JSON integer range. Paired-point replies follow the same convention.
+
 ## [0.8.0] - 2026-09-04
 
 ### Added
@@ -242,6 +270,8 @@ affect existing code (see **Changed**).
 
 - First release on PyPI.
 
+[0.9.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.9.0
+[0.8.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.8.0
 [0.7.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.7.0
 [0.6.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.6.0
 [0.5.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.5.0

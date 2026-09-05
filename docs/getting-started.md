@@ -148,9 +148,9 @@ from mzmlpy import constants as c
 with Mzml("tests/data/example.mzML") as reader:
     spec = reader.spectra[0]
 
-    mz = spec.mz  # NDArray[float64] | None
-    intensity = spec.intensity  # NDArray[float64] | None
-    charge = spec.charge  # NDArray[float64] | None
+    mz = spec.mz  # np.ndarray | None
+    intensity = spec.intensity  # np.ndarray | None
+    charge = spec.charge  # np.ndarray | None
 
     # For less common array types, use get_binary_array with a CV accession
     barr = spec.get_binary_array(c.BinaryDataArrayAccession.RAW_ION_MOBILITY)
@@ -216,8 +216,8 @@ from mzmlpy import Mzml
 with Mzml("tests/data/example.mzML") as reader:
     tic = reader.chromatograms["tic"]
 
-    time = tic.time  # NDArray[float64] | None
-    intensity = tic.intensity  # NDArray[float64] | None
+    time = tic.time  # np.ndarray | None
+    intensity = tic.intensity  # np.ndarray | None
 
     # Precursor and product info (SRM chromatograms)
     print(tic.precursor)
@@ -282,6 +282,35 @@ original source file, rather than a cached representation, is what you want to i
 These checks do not constitute full XSD or controlled-vocabulary validation, and they do
 not verify the embedded gzip index itself.
 
+## Numeric types
+
+Decoded arrays now preserve the numeric type declared in the file: `float32`, `float64`,
+`int32`, or `int64`. This applies to spectrum, chromatogram, charge, and mobility arrays,
+including empty arrays. Arrays remain writable and each access decodes a fresh array.
+
+This changes the previous behavior, which converted ordinary arrays to float64. Preserving
+the stored type avoids rounding large integers and uses half the array memory for float32
+and int32 data. Code that needs float64 for calculations can convert explicitly:
+
+```python
+import numpy as np
+from mzmlpy import Mzml
+
+with Mzml("tests/data/example.mzML", in_memory=False) as reader:
+    spectrum = reader.spectra[0]
+    intensity = spectrum.intensity.astype(np.float64)
+```
+
+Choose calculation types deliberately. Arithmetic on integer arrays can overflow, and
+float32 arithmetic can round differently from float64. Existing consumers that require
+double precision should use the explicit conversion above.
+
+Numpress is a compressed numerical representation with its own reconstruction rules.
+Its decoded output remains float64, including empty arrays, without an extra narrowing cast.
+Decoding cannot recover precision discarded during lossy encoding. See the
+[Numpress format description](https://github.com/ms-numpress/ms-numpress).
+For arrays without a declared numeric type, the existing warning and float64 fallback remain.
+
 ## Lazy filtering
 
 `reader.spectra.filter(...)` selects spectra from metadata without decoding their binary
@@ -298,12 +327,18 @@ with Mzml("tests/data/example.mzML", in_memory=False) as reader:
 ```
 
 Available criteria are `ms_level`, `retention_time=(lower_seconds, upper_seconds)`,
-`polarity="positive"` or `"negative"`, and `precursor_mz=(lower_mz, upper_mz)`.
+`polarity="positive"` or `"negative"`, `precursor_mz=(lower_mz, upper_mz)`,
+`spectrum_type="centroid"` or `"profile"`, and scan-level mobility or FAIMS selection.
 Retention time matches any scan. Precursor m/z matches overlap with any reported isolation
 window. Selected-ion m/z values are used when a precursor has no usable isolation window.
 Missing metadata does not match a requested criterion. Invalid numeric metadata raises its
 normal contextual error. `SpectrumFilter` provides the same reusable predicate through
 its `matches(spectrum)` method.
+
+For mobility selection, use `mobility_type="inverse_reduced"` or `"drift_time"` and
+optionally `ion_mobility=(lower, upper)`. Bounds use the recorded scan quantity and require
+an explicit mobility type. `faims_voltage=(lower, upper)` accepts signed volts. These
+criteria inspect scan metadata and do not process per-peak mobility arrays.
 
 Filtering is a sequential scan. Keep the reader open while consuming the returned iterator.
 It neither builds a retention-time index nor changes the cursor used by `reader.spectra.next()`.

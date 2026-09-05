@@ -3,7 +3,7 @@
 > mzmlpy is a lightweight, type-safe, lazy-loading Python library (3.12+) for reading mzML mass
 > spectrometry files. This file is written for AI coding assistants: it is a compact, accurate
 > reference for generating correct mzmlpy code. Everything below matches the public API as of
-> version 0.8.0. Only `numpy` is required at runtime.
+> version 0.9.0. Only `numpy` is required at runtime.
 
 ## Install
 
@@ -25,7 +25,7 @@ from mzmlpy import Mzml
 with Mzml("run.mzML") as reader:
     print(reader.file_name, len(reader.spectra), "spectra")
     for spectrum in reader.spectra:
-        mz = spectrum.mz            # NDArray[float64] | None
+        mz = spectrum.mz            # np.ndarray | None
         intensity = spectrum.intensity
         if mz is not None:
             print(spectrum.id, f"MS{spectrum.ms_level}", len(mz), "peaks")
@@ -57,9 +57,9 @@ for s in reader.spectra: ... # iterate (memory-bounded; safe to collect into a l
 |---|---|---|
 | `id` | `str` | native id, e.g. `"controllerType=0 controllerNumber=1 scan=1"` |
 | `id_dict` | `dict[str, int\|str]` | native id parsed into components, e.g. `{"scan": 1}`; use `spectrum.id_dict["scan"]` for the scan number |
-| `mz` | `NDArray[float64] \| None` | decoded m/z array |
-| `intensity` | `NDArray[float64] \| None` | decoded intensity array |
-| `charge` | `NDArray[float64] \| None` | charge array if present |
+| `mz` | `np.ndarray \| None` | decoded m/z array |
+| `intensity` | `np.ndarray \| None` | decoded intensity array |
+| `charge` | `np.ndarray \| None` | charge array if present |
 | `ms_level` | `int \| None` | 1, 2, … |
 | `polarity` | `Literal["positive","negative"] \| None` | |
 | `spectrum_type` | `Literal["centroid","profile"] \| None` | |
@@ -107,7 +107,7 @@ and `.dia_acquisition` returns that term.
 with Mzml("run.mzML") as reader:
     tic = reader.TIC                     # Chromatogram | None (found by id or MS:1000235 CV term)
     for chrom in reader.chromatograms:
-        t = chrom.time                   # NDArray[float64] | None
+        t = chrom.time                   # np.ndarray | None
         i = chrom.intensity
     sic = reader.chromatograms["sic"]    # by id
 ```
@@ -195,3 +195,27 @@ with Mzml("run.mzML", spectrum_id_regex=r"scan=(\d+)") as reader:
 - `SpectrumFilter(...).matches(spectrum)` exposes the same predicate. Missing metadata does not match.
 - `python -m mzmlpy` supports `inspect`, `validate`, and `index-gzip`, with JSON output.
 - Custom extraction directories use source-specific, revision-specific filenames.
+
+## Numeric types (0.9.0)
+
+- Decoded ordinary arrays retain their declared float32, float64, int32, or int64 dtype.
+- Empty arrays retain that dtype. Returned arrays are writable and freshly decoded per access.
+- Numpress reconstructs float64 values. No extra narrowing conversion is applied.
+- Existing code requiring float64 should use `array.astype(np.float64)` explicitly.
+- Integer arithmetic may overflow. Choose calculation types in the consuming package.
+- MCP reports decoded dtypes and encodes integers outside `[-(2**53-1), 2**53-1]` as exact decimal strings.
+
+## MCP integration (0.9.0)
+
+- Install with `pip install "mzmlpy[mcp]"`.
+- Launch `python -m mzmlpy mcp --root /absolute/path/to/data`.
+- Seventeen default tools cover discovery, header metadata, validation, metadata inventories,
+  comparisons, spectrum batches, stored chromatograms, arbitrary arrays, and background jobs.
+- With --output-dir, export_records and read_export provide original encoded records in JSONL.
+- Read mzmlpy://capabilities, mzmlpy://guide, mzmlpy://units, and mzmlpy://schemas.
+- Spectrum processing belongs to Spectacular. Plotting belongs to companion visualization tools.
+- The JSONL handoff is an mzmlpy format, not an assumed Spectacular importer.
+- Sources are read-only. Paths stay inside the configured data directory. Exports require explicit output configuration.
+- Results contain file, revision, and data. Follow next_index with unchanged filters and expected_revision.
+- Search and chromatogram times use seconds. Peak decoding is opt-in and decodes full arrays before paging.
+- See docs/mcp.md for controls, limits, and validation scope.

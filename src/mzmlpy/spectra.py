@@ -15,7 +15,6 @@ from functools import cached_property
 from typing import Literal
 
 import numpy as np
-from numpy.typing import NDArray
 
 from .constants import (
     BINARY_DECODE_DTYPES,
@@ -50,8 +49,9 @@ def _decode_to_native(data: bytes, data_type: str) -> np.ndarray:
     return np.frombuffer(data, dtype=dtype)
 
 
-def decode_to_numpy(data: bytes, data_type: str) -> NDArray[np.float64]:
-    return _decode_to_native(data, data_type).astype(np.float64)
+def decode_to_numpy(data: bytes, data_type: str) -> np.ndarray:
+    """Decode a writable array in its declared numeric type."""
+    return _decode_to_native(data, data_type).copy()
 
 
 def _resolve_dtype(data_type: str) -> np.dtype:
@@ -146,10 +146,14 @@ class BinaryDataArray(_ParamGroup):
         if binary_data_type is None:
             binary_data_type = BinaryDataTypeAccession.FLOAT_64
             warnings.warn(f"Binary data type not specified. Assuming {binary_data_type}.", UserWarning, stacklevel=2)
+        # Numpress reconstructs float64 values rather than storing a raw typed array.
+        result_dtype = (
+            np.dtype("<f8") if compression_type.name.startswith("MS_NUMPRESS") else _resolve_dtype(binary_data_type)
+        )
         # Get binary data from element
         binary_element = self.element.find(f"./{self.ns}binary")
         if binary_element is None or binary_element.text is None:
-            return np.array([], dtype=np.float64)
+            return np.array([], dtype=result_dtype)
 
         # Decode base64
         try:
@@ -158,7 +162,7 @@ class BinaryDataArray(_ParamGroup):
             raise ValueError(f"Failed to base64-decode binary data array (data type {binary_data_type}): {e}") from e
 
         if len(out_data) == 0:
-            return np.array([], dtype=np.float64)
+            return np.array([], dtype=result_dtype)
 
         # Decompress based on compression type
         match compression_type:
@@ -168,9 +172,9 @@ class BinaryDataArray(_ParamGroup):
             case CompressionTypeAccessions.MS_NUMPRESS_SHORT_LOGGED_FLOAT:
                 return MSDecoder.decode_slof(out_data)
             case CompressionTypeAccessions.TRUNCATION_LINEAR_PREDICTION_ZLIB:
-                # Reverse the linear predictor in native precision, then widen to float64.
+                # Reverse the linear predictor in the stored precision.
                 native = _decode_to_native(MSDecoder.decode_zlib(out_data), binary_data_type)
-                return MSDecoder.reverse_linear_prediction(native).astype(np.float64)
+                return MSDecoder.reverse_linear_prediction(native)
             case CompressionTypeAccessions.ZLIB_COMPRESSION:
                 return decode_to_numpy(MSDecoder.decode_zlib(out_data), binary_data_type)
             case CompressionTypeAccessions.NO_COMPRESSION:
@@ -194,9 +198,9 @@ class BinaryDataArray(_ParamGroup):
             case CompressionTypeAccessions.MS_NUMPRESS_POSITIVE_INTEGER:
                 return MSDecoder.decode_pic(out_data)
             case CompressionTypeAccessions.TRUNCATION_DELTA_PREDICTION_ZLIB:
-                # Reverse the delta predictor in native precision, then widen to float64.
+                # Reverse the delta predictor in the stored precision.
                 native = _decode_to_native(MSDecoder.decode_zlib(out_data), binary_data_type)
-                return MSDecoder.reverse_delta_prediction(native).astype(np.float64)
+                return MSDecoder.reverse_delta_prediction(native)
             case CompressionTypeAccessions.ZSTD_COMPRESSION:
                 return decode_to_numpy(MSDecoder.decode_ztsd(out_data), binary_data_type)
             case CompressionTypeAccessions.MS_NUMPRESS_POSITIVE_INTEGER_ZSTD:
@@ -211,7 +215,9 @@ class BinaryDataArray(_ParamGroup):
     def data(self) -> np.ndarray:
         """Decode and return the binary data as a NumPy array.
 
-        Decoding runs on every access — store the result in a local variable if you need it more than once.
+        Raw numeric encodings retain their declared dtype, including empty arrays.
+        Numpress returns reconstructed float64 values. Arrays are writable.
+        Decoding runs on every access. Store the result locally when using it repeatedly.
         """
         return self._decode()
 
@@ -870,7 +876,7 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
         return self.get_attribute("sourceFileRef")
 
     @property
-    def mz(self) -> NDArray[np.float64] | None:
+    def mz(self) -> np.ndarray | None:
         """Get m/z array as a numpy array, or None if not present."""
         binary_array = self.get_binary_array(BinaryDataArrayAccession.MZ)
         if binary_array is not None:
@@ -878,7 +884,7 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
         return None
 
     @property
-    def intensity(self) -> NDArray[np.float64] | None:
+    def intensity(self) -> np.ndarray | None:
         """Get intensity array as a numpy array, or None if not present."""
         binary_array = self.get_binary_array(BinaryDataArrayAccession.INTENSITY)
         if binary_array is not None:
@@ -886,7 +892,7 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
         return None
 
     @property
-    def charge(self) -> NDArray[np.float64] | None:
+    def charge(self) -> np.ndarray | None:
         """Return the per-point charge array, or None if no charge binary array is present."""
         binary_array = self.get_binary_array(BinaryDataArrayAccession.CHARGE)
         if binary_array is not None:
@@ -1007,7 +1013,7 @@ class Chromatogram(_ParamGroup, _BinaryDataArrayMixin):
         return self.get_attribute("sourceFileRef")
 
     @property
-    def time(self) -> NDArray[np.float64] | None:
+    def time(self) -> np.ndarray | None:
         """Get time array as a numpy array, or None if not present."""
         binary_array = self.get_binary_array(BinaryDataArrayAccession.TIME)
         if binary_array is not None:
@@ -1015,7 +1021,7 @@ class Chromatogram(_ParamGroup, _BinaryDataArrayMixin):
         return None
 
     @property
-    def intensity(self) -> NDArray[np.float64] | None:
+    def intensity(self) -> np.ndarray | None:
         """Get intensity array as a numpy array, or None if not present."""
         binary_array = self.get_binary_array(BinaryDataArrayAccession.INTENSITY)
         if binary_array is not None:

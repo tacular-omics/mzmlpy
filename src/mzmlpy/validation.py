@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import BinaryIO, Literal, cast
 from xml.etree import ElementTree as ET
 
+from ._progress import checkpoint
 from ._xml import read_fragment
 from .regex_patterns import FILE_ENCODING_PATTERN
 from .spectra import BinaryDataArray
@@ -180,6 +181,7 @@ class _Validator:
             if self.check_index:
                 for kind, entries in self.index_entries.items():
                     for identifier, offset in entries:
+                        checkpoint("validating XML offsets", self.index_entries_checked)
                         try:
                             handle.seek(offset)
                             element = read_fragment(handle, encoding, self.namespaces)
@@ -218,6 +220,7 @@ def _validate_stream(handle: BinaryIO, *, decode_binary: bool, check_index: bool
             ET.iterparse(handle, events=("start", "end", "start-ns")),
         )
         for event, item in events:
+            checkpoint("validating XML", sum(len(records) for records in validator.records.values()))
             if isinstance(item, tuple):
                 validator.namespaces[item[0]] = item[1]
                 continue

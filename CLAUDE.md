@@ -4,7 +4,7 @@
 
 **mzmlpy** — lightweight Python library for parsing mzML mass spectrometry files. Exposes a type-safe, lazy-loading API for spectra, chromatograms, and file metadata. Python 3.12+ only.
 
-Current version: **0.8.0** (Beta).
+Current version: **0.9.0** (Beta).
 
 ## Commands
 
@@ -99,3 +99,22 @@ Tests are parametrized over both example files. No mocking — tests run against
 - `_xml.py` contains streaming record and fragment helpers shared across backends.
 - `just test` accepts extra pytest arguments. `just test-cov` emits coverage and JUnit in one run.
 - `just docs-build` builds documentation in strict mode.
+
+## Numeric decoding
+
+- Preserve the declared dtype for raw numeric arrays, including empty arrays and dictionary tables.
+- Numpress uses float64 reconstruction. Avoid adding a narrowing cast based on the array declaration.
+- Public decoded arrays remain writable. Callers can explicitly convert with `.astype(np.float64)`.
+- MCP must preserve exact integers, including decimal-string transport outside the JSON safe range.
+- Cover numeric changes with `tests/test_native_precision.py` and predictive-codec regressions.
+
+## Optional MCP server
+
+- `mcp.py` adapts the reader API for data access. `_mcp_server.py` owns optional SDK integration.
+- `_mcp_metadata.py`, `_mcp_types.py`, `_mcp_runtime.py`, and `_mcp_export.py` handle inventories,
+  schemas, jobs/cache, and lossless record exports. `_progress.py` supplies internal checkpoints.
+- Spectrum processing belongs to Spectacular. Do not add peak processing, derived traces, or plotting here.
+- The SDK is imported only by `create_server`, not by the core package.
+- Run `uv sync --locked --extra mcp` and `UV_NO_SYNC=1 just check` for protocol tests.
+- `tests/test_mcp_protocol.py` checks current and legacy clients and the stdio subprocess.
+- Base installations must still work without the MCP SDK.

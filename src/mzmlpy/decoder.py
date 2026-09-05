@@ -115,9 +115,7 @@ class MSDecoder:
             raise ValueError(f"element_size must be positive, got {element_size}")
         if len(data) % element_size != 0:
             # Otherwise numpy silently broadcasts mismatched slices into scrambled output.
-            raise ValueError(
-                f"byte-shuffled data length {len(data)} is not a multiple of element size {element_size}"
-            )
+            raise ValueError(f"byte-shuffled data length {len(data)} is not a multiple of element size {element_size}")
         n_elements = len(data) // element_size
         src = np.frombuffer(data, dtype=np.uint8)
         dst = np.empty_like(src)
@@ -164,7 +162,7 @@ class MSDecoder:
         return out
 
     @classmethod
-    def decode_dict_encoded_zstd(cls, data: bytes, dtype: np.dtype) -> NDArray[np.float64]:
+    def decode_dict_encoded_zstd(cls, data: bytes, dtype: np.dtype) -> np.ndarray:
         """Decode dictionary-encoded zstd data (MS:1003782).
 
         The decompressed layout is:
@@ -183,12 +181,12 @@ class MSDecoder:
         num_elements = int(header[1])
         if num_elements == 0:
             # Empty array: nothing to index (avoids a divide-by-zero on the index-size calc below).
-            return np.array([], dtype=np.float64)
+            return np.array([], dtype=dtype)
         element_size = dtype.itemsize
 
         # Value table: unique values, from the end of the 16-byte header up to the index offset.
         value_data = cls.unshuffle(decompressed[16:index_offset], element_size)
-        values = np.frombuffer(value_data, dtype=dtype).astype(np.float64)
+        values = np.frombuffer(value_data, dtype=dtype)
 
         # Index table: remaining bytes, byte-shuffled by index element size.
         idx_data = decompressed[index_offset:]

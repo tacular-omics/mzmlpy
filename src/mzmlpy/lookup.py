@@ -160,6 +160,10 @@ class SpectrumLookup(BaseLookup[Spectrum]):
         retention_time: tuple[float | None, float | None] | None = None,
         polarity: Literal["positive", "negative"] | None = None,
         precursor_mz: tuple[float | None, float | None] | None = None,
+        spectrum_type: Literal["centroid", "profile"] | None = None,
+        mobility_type: Literal["inverse_reduced", "drift_time"] | None = None,
+        ion_mobility: tuple[float | None, float | None] | None = None,
+        faims_voltage: tuple[float | None, float | None] | None = None,
     ) -> Iterator[Spectrum]:
         """Lazily select spectra by metadata, using inclusive time bounds in seconds.
 
@@ -167,7 +171,9 @@ class SpectrumLookup(BaseLookup[Spectrum]):
         matches overlapping isolation windows, with selected ions as a fallback. Missing
         metadata does not match a requested criterion. Keep the reader open while iterating.
         """
-        predicate = SpectrumFilter(ms_level, retention_time, polarity, precursor_mz)
+        predicate = SpectrumFilter(
+            ms_level, retention_time, polarity, precursor_mz, spectrum_type, mobility_type, ion_mobility, faims_voltage
+        )
         return (spectrum for spectrum in self if predicate.matches(spectrum))
 
     def _get_by_index_impl(self, index: int) -> Spectrum:

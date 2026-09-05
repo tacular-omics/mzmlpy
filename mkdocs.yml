@@ -13,6 +13,7 @@ theme:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - MCP Server: mcp.md
   - Benchmarks: benchmarks.md
   - API Reference:
     - Mzml Reader: api/mzml.md
