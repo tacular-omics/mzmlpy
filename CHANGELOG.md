@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.9.2] (2026-09-23)
+
 ### Fixed
 
 - `validate()` no longer reports `count_mismatch` on valid files (including `tests/data/example.mzML`): a list's
