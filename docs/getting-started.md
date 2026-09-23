@@ -2,16 +2,25 @@
 
 ## Installation
 
-Install from PyPI:
+mzmlpy needs Python 3.12 or later. Install it from PyPI:
 
 ```bash
 pip install mzmlpy
+# or, in a uv project
+uv add mzmlpy
 ```
 
-If you need MS-Numpress decoding support, install the optional extra:
+The base install depends only on NumPy. Optional extras add codecs and features:
+
+| Extra | Adds |
+|---|---|
+| `numpress` | MS-Numpress array decoding |
+| `zstd` | Zstandard-compressed arrays |
+| `rapidgzip` | `gzip_mode="indexed"` seekable gzip access |
+| `mcp` | the [MCP server](mcp.md) |
 
 ```bash
-pip install mzmlpy[numpress]
+pip install "mzmlpy[numpress,zstd]"
 ```
 
 ## Basic Usage
@@ -52,7 +61,7 @@ with TemporaryDirectory() as directory:
         spectrum = reader.spectra[0]
 ```
 
-mzMLPy detects this pyMZML-compatible embedded format automatically. The file remains a standard
+mzmlpy detects this pyMZML-compatible embedded format automatically. The file remains a standard
 concatenated gzip stream, and decompressing it reconstructs the original mzML bytes exactly.
 
 - **`"auto"`** (default) selects the best valid representation already available and otherwise extracts into the central cache.
@@ -284,11 +293,11 @@ not verify the embedded gzip index itself.
 
 ## Numeric types
 
-Decoded arrays now preserve the numeric type declared in the file: `float32`, `float64`,
+Decoded arrays preserve the numeric type declared in the file: `float32`, `float64`,
 `int32`, or `int64`. This applies to spectrum, chromatogram, charge, and mobility arrays,
 including empty arrays. Arrays remain writable and each access decodes a fresh array.
 
-This changes the previous behavior, which converted ordinary arrays to float64. Preserving
+Releases before 0.9 converted ordinary arrays to float64. Preserving
 the stored type avoids rounding large integers and uses half the array memory for float32
 and int32 data. Code that needs float64 for calculations can convert explicitly:
 

@@ -1,49 +1,37 @@
 # mzmlpy
 
-A lightweight Python library for parsing mzML mass spectrometry files. Initially built from pymzml, it implements a more straightforward, type-safe API and includes direct support for modern mzML structures (> 1.1.0).
-
-[![Python package](https://github.com/tacular-omics/mzmlpy/actions/workflows/python-package.yml/badge.svg)](https://github.com/tacular-omics/mzmlpy/actions/workflows/python-package.yml)
+[![CI](https://github.com/tacular-omics/mzmlpy/actions/workflows/ci.yml/badge.svg)](https://github.com/tacular-omics/mzmlpy/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/github/tacular-omics/mzmlpy/graph/badge.svg?token=1CTVZVFXF7)](https://codecov.io/github/tacular-omics/mzmlpy)
 [![PyPI version](https://badge.fury.io/py/mzmlpy.svg)](https://badge.fury.io/py/mzmlpy)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21960079.svg)](https://doi.org/10.5281/zenodo.21960079)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-g.svg)](https://opensource.org/licenses/MIT)
 
-## Installation
+mzmlpy is a lightweight, type-safe Python library for reading mzML mass spectrometry files,
+including gzipped `.mzML.gz`. Metadata is parsed into typed models, while m/z, intensity, ion
+mobility and other binary arrays are decoded only when you ask for them.
+
+Spectra and chromatograms can be iterated, indexed, sliced, looked up by native ID, or filtered
+on metadata without decoding peaks. zlib, MS-Numpress and Zstandard arrays are supported, and
+mzmlpy is [5-9x faster than pymzml](benchmarks.md) on complex files. An optional
+[MCP server](mcp.md) lets AI clients inspect local mzML files.
 
 ```bash
 pip install mzmlpy
 ```
 
-## Quick Start
+## Where next
 
-```python
-from mzmlpy import Mzml
+- [Getting started](getting-started.md): install options, reading spectra, gzip modes, validation.
+- [MCP server](mcp.md): connect an AI client to local mzML files.
+- [API reference](api/mzml.md): every public class and function.
+- Using an AI coding assistant? Point it at
+  [`llms.txt`](https://github.com/tacular-omics/mzmlpy/blob/main/llms.txt) for a compact API guide.
 
-with Mzml("tests/data/example.mzML.gz") as reader:
-    print(f"File ID: {reader.id}")
-    print(f"Total Spectra: {len(reader.spectra)}")
+## Related packages
 
-    for spectrum in reader.spectra:
-        print(f"Scan {spectrum.id} (MS{spectrum.ms_level}) - TIC: {spectrum.TIC}")
-```
+The tacular-omics mass spectrometry stack:
 
-The `Mzml` reader lazily loads data, meaning binary arrays and metadata are only parsed when you access them. It supports `.mzML` and `.mzML.gz` files, and exposes spectra and chromatograms via lookup objects that support iteration, integer indexing, slicing, and string-based ID lookup.
-
-## Features
-
-- **Lazy parsing** -- binary data is decoded only when accessed.
-- **Type-safe API** -- dataclass-based models with full type annotations.
-- **Flexible access** -- look up spectra and chromatograms by index, slice, or string ID.
-- **Ion mobility support** -- detect and retrieve IM data, whether stored as a binary array or a scan-level cvParam (e.g. Bruker timsTOF PASEF MS2).
-- **Comprehensive compression** -- zlib, zstd, and MS-Numpress decoders built in.
-- **Fast** -- [5--9x faster than pymzml](benchmarks.md) on complex files, ~1.2x on small files.
-- **Context manager** -- use `with` for safe file handling.
-- **Actionable errors** -- decode failures name the offending value and, for optional dependencies, the extra to install.
-
-## Next Steps
-
-- [Getting Started](getting-started.md) -- installation details, basic usage patterns, and working with binary data.
-- [Benchmarks](benchmarks.md) -- performance comparison against pymzml and gzip mode timings.
-- [API Reference](api/mzml.md) -- full auto-generated documentation for every public class and method.
-
-Using an AI coding assistant? Point it at [`llms.txt`](https://github.com/tacular-omics/mzmlpy/blob/main/llms.txt) in the repository root for a compact, accurate API guide.
+- [tdfpy](https://tacular-omics.github.io/tdfpy/) reads Bruker timsTOF `.d` data.
+- **[mzmlpy](https://tacular-omics.github.io/mzmlpy/) reads mzML files.** (this package)
+- [spxtacular](https://tacular-omics.github.io/spxtacular/) processes the spectra from both: centroiding, deconvolution, matching, scoring and plotting.

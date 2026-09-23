@@ -1,5 +1,11 @@
 # Benchmarks
 
+!!! note "Measured with mzmlpy 0.4.0 (April 2026)"
+    These numbers have not been re-measured for later releases. The gzip table predates
+    `gzip_mode="auto"` and self-indexed gzip files (`write_indexed_gzip`). Run the scripts in
+    [`benchmarks/`](https://github.com/tacular-omics/mzmlpy/tree/main/benchmarks) for current
+    figures on your own data.
+
 ## mzmlpy vs pymzml
 
 Comparison of **mzmlpy** and **pymzml 2.6.0** across common mzML parsing operations.
@@ -51,7 +57,7 @@ uv run python benchmarks/bench_vs_pymzml.py
 uv run python benchmarks/bench_vs_pymzml.py --file path/to/file.mzML --repeats 10
 ```
 
-See `benchmarks/bench_vs_pymzml.py` for the full source.
+See [`benchmarks/bench_vs_pymzml.py`](https://github.com/tacular-omics/mzmlpy/blob/main/benchmarks/bench_vs_pymzml.py) for the full source.
 
 ## Gzip mode comparison
 
@@ -70,4 +76,4 @@ Benchmarked on a 33,535-spectrum DDA file (cold start, with rapidgzip):
 `"indexed"` startup includes building the gzip seek index and mzML offset index on first open — both are cached alongside the file, so subsequent opens are fast.
 `"stream"` is sequential-only — random access requires re-scanning from the start.
 
-See `benchmarks/bench_gzip_modes.py` for the full source.
+See [`benchmarks/bench_gzip_modes.py`](https://github.com/tacular-omics/mzmlpy/blob/main/benchmarks/bench_gzip_modes.py) for the full source.

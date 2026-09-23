@@ -2,9 +2,10 @@
 
 The optional MCP server connects AI clients to local mzML files. Its scope is discovery,
 recorded metadata, validation, data selection, and export. Spectrum processing belongs to
-Spectacular. Plotting belongs to a visualization client.
+[spxtacular](https://tacular-omics.github.io/spxtacular/). Plotting belongs to a visualization
+client.
 
-MCP integration is available starting with version 0.9.0:
+Install the `mcp` extra and start the server:
 
 ```bash
 pip install "mzmlpy[mcp]"
@@ -208,9 +209,9 @@ The manifest's `record_list` preserves enclosing list defaults such as `defaultD
 
 `read_export` pages JSONL lines. The export resource returns the manifest. Very large lines
 must be consumed directly from the local artifact by a companion package. The format is an
-mzmlpy interchange contract, not an assertion that Spectacular already has an importer.
+mzmlpy interchange contract, not an assertion that spxtacular already has an importer.
 
-Spectrum processing stays in Spectacular. This server does not calculate extracted ion
+Spectrum processing stays in spxtacular. This server does not calculate extracted ion
 chromatograms, pick peaks, smooth signals, normalize intensities, align runs, match spectra,
 or identify compounds. It does not render charts. Companion tools can consume the recorded
 arrays or exports to perform those tasks.

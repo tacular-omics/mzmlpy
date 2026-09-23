@@ -1,33 +1,64 @@
 site_name: mzmlpy
 site_description: A lightweight Python library for parsing mzML mass spectrometry files.
+site_url: https://tacular-omics.github.io/mzmlpy/
 repo_url: https://github.com/tacular-omics/mzmlpy
 repo_name: tacular-omics/mzmlpy
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; the mzmlpy authors. MIT licence.
+
 theme:
   name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
   features:
     - navigation.sections
     - navigation.top
+    - navigation.footer
     - content.code.copy
     - search.highlight
+    - search.suggest
 
 nav:
   - Home: index.md
-  - Getting Started: getting-started.md
-  - MCP Server: mcp.md
-  - Benchmarks: benchmarks.md
-  - API Reference:
-    - Mzml Reader: api/mzml.md
+  - Getting started: getting-started.md
+  - Guides:
+    - MCP server: mcp.md
+    - Benchmarks: benchmarks.md
+  - API reference:
+    - Mzml reader: api/mzml.md
     - Spectrum: api/spectrum.md
     - Chromatogram: api/chromatogram.md
     - Lookup: api/lookup.md
-    - Validation & Filtering: api/validation.md
-    - Precursor & Ions: api/precursor.md
-    - File Description: api/file-description.md
+    - Validation and filtering: api/validation.md
+    - Indexed gzip: api/indexed-gzip.md
+    - Precursor and ions: api/precursor.md
+    - File description: api/file-description.md
     - Instrument: api/instrument.md
-    - Data Processing: api/data-processing.md
+    - Data processing: api/data-processing.md
     - Metadata: api/metadata.md
-    - CV Parameters: api/params.md
+    - CV parameters: api/params.md
     - Constants: api/constants.md
+  - Changelog: https://github.com/tacular-omics/mzmlpy/blob/main/CHANGELOG.md
+  - Citation: citation.md
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
 
 plugins:
   - search
@@ -50,6 +81,12 @@ plugins:
             signature_crossrefs: true
 
 markdown_extensions:
-  - pymdownx.highlight
-  - pymdownx.superfences
   - admonition
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - md_in_html
+  - toc:
+      permalink: true
