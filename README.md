@@ -1,8 +1,6 @@
 <div align="center">
   <img src="https://raw.githubusercontent.com/tacular-omics/mzmlpy/main/logo.png" alt="MZMLpy Logo" width="400" style="margin: 20px;"/>
 
-  A lightweight Python library for parsing mzML mass spectrometry files. Implements a type-safe, lazy-loading API with direct support for modern mzML structures (>= 1.1.0).
-
   [![Python package](https://github.com/tacular-omics/mzmlpy/actions/workflows/ci.yml/badge.svg)](https://github.com/tacular-omics/mzmlpy/actions/workflows/ci.yml)
   [![codecov](https://codecov.io/github/tacular-omics/mzmlpy/graph/badge.svg?token=1CTVZVFXF7)](https://codecov.io/github/tacular-omics/mzmlpy)
   [![PyPI version](https://badge.fury.io/py/mzmlpy.svg)](https://badge.fury.io/py/mzmlpy)
@@ -12,7 +10,26 @@
 
 </div>
 
-## Installation
+**mzmlpy** is a Python library for reading mzML mass spectrometry files. It's built for
+people writing proteomics or metabolomics pipelines who need a reader that's fast on
+large files, tells them exactly what's wrong with a malformed file, and doesn't force a
+full decode just to look at a spectrum's metadata.
+
+## Why mzmlpy?
+
+- **Lazy by design** — metadata is parsed up front; binary m/z and intensity arrays are
+  only decoded when you actually touch them.
+- **Fast** — 5–9x faster than pymzml on complex files in our benchmarks (see below).
+- **Type-safe** — dataclass-based models with full type annotations, not loosely-typed
+  XML trees.
+- **Handles gzip well** — reads `.mzML.gz` directly, with a self-indexed gzip format for
+  random access without re-extracting the file.
+- **Built-in decoders** — zlib, zstd, and MS-Numpress compression are supported out of
+  the box.
+- **Validates, not just parses** — a `validate()` function reports structural and
+  decoding problems instead of silently producing bad data.
+
+## Install
 
 ```bash
 pip install mzmlpy
@@ -24,22 +41,10 @@ Optional extras:
 pip install mzmlpy[numpress]   # MS-Numpress decoding
 pip install mzmlpy[zstd]       # Zstandard compression
 pip install mzmlpy[rapidgzip]  # Parallel gzip decompression (recommended for .gz files)
+pip install mzmlpy[mcp]        # MCP server for AI coding assistants
 ```
 
-## MCP integration
-
-Version 0.9.0 preserves the stored numeric dtype when decoding arrays, including exact
-int64 values. Numpress retains its float64 reconstruction. Code requiring float64 can use
-`.astype(np.float64)`. See the [numeric type migration guide](docs/getting-started.md#numeric-types).
-
-An optional local MCP server exposes file discovery, full acquisition metadata, validation,
-metadata inventories and comparisons, and bounded array access to AI clients. Background jobs,
-reference resources, workflow prompts, and optional lossless JSONL exports support larger tasks.
-Spectrum processing stays in Spectacular, and plotting stays in companion visualization tools.
-Install with `pip install "mzmlpy[mcp]"` and launch with
-`python -m mzmlpy mcp --root /absolute/path/to/data`. See the [MCP guide](docs/mcp.md).
-
-## Quick Start
+## Quick example
 
 ```python
 from mzmlpy import Mzml
@@ -53,70 +58,69 @@ with Mzml("path/to/file.mzML") as reader:
         print(f"  {spectrum.id} MS{spectrum.ms_level} — {len(mz)} peaks")
 ```
 
-Both `.mzML` and `.mzML.gz` files are supported. Metadata is parsed eagerly; binary data is decoded on demand.
+Both `.mzML` and `.mzML.gz` files are supported. Metadata is parsed eagerly; binary data
+is decoded on demand.
 
-## Reading Gzipped Files
-
-When opening `.mzML.gz` files, the `gzip_mode` parameter controls how the file is accessed:
-
-`"auto"` is the default. It selects an embedded index first, then a current extracted cache,
-then complete rapidgzip sidecars, and finally creates an extracted cache. The selected route is
-available through `reader.access_strategy`.
-
-Self-indexed gzip files created by `write_indexed_gzip` are detected automatically when
-`in_memory=False`. Their index lives inside the gzip header, so random access needs no extracted
-copy, sidecar index, or optional dependency.
+## What else it can do
 
 ```python
-from mzmlpy import Mzml, write_indexed_gzip
+from mzmlpy import Mzml, validate
 
-write_indexed_gzip("data.mzML", "data.indexed.mzML.gz")
+# Structural/decoding validation, no repair attempted
+report = validate("data.mzML", decode_binary=True)
+print(report.valid, report.issues)
 
-with Mzml("data.indexed.mzML.gz", in_memory=False) as reader:
-    spec = reader.spectra["controllerType=0 controllerNumber=1 scan=1234"]
+# Filter by metadata without decoding any arrays
+with Mzml("data.mzML", in_memory=False) as reader:
+    for spectrum in reader.spectra.filter(ms_level=2, retention_time=(60, 180)):
+        print(spectrum.id)
 ```
 
-The writer also accepts an ordinary `.mzML.gz` input. It preserves the decompressed mzML bytes
-exactly and writes the destination atomically. The embedded layout is compatible with pyMZML's
-`FU` version 1 indexed gzip reader.
+Gzipped files get the same lazy, indexable access as plain mzML — `gzip_mode` picks
+between an embedded index, an extracted cache, or streaming, and self-indexed files
+(via `write_indexed_gzip`) support random access with no extraction step at all. Ion
+mobility data (e.g. Bruker timsTOF PASEF) is exposed on the spectrum whether it's stored
+as a binary array or a scan-level parameter.
 
-| Mode | Description |
+| Feature | Notes |
 |---|---|
-| `"auto"` (default) | Reuse the fastest valid representation already available, otherwise extract into the central cache. |
-| `"extract"` | Decompress to `<tmpdir>/mzmlpy/` and cache across sessions. First open pays decompression cost. Subsequent opens reuse the cache instantly. The OS clears tmp on reboot. |
-| `"indexed"` | Seekable access to the compressed file using `rapidgzip`. No decompression to disk. Requires `pip install mzmlpy[rapidgzip]`. |
-| `"stream"` | Stream sequentially. Lowest startup cost but no efficient random access. |
+| `.mzML` / `.mzML.gz` | Transparent gzip handling, including self-indexed files |
+| Validation | `validate()` reports issues without altering the file |
+| Filtering | By MS level, retention time, and precursor, without decoding arrays |
+| Ion mobility | Detects both array-based and scan-level IM data |
+| MCP server | `pip install mzmlpy[mcp]` — file discovery, metadata, and bounded array access for AI clients |
+| CLI | `python -m mzmlpy` for validation and inspection from the shell |
 
-For most use cases, `"extract"` or `"indexed"` is recommended:
+See the **[Getting Started guide](https://tacular-omics.github.io/mzmlpy/getting-started/)**
+and **[API Reference](https://tacular-omics.github.io/mzmlpy/api/mzml/)** for the full
+picture, including gzip mode details, the CLI, and the MCP server.
 
-```python
-# Automatic selection with observable behavior
-with Mzml("data.mzML.gz", in_memory=False) as reader:
-    print(reader.access_strategy)
-    spec = reader.spectra[0]
+Using an AI coding assistant? Point it at
+**[`llms.txt`](https://github.com/tacular-omics/mzmlpy/blob/main/llms.txt)** — a compact,
+accurate API guide for generating correct mzmlpy code.
 
-# Indexed — no extraction, seekable access (requires rapidgzip)
-with Mzml("data.mzML.gz", gzip_mode="indexed", in_memory=False) as reader:
-    spec = reader.spectra[0]
-```
+## In the tacular-omics family
 
-To reclaim disk space before the OS clears tmp on reboot:
+mzmlpy reads mzML; [tdfpy](https://github.com/tacular-omics/tdfpy) reads the Bruker
+timsTOF `.d` format the same way. Both feed spectra into
+[spxtacular](https://github.com/tacular-omics/spxtacular), the shared spectrum-processing
+layer for deisotoping, deconvolution, and downstream analysis.
 
-```python
-from mzmlpy import clear_cache
-clear_cache()
-```
+## Links
 
-### Performance
+- **Docs**: https://tacular-omics.github.io/mzmlpy/
+- **Changelog**: [`CHANGELOG.md`](https://github.com/tacular-omics/mzmlpy/blob/main/CHANGELOG.md)
 
-`"extract"` pays a one-time decompression cost then matches plain `.mzML` speed on later opens
-(the extracted copy is cached). `"indexed"` pays a one-time index-build cost for seekable access
-with no disk copy. `"stream"` has the lowest startup cost but random access re-scans from the
-start, so it's sequential-only in practice. See **[`benchmarks/`](benchmarks/)** for a
-reproducible harness with real numbers on real files, including a head-to-head against
-pyteomics and pymzml.
+## Citation
 
-### mzmlpy vs pymzml
+Citation metadata are provided in [`CITATION.cff`](CITATION.cff). All archived releases are
+available from Zenodo at [doi:10.5281/zenodo.21960079](https://doi.org/10.5281/zenodo.21960079).
+
+## Benchmarks
+
+`benchmarks/` contains a reproducible harness comparing mzmlpy against
+[pyteomics](https://github.com/levitsky/pyteomics) and [pymzml](https://github.com/pymzml/pymzML)
+on compression-format support, throughput, and gzip handling.
 
 Compared against pymzml 2.6.0 on a Bruker timsTOF file with ion mobility (10 spectra, 6.7 MB):
 
@@ -126,52 +130,12 @@ Compared against pymzml 2.6.0 on a Bruker timsTOF file with ion mobility (10 spe
 | Iterate (decode) | 0.039s | 0.228s | **5.8x faster** |
 | Random access | 0.012s | 0.110s | **9.2x faster** |
 
-Both libraries produce identical m/z and intensity arrays. The gap narrows on smaller files (~1.1--1.3x) and widens on larger, more complex files. See the full results in the **[Benchmarks](https://tacular-omics.github.io/mzmlpy/benchmarks/)** page or run `benchmarks/bench_vs_pymzml.py` yourself.
+Both libraries produce identical m/z and intensity arrays. The gap narrows on smaller
+files (~1.1–1.3x) and widens on larger, more complex files. See
+[`benchmarks/README.md`](https://github.com/tacular-omics/mzmlpy/blob/main/benchmarks/README.md)
+for how to run it yourself, and the full results on the
+**[Benchmarks page](https://tacular-omics.github.io/mzmlpy/benchmarks/)**.
 
-For full usage examples see the **[Getting Started guide](https://tacular-omics.github.io/mzmlpy/getting-started/)** and **[API Reference](https://tacular-omics.github.io/mzmlpy/api/mzml/)**.
+## License
 
-Using an AI coding assistant? Point it at **[`llms.txt`](llms.txt)** — a compact, accurate API guide for generating correct mzmlpy code.
-
-## Validation and filtering
-
-```python
-from mzmlpy import Mzml, validate
-
-report = validate("data.mzML", decode_binary=True)
-print(report.valid, report.issues)
-
-with Mzml("data.mzML", in_memory=False) as reader:
-    for spectrum in reader.spectra.filter(ms_level=2, retention_time=(60, 180)):
-        print(spectrum.id)
-```
-
-Validation reports structural and decoding problems without repairing the input. Filtering
-uses metadata and inclusive retention-time bounds in seconds, without decoding arrays.
-See the [guide](https://tacular-omics.github.io/mzmlpy/getting-started/) for check scope,
-precursor filters, cache behavior, and `python -m mzmlpy` CLI commands.
-
-## Citation
-
-Citation metadata are provided in [`CITATION.cff`](CITATION.cff). All archived releases are
-available from Zenodo at [doi:10.5281/zenodo.21960079](https://doi.org/10.5281/zenodo.21960079).
-
-
-## Benchmarks
-
-`benchmarks/` contains a reproducible harness comparing mzmlpy against
-[pyteomics](https://github.com/levitsky/pyteomics) and [pymzml](https://github.com/pymzml/pymzML)
-on compression-format support, throughput, and gzip handling. See
-[`benchmarks/README.md`](benchmarks/README.md) for how to run it and current results.
-
-
-## Development
-
-```bash
-just lint     # ruff check
-just format   # ruff isort + format
-just ty       # ty type checker
-just test     # pytest
-
-# or all at once:
-just check
-```
+MIT — see [`LICENSE`](https://github.com/tacular-omics/mzmlpy/blob/main/LICENSE).
