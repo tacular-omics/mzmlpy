@@ -31,7 +31,7 @@ jobs:
   test:
     strategy:
       fail-fast: false
-      # all extras on Linux only: pynumpress has no macOS/Windows wheels; the base-install and mcp jobs below cover those
+      # all extras on Linux only; the base-install and mcp jobs below cover macOS and Windows
       matrix:
         os: [ubuntu-latest]
         python: ["3.12", "3.13", "3.14"]
