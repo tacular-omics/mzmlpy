@@ -1,0 +1,529 @@
+# mzmlpy — full usage guide for AI assistants
+
+> mzmlpy is a lightweight, type-safe, lazy-loading Python library (3.12+) for reading mzML mass
+> spectrometry files, including gzip-compressed `.mzML.gz`. Only `numpy` is required at runtime.
+> This file is a self-contained reference for writing correct mzmlpy code. It matches the public
+> API of version 0.9.1; every name and signature below was checked by importing it.
+
+Docs site: https://tacular-omics.github.io/mzmlpy/ · Source: https://github.com/tacular-omics/mzmlpy ·
+PyPI: https://pypi.org/project/mzmlpy/
+
+## Install
+
+```bash
+pip install mzmlpy
+# optional decoders and features (imported lazily, only when needed):
+pip install "mzmlpy[numpress]"    # MS-Numpress arrays (pynumpress>=0.1.5)
+pip install "mzmlpy[zstd]"        # Zstandard-compressed arrays
+pip install "mzmlpy[rapidgzip]"   # seekable .mzML.gz without extracting (gzip_mode="indexed")
+pip install "mzmlpy[mcp]"         # local MCP server (python -m mzmlpy mcp)
+```
+
+Opening a file never needs an extra. Decoding an array that uses Numpress or zstd without the
+extra raises an error naming the extra to install.
+
+## Quick start
+
+Always use the context manager so file handles are closed.
+
+```python
+from mzmlpy import Mzml
+
+with Mzml("run.mzML") as reader:
+    print(reader.file_name, len(reader.spectra), "spectra")
+    for spectrum in reader.spectra:
+        mz = spectrum.mz                 # np.ndarray | None, decoded now
+        intensity = spectrum.intensity
+        if mz is not None:
+            print(spectrum.id, f"MS{spectrum.ms_level}", len(mz), "peaks")
+```
+
+Check many files cheaply without building an index:
+
+```python
+from mzmlpy import peek_spectrum_count
+
+n = peek_spectrum_count("run.mzML.gz")   # int | None; reads only up to <spectrumList count=...>
+```
+
+## The reader: `Mzml`
+
+```python
+Mzml(
+    file: str | Path | BinaryIO,          # path, or a readable binary file-like object (e.g. BytesIO)
+    build_index_from_scratch: bool = False,  # ignore the file's <indexList> and rebuild offsets
+    gzip_mode: Literal["auto", "extract", "indexed", "stream"] = "auto",
+    in_memory: bool = True,               # load the whole (decompressed) file into memory
+    extract_dir: str | Path | None = None,   # where gzip_mode="extract" writes; default <tmpdir>/mzmlpy/
+    spectrum_id_regex: str | None = None,    # secondary lookup key for spectra (first capture group)
+    chromatogram_id_regex: str | None = None,
+)
+```
+
+A non-path object without `read`/`readline` raises `TypeError`.
+
+Reader properties and methods:
+
+| member | type | purpose |
+|---|---|---|
+| `spectra` | `SpectrumLookup` | index / id / slice / iterate / filter spectra |
+| `chromatograms` | `ChromatogramLookup` | same for chromatograms |
+| `TIC` | `Chromatogram \| None` | total ion chromatogram (by id `"TIC"` or CV term MS:1000235) |
+| `id` | `str` | mzML `id` attribute |
+| `version` | `str` | mzML version string, e.g. `"1.1.0"` |
+| `file_name` | `str` | file name |
+| `file_path` | `Path \| None` | path, if opened from a path or a named file object |
+| `access_strategy` | `AccessStrategy` | backend chosen at open (see below) |
+| `file_description` | `FileDescription \| None` | `<fileDescription>` |
+| `run` | `Run \| None` | `<run>` attributes |
+| `instrument_configurations` | `dict[str, InstrumentConfiguration]` | keyed by id |
+| `softwares` | `dict[str, Software]` | keyed by id |
+| `samples` | `dict[str, Sample]` | keyed by id |
+| `data_processes` | `dict[str, DataProcessing]` | keyed by id |
+| `scan_settings` | `dict[str, ScanSetting]` | keyed by id |
+| `referenceable_param_groups` | `dict[str, ReferenceableParamGroup]` | keyed by id |
+| `cvs` | `dict[str, CVElement]` | controlled vocabularies (`CVElement(id, full_name, version, uri)`) |
+| `validate(*, decode_binary=False, check_index=False)` | `ValidationReport` | validate through a fresh handle; does not move the lookup cursor |
+| `close()` | `None` | close the file (done by the context manager) |
+
+Header metadata is parsed when the reader opens. Spectra and chromatograms are read and parsed
+only when accessed.
+
+### `AccessStrategy` (StrEnum)
+
+`reader.access_strategy` reports the storage backend actually used:
+
+| value | when |
+|---|---|
+| `memory` | `in_memory=True` (the default), any input; also `BytesIO` input |
+| `plain` | uncompressed file with `in_memory=False` |
+| `embedded` | self-indexed gzip written by `write_indexed_gzip`, `in_memory=False` |
+| `extracted` | `.gz` decompressed to a cache file (`gzip_mode="extract"`, or `"auto"` fallback) |
+| `rapidgzip` | `gzip_mode="indexed"` (needs the `rapidgzip` extra) |
+| `stream` | `gzip_mode="stream"`: sequential only |
+
+## Lookups: `SpectrumLookup`, `ChromatogramLookup`
+
+```python
+reader.spectra[0]              # by 0-based index; negative indices count from the end
+reader.spectra["scan=19"]      # by native id (KeyError if absent)
+reader.spectra[0:5]            # slice -> list[Spectrum]
+len(reader.spectra)            # count (0 for an empty file, does not raise)
+"scan=19" in reader.spectra    # membership by id
+for s in reader.spectra: ...   # iterate in file order, memory-bounded
+```
+
+Methods (both lookups):
+
+- `get_by_index(index: int | str) -> T`: same as `lookup[index]` for ints.
+- `get_by_id(identifier: str) -> T`: same as `lookup["id"]`.
+- `get_by_slice(slice_obj: slice) -> list[T]`
+- `count -> int | None`: declared record count.
+- `next() -> T`: advance a persistent cursor; `reset()` rewinds it.
+- `ChromatogramLookup.TIC -> Chromatogram`: the TIC chromatogram.
+- `SpectrumLookup.filter(*, ms_level=None, retention_time=None, polarity=None, precursor_mz=None,
+  spectrum_type=None, mobility_type=None, ion_mobility=None, faims_voltage=None) -> Iterator[Spectrum]`:
+  lazy metadata selection (see Filtering).
+
+### Look up by scan number with `id_regex`
+
+```python
+# The first capture group (or the full match if no groups) becomes a secondary key.
+with Mzml("run.mzML", spectrum_id_regex=r"scan=(\d+)") as reader:
+    s = reader.spectra["19"]     # instead of "controllerType=0 controllerNumber=1 scan=19"
+```
+
+`chromatogram_id_regex` works the same way for chromatograms. The full native id keeps working.
+
+## `Spectrum`
+
+All properties are lazy and return `None` (or `[]` for lists) when the term is absent.
+
+| property | type | notes |
+|---|---|---|
+| `id` | `str` | native id, e.g. `"controllerType=0 controllerNumber=1 scan=1"` |
+| `id_dict` | `dict[str, int \| str]` | native id split into `key=value` parts, e.g. `{"scan": 19}` |
+| `index` | `int \| None` | the XML `index` attribute |
+| `default_array_length` | `int \| None` | number of points |
+| `mz` | `np.ndarray \| None` | decoded m/z array (decoded on every access) |
+| `intensity` | `np.ndarray \| None` | decoded intensity array |
+| `charge` | `np.ndarray \| None` | per-point charge array, if present |
+| `ms_level` | `int \| None` | 1, 2, ... |
+| `polarity` | `Literal["positive", "negative"] \| None` | |
+| `spectrum_type` | `Literal["centroid", "profile"] \| None` | |
+| `spectra_combination` | `Literal["no_combination", "median", "sum", "mean"] \| None` | scanList combination term |
+| `scan_start_time` | `timedelta \| None` | from the first scan (warns if there are several) |
+| `ion_injection_time` | `timedelta \| None` | from the first scan (warns if there are several) |
+| `lower_mz` / `upper_mz` | `float \| None` | scan-window limits (single scan with single window) |
+| `filter_string` | `str \| None` | instrument filter string (e.g. Thermo) |
+| `ion_mobility` | `float \| None` | scan-level 1/K0 (preferred) or drift time |
+| `has_im` | `bool` | ion mobility present (array or scan term) |
+| `im_types` | `set[BinaryDataArrayAccession]` | ion-mobility array types present |
+| `TIC` | `float \| None` | total ion current of this spectrum |
+| `base_peak_mz` / `base_peak_intensity` | `float \| None` | MS:1000504 / MS:1000505 |
+| `lowest_observed_mz` / `highest_observed_mz` | `float \| None` | MS:1000528 / MS:1000527 |
+| `scans` | `list[Scan]` | scan list |
+| `is_single_scan` | `bool` | exactly one scan |
+| `precursors` | `list[Precursor]` | MSn precursor info; `has_precursors: bool` |
+| `products` | `list[Product]` | product list; `has_products: bool` |
+| `binary_arrays` | `list[BinaryDataArray]` | all arrays |
+| `data_processing_ref`, `source_file_ref`, `spot_id` | `str \| None` | XML attributes |
+
+Methods: `get_binary_array(id: str) -> BinaryDataArray | None` and `has_binary_array(id: str) -> bool`
+take an array accession or name (e.g. `"MS:1000514"` / `"m/z array"`).
+
+### Precursors, products, scans
+
+```python
+for prec in spectrum.precursors:
+    win = prec.isolation_window           # IsolationWindow | None
+    if win is not None:
+        win.target_mz, win.lower_offset, win.upper_offset   # float | None
+    for ion in prec.selected_ions:        # list[SelectedIon]
+        ion.selected_ion_mz, ion.charge_state, ion.peak_intensity
+    act = prec.activation                 # Activation | None
+    if act is not None:
+        act.activation_type               # CollisionDissociationTypeAccession | None, e.g. CID MS:1000133
+        act.ce                            # collision energy, float | None
+    prec.spectrum_ref                     # id of the precursor spectrum, str | None
+
+for prod in spectrum.products:
+    prod.isolation_window                 # IsolationWindow | None (also has .no_isolation: bool)
+```
+
+- `Precursor`: `isolation_window`, `selected_ions`, `activation`, `spectrum_ref`,
+  `external_spectrum_id`, `source_file_ref`.
+- `SelectedIon`: `selected_ion_mz`, `charge_state`, `peak_intensity`, `ir_im` (1/K0),
+  `im_drift_time`, `ccs`, `faims_voltage_start`, `faims_voltage_end`.
+- `Activation`: `activation_type`, `ce`, `supplemental_ce`, `activation_energy`, `collision_gas`,
+  `collision_gas_pressure`.
+- `IsolationWindow`: `target_mz`, `lower_offset`, `upper_offset`, `no_isolation` (MS:1003159).
+- `Product`: `isolation_window`.
+- `Scan`: `scan_start_time`, `ion_injection_time` (both `timedelta | None`), `filter_string`,
+  `scan_windows: list[ScanWindow]`, `is_single_windowed_scan`, `lower_mz`, `upper_mz`,
+  `inverse_reduced_ion_mobility` (MS:1002815), `ion_mobility_drift_time` (MS:1002476),
+  `faims_compensation_voltage` (MS:1001581), `selexion_separation_voltage` (MS:1003394),
+  `selexion_compensation_voltage` (MS:1003371).
+- `ScanWindow`: `lower_mz`, `upper_mz`.
+
+## `Chromatogram`
+
+```python
+with Mzml("run.mzML") as reader:
+    tic = reader.TIC                      # Chromatogram | None
+    for chrom in reader.chromatograms:
+        t = chrom.time                    # np.ndarray | None (time array in its recorded unit)
+        i = chrom.intensity
+        chrom.chromatogram_type           # "tic", "sic", "srm", "basepeak", ... or None
+    sic = reader.chromatograms["sic"]     # by id
+```
+
+Properties: `id`, `id_dict`, `time`, `intensity`, `chromatogram_type`
+(`Literal["emission", "sim", "basepeak", "pic", "tic", "absorption", "srm", "sic"] | None`),
+`precursor: Precursor | None`, `product: Product | None`, `has_precursor`, `has_product`,
+`binary_arrays`, `default_array_length`, `data_processing_ref`, `source_file_ref`.
+Methods: `get_binary_array(id)`, `has_binary_array(id)`.
+
+## `BinaryDataArray`
+
+| member | type | notes |
+|---|---|---|
+| `data` | `np.ndarray` | decode and return the array (not cached) |
+| `binary_array_type` | `BinaryDataArrayAccession \| None` | m/z, intensity, ion mobility, ... |
+| `encoding` | `BinaryDataTypeAccession \| None` | 32/64-bit float or int |
+| `compression` | `CompressionTypeAccessions \| None` | zlib, zstd, Numpress variants, none |
+
+## CV parameter access (every record and metadata wrapper)
+
+`Spectrum`, `Chromatogram`, `Scan`, `Precursor`, `BinaryDataArray`, `FileContent`,
+`InstrumentConfiguration`, `Software`, `Sample`, etc. share these helpers:
+
+- `get_cvparm(id: str) -> CvParam | None`: by accession (`"MS:1000511"`) or name (`"ms level"`).
+- `has_cvparm(id: str) -> bool`
+- `cv_float(id: str) -> float | None`, `cv_int(id: str) -> int | None`: numeric value; raises
+  `ValueError` naming the term if the value is not numeric.
+- `cv_params -> list[CvParam]`, `accessions -> set[str]`, `names -> set[str]`
+- `user_params -> list[UserParam]`, `get_user_param(name)`, `has_user_param(name)`
+- `ref_params -> list[ReferenceableParamGroupRef]`, `get_ref_param(ref)`, `has_ref_param(ref)`
+- `get_attribute(attr_name: str) -> str | None`: raw XML attribute.
+- `serialize() -> dict`: full element content as nested dicts.
+
+`CvParam(name, value, unit_accession, unit_name, unit_cv_ref, cv_ref, accession)` and
+`UserParam(name, value, unit_accession, unit_name, unit_cv_ref, type_value)` are frozen
+dataclasses; both have `to_timedelta -> timedelta | None` for time-unit values.
+`ReferenceableParamGroupRef(ref)` and `SourceFileRef(ref)` hold a referenced id.
+
+Referenceable parameter groups are expanded in place, so a term defined in a
+`<referenceableParamGroup>` is found by `get_cvparm` on the element that references it.
+
+```python
+spec = reader.spectra[0]
+spec.get_cvparm("MS:1000511").value      # "1" (str | None)
+spec.cv_int("MS:1000511")                # 1
+spec.has_cvparm("centroid spectrum")
+```
+
+## Header metadata classes
+
+- `FileDescription`: `file_content: FileContent | None`, `source_files: list[SourceFile]`,
+  `get_source_file(id) -> SourceFile | None`, `contact: list[Contact]`.
+- `FileContent`: CV terms for the file's content; `is_dia: bool` (a merged DIA method term is
+  declared), `dia_acquisition: DIAAcquisitionAccession | None`.
+- `SourceFile`: `id`, `name`, `location`, `checksum`, `checksum_type` (`"MD5" | "SHA1" | "SHA256" | None`).
+- `Contact`: `name`, `organization`, `address`, `email`, `url`, `role`, `phone_number`,
+  `fax_number`, `toll_free_phone_number`.
+- `InstrumentConfiguration`: `id`, `software_ref`, `source_components`, `analyzer_components`,
+  `detector_components` (tuples of `SourceComponent` / `AnalyzerComponent` / `DetectorComponent`,
+  each with `order: int | None` plus CV terms).
+- `Software`: `id`, `version`.
+- `Sample`: `id`, `name`.
+- `Run`: `id`, `start_time_stamp: datetime | None`, `default_instrument_configuration_ref`,
+  `default_source_file_ref`, `sample_ref`.
+- `DataProcessing`: `id`, `processing_methods: tuple[ProcessingMethod, ...]`.
+- `ProcessingMethod`: `order: int | None`, `software_ref: str | None`, plus CV terms.
+- `ScanSetting`: `id`, `source_file_refs: tuple[SourceFileRef, ...]`, `targets: tuple[Target, ...]`.
+- `Target`: `mz: float | None`.
+- `ReferenceableParamGroup`: `id` plus CV/user params.
+
+```python
+with Mzml("run.mzML") as reader:
+    for cfg in reader.instrument_configurations.values():
+        print(cfg.id, [a.names for a in cfg.analyzer_components])
+    for sw in reader.softwares.values():
+        print(sw.id, sw.version)
+    if reader.run is not None:
+        print(reader.run.start_time_stamp)
+    fc = reader.file_description.file_content if reader.file_description else None
+    print(fc.is_dia if fc else None)
+```
+
+## Filtering (metadata only, lazy)
+
+```python
+with Mzml("run.mzML") as reader:
+    for s in reader.spectra.filter(ms_level=2, retention_time=(60, 180), polarity="positive"):
+        print(s.id)
+```
+
+`SpectrumFilter(ms_level=None, retention_time=None, polarity=None, precursor_mz=None,
+spectrum_type=None, mobility_type=None, ion_mobility=None, faims_voltage=None)` is the same
+predicate as a frozen dataclass; `SpectrumFilter(...).matches(spectrum) -> bool`.
+
+- Criteria combine with AND. Range criteria are `(low, high)` tuples, inclusive, either end may be `None`.
+- `retention_time` is in **seconds**, matched against any scan's start time.
+- `precursor_mz` matches isolation-window overlap, falling back to selected-ion m/z.
+- `ion_mobility` requires `mobility_type="inverse_reduced"` or `"drift_time"` and uses the
+  recorded scan value in its declared unit. `faims_voltage` is signed volts.
+- Missing metadata never matches. Filtering never decodes binary arrays.
+
+## Validation
+
+```python
+from mzmlpy import validate
+
+report = validate("run.mzML.gz", decode_binary=False, check_index=False)
+report.valid          # parsing completed and no error-severity issues
+report.complete       # parsing reached the end of the document
+for issue in report.issues:
+    print(issue.severity, issue.code, issue.location, issue.message)
+report.to_dict()      # JSON-serializable, includes "valid"
+```
+
+- `validate(file: str | Path, *, decode_binary=False, check_index=False) -> ValidationReport`.
+  Works on plain and gzip mzML and never creates or repairs caches.
+- `ValidationReport` fields: `issues: tuple[ValidationIssue, ...]`, `spectrum_count`,
+  `chromatogram_count`, `arrays_decoded`, `index_entries_checked`, `complete`, `decode_binary`,
+  `check_index`; property `valid`; method `to_dict()`.
+- `ValidationIssue(code, message, location, severity="error" | "warning")`. Codes include
+  `count_mismatch`, `duplicate_id`, `missing_id`, `missing_reference`, `invalid_integer`,
+  `unsupported_or_missing_encoding`, `unsupported_or_missing_compression`, `missing_binary`.
+- `decode_binary=True` decodes every array and checks lengths; `check_index=True` verifies the
+  `<indexList>` offsets. Full XSD and ontology validation are out of scope.
+- `reader.validate(...)` does the same for an open reader.
+
+## Gzipped files (`.mzML.gz`)
+
+```python
+Mzml("run.mzML.gz")                                          # default: decompress into memory
+Mzml("run.mzML.gz", gzip_mode="extract", in_memory=False)    # decompress to a cache file, then random access
+Mzml("run.mzML.gz", gzip_mode="indexed", in_memory=False)    # rapidgzip seekable access (needs extra)
+Mzml("run.mzML.gz", gzip_mode="stream", in_memory=False)     # lowest startup; random access rescans (slow, warns)
+```
+
+- `gzip_mode` only matters with `in_memory=False`. With the default `in_memory=True` the whole
+  decompressed file is buffered and every mode behaves the same.
+- `"auto"` uses, in order: an embedded index (self-indexed gzip), a current extracted cache,
+  complete rapidgzip sidecars; otherwise it extracts.
+- `"extract"` caches under `<tmpdir>/mzmlpy/` unless `extract_dir` is given. Cache files are
+  reused only while the source's path, size and timestamps are unchanged.
+- `"indexed"` writes index sidecars next to the source (`run.mzML.gzidx`, `run.mzMLidx` and
+  `.src` signature files), so that directory must be writable.
+- `clear_cache() -> None` deletes `<tmpdir>/mzmlpy/` (it does not touch `extract_dir` or sidecars).
+
+### Self-indexed gzip (pyMZML-compatible)
+
+```python
+from mzmlpy import write_indexed_gzip, is_embedded_indexed_gzip
+
+result = write_indexed_gzip("run.mzML", "run.mzML.gz", compression_level=6)
+result.output_path, result.spectrum_count, result.chromatogram_count, result.member_count, result.index_entry_count
+is_embedded_indexed_gzip("run.mzML.gz")   # True
+
+with Mzml("run.mzML.gz", in_memory=False) as reader:   # access_strategy == "embedded"
+    reader.spectra[1000]                                # random access, no extraction
+```
+
+- `write_indexed_gzip(source, output, *, compression_level=6) -> IndexedGzipWriteResult`:
+  deterministic output; `index_gzip` is the same function under another name.
+- `is_embedded_indexed_gzip(path) -> bool`: checks for the pyMZML `FU` version-1 marker.
+- The output is still a normal gzip file that any gzip reader can decompress.
+
+## Command line
+
+```bash
+python -m mzmlpy inspect run.mzML                     # JSON: file, id, version, access_strategy, counts
+python -m mzmlpy validate run.mzML.gz --decode-binary --check-index   # JSON report
+python -m mzmlpy index-gzip run.mzML run.mzML.gz      # JSON IndexedGzipWriteResult
+python -m mzmlpy mcp --root /abs/data [--output-dir /abs/exports]      # MCP server on stdio
+```
+
+Exit codes: 0 success, 1 invalid data (validate), 2 operational error (message on stderr).
+
+## MCP server (optional, `mzmlpy[mcp]`)
+
+```bash
+pip install "mzmlpy[mcp]"
+python -m mzmlpy mcp --root /absolute/path/to/data
+```
+
+Client configuration:
+
+```json
+{"mcpServers": {"mzmlpy": {"command": "/abs/venv/bin/python",
+  "args": ["-m", "mzmlpy", "mcp", "--root", "/abs/data"]}}}
+```
+
+- Programmatic: `from mzmlpy.mcp import create_server; create_server(root, output_dir=None).run(transport="stdio")`.
+- 17 tools by default: `server_info`, `list_files`, `inspect_file`, `get_metadata`,
+  `summarize_run`, `compare_runs`, `validate_file`, `find_spectra`, `get_spectrum`, `get_spectra`,
+  `list_chromatograms`, `get_chromatogram`, `get_array`, `start_job`, `get_job`, `cancel_job`,
+  `release_job`. With `--output-dir`, also `export_records` and `read_export` (JSONL with original
+  binary encodings).
+- Resources: `mzmlpy://capabilities`, `mzmlpy://guide`, `mzmlpy://units`, `mzmlpy://schemas`.
+- Read-only: sources are never modified; paths must resolve inside `--root`; no caches or
+  sidecars are created. Times are seconds. Results carry `file`, `revision`, `data`; continue
+  paging with `next_index`, unchanged filters and `expected_revision`.
+- Integers outside `[-(2**53-1), 2**53-1]` are sent as exact decimal strings.
+- No spectrum processing or plotting (that belongs to spxtacular / visualization clients).
+- Full reference: https://tacular-omics.github.io/mzmlpy/mcp/
+
+## Constants (`mzmlpy.constants`)
+
+CV accessions are `StrEnum`s (compare with the enum or with the accession string):
+`BinaryDataArrayAccession`, `BinaryDataTypeAccession`, `CompressionTypeAccessions`,
+`SpectrumMSAccession`, `ChromatogramTypeAccession`, `CollisionDissociationTypeAccession`,
+`IsolationWindowAccession`, `SelectedIonAccession`, `ActivationAccession`,
+`DIAAcquisitionAccession`, `SpectrumCombinationAccession`, `ChecksumTypeAccession`,
+`ContactAccession`, `TimeUnitAccession`, plus `ION_MOBILITIES` (set of ion-mobility array accessions).
+
+```python
+from mzmlpy.constants import BinaryDataArrayAccession
+
+arr = spectrum.get_binary_array(BinaryDataArrayAccession.MZ)   # same as "MS:1000514"
+```
+
+## Numeric types
+
+- Decoded arrays keep their declared dtype (float32, float64, int32, int64), also when empty.
+- Numpress arrays reconstruct as float64; no further narrowing.
+- Arrays are writable and freshly decoded on each access. Convert explicitly when you need a
+  type: `spectrum.mz.astype(np.float64)`. Integer arithmetic on int32 arrays can overflow.
+- Times from `scan_start_time` / `ion_injection_time` are `timedelta`, converted from the
+  recorded unit; `chrom.time` is the raw array in its recorded unit.
+
+## Worked examples
+
+MS2 precursor table:
+
+```python
+from mzmlpy import Mzml
+
+rows = []
+with Mzml("run.mzML") as reader:
+    for s in reader.spectra.filter(ms_level=2):
+        rt = s.scan_start_time.total_seconds() if s.scan_start_time else None
+        for p in s.precursors:
+            for ion in p.selected_ions:
+                rows.append((s.id, rt, ion.selected_ion_mz, ion.charge_state))
+```
+
+Base-peak chromatogram from MS1 spectra (computed by you, not stored in the file):
+
+```python
+import numpy as np
+from mzmlpy import Mzml
+
+times, bpis = [], []
+with Mzml("run.mzML.gz", gzip_mode="extract", in_memory=False) as reader:
+    for s in reader.spectra.filter(ms_level=1):
+        intensity = s.intensity
+        if intensity is not None and len(intensity) and s.scan_start_time is not None:
+            times.append(s.scan_start_time.total_seconds())
+            bpis.append(float(intensity.max()))
+```
+
+timsTOF ion mobility:
+
+```python
+with Mzml("bruker.mzML") as reader:
+    s = reader.spectra[0]
+    if s.has_im:
+        print(s.ion_mobility, s.im_types)   # scan-level 1/K0 and per-point mobility arrays present
+```
+
+Validate a batch of files:
+
+```python
+from pathlib import Path
+from mzmlpy import validate
+
+for path in Path("data").glob("*.mzML*"):
+    report = validate(path)
+    print(path.name, report.valid, len(report.issues))
+```
+
+## Gotchas / rules for correct code
+
+- **Decoding is not cached.** `spectrum.mz` / `.intensity` decode on every access. Assign once:
+  `mz = spectrum.mz`.
+- **Not thread-safe.** A reader shares one file handle; use one `Mzml` per thread or process.
+- **Absence is `None`.** `polarity`, `ms_level`, `mz`, `TIC`, `scan_start_time`, ... can be `None`.
+  Always guard. Empty arrays can be `None` or length 0.
+- **Warnings, not exceptions**, for ambiguous cases: a spectrum with several scans warns and
+  returns the first scan's value for `scan_start_time`, `lower_mz`, etc. Missing or assumed
+  compression/data-type terms also warn.
+- **Retention time units differ by API**: `scan_start_time` is a `timedelta`; filter bounds are
+  seconds; `Chromatogram.time` is the raw array in its recorded unit (check its unit CV term).
+- **`gzip_mode="stream"` is for one sequential pass.** Indexing into it rescans from the start.
+- **Use the context manager** (`with Mzml(...) as reader:`) or call `reader.close()`.
+- **Ids are strings.** `reader.spectra["19"]` only works with `spectrum_id_regex`; `reader.spectra[19]`
+  is the 20th spectrum by position, not scan 19. Use `s.id_dict["scan"]` for the scan number.
+
+## Error messages you may see
+
+- `Decoding this array requires the optional 'pynumpress' package … pip install mzmlpy[numpress]`
+  → install the named extra (same for `zstd`, `rapidgzip`).
+- `Cannot decode binary array: N bytes is not a multiple of the M-byte element size …`
+  → corrupt or truncated array, or an unsupported truncation encoding.
+- `CV param '<name>' (MS:xxxx) has a non-numeric value '<value>'` → malformed value in the file.
+- `Failed to base64-decode binary data array …` → corrupt `<binary>` content.
+- `Unsupported input type 'int': expected a path (str/Path) or a readable binary file-like object.`
+  → pass a path or an open binary file.
+
+## Changelog highlights
+
+- 0.9.1: `numpress` extra requires `pynumpress>=0.1.5` (wheels on macOS/Windows).
+- 0.9.0: optional MCP server; decoded arrays keep their native dtype (previously float64).
+- 0.8.0: `validate`, `SpectrumFilter` / `spectra.filter`, `python -m mzmlpy` CLI, self-indexed gzip.
+
+Full history: https://github.com/tacular-omics/mzmlpy/blob/main/CHANGELOG.md

@@ -1,221 +1,43 @@
-# mzmlpy — LLM / AI coding guide
+# mzmlpy
 
-> mzmlpy is a lightweight, type-safe, lazy-loading Python library (3.12+) for reading mzML mass
-> spectrometry files. This file is written for AI coding assistants: it is a compact, accurate
-> reference for generating correct mzmlpy code. Everything below matches the public API as of
-> version 0.9.0. Only `numpy` is required at runtime.
+> Lightweight, type-safe, lazy-loading Python library (3.12+) for reading mzML mass spectrometry
+> files, including gzip-compressed .mzML.gz, with structural validation, metadata filtering and an
+> optional local MCP server. Only numpy is required at runtime.
 
-## Install
+Open a file with `from mzmlpy import Mzml; with Mzml("run.mzML") as reader: ...`. `reader.spectra`
+and `reader.chromatograms` support indexing, native-id lookup, slicing, iteration and (for spectra)
+lazy metadata filtering; `Spectrum.mz` / `.intensity` return numpy arrays decoded on every access.
+Header metadata (instruments, software, samples, CV lists) is parsed when the file opens.
+`.mzML.gz` is read directly by extracting, rapidgzip-indexed access, streaming, or a
+pyMZML-compatible self-indexed gzip written by `write_indexed_gzip`. `python -m mzmlpy` offers
+`inspect`, `validate`, `index-gzip` and `mcp` commands with JSON output.
 
-```bash
-pip install mzmlpy
-# optional decoders (import lazily; only needed for those encodings):
-pip install mzmlpy[numpress]    # MS-Numpress arrays
-pip install mzmlpy[zstd]        # Zstandard-compressed arrays
-pip install mzmlpy[rapidgzip]   # fast/seekable .mzML.gz (gzip_mode="indexed")
-```
+Absent CV terms return `None`; readers are not thread-safe; retention-time filter bounds are in
+seconds. mzmlpy only reads data: spectrum processing lives in the sibling package spxtacular.
 
-## Core usage
+## Docs
 
-Always use the context manager so file handles are closed.
+- [llms-full.txt](https://raw.githubusercontent.com/tacular-omics/mzmlpy/main/llms-full.txt): self-contained usage guide with every public class, signature, examples and gotchas
+- [Getting started](https://tacular-omics.github.io/mzmlpy/getting-started/): installation, reading spectra and chromatograms, gzip modes, validation
+- [MCP server](https://tacular-omics.github.io/mzmlpy/mcp/): tools, limits, paging and exports of the optional MCP server
+- [README](https://github.com/tacular-omics/mzmlpy/blob/main/README.md): overview and quick example
+- [CHANGELOG](https://github.com/tacular-omics/mzmlpy/blob/main/CHANGELOG.md): release history, including the 0.9.0 native-dtype change
 
-```python
-from mzmlpy import Mzml
+## API
 
-with Mzml("run.mzML") as reader:
-    print(reader.file_name, len(reader.spectra), "spectra")
-    for spectrum in reader.spectra:
-        mz = spectrum.mz            # np.ndarray | None
-        intensity = spectrum.intensity
-        if mz is not None:
-            print(spectrum.id, f"MS{spectrum.ms_level}", len(mz), "peaks")
-```
+- [Mzml reader](https://tacular-omics.github.io/mzmlpy/api/mzml/): `Mzml`, `peek_spectrum_count`, `clear_cache`
+- [Spectrum](https://tacular-omics.github.io/mzmlpy/api/spectrum/): `Spectrum`, `BinaryDataArray`, `Scan`, `ScanWindow`
+- [Chromatogram](https://tacular-omics.github.io/mzmlpy/api/chromatogram/): `Chromatogram`
+- [Lookup](https://tacular-omics.github.io/mzmlpy/api/lookup/): `SpectrumLookup`, `ChromatogramLookup`
+- [Validation and filtering](https://tacular-omics.github.io/mzmlpy/api/validation/): `validate`, `ValidationReport`, `ValidationIssue`, `SpectrumFilter`
+- [Precursor and ions](https://tacular-omics.github.io/mzmlpy/api/precursor/): `Precursor`, `SelectedIon`, `IsolationWindow`, `Activation`, `Product`
+- [CV parameters](https://tacular-omics.github.io/mzmlpy/api/params/): `CvParam`, `UserParam`
+- [Constants](https://tacular-omics.github.io/mzmlpy/api/constants/): CV accession enums
 
-To cheaply check a spectrum count across many files without opening each fully (no index built,
-no random access needed), use the standalone function instead of constructing a reader:
+## Optional
 
-```python
-from mzmlpy import peek_spectrum_count
-
-n = peek_spectrum_count("run.mzML")  # int | None; works for .mzML and .mzML.gz
-```
-
-`reader.spectra` and `reader.chromatograms` are lookup objects supporting:
-
-```python
-reader.spectra[0]            # by 0-based index (negative indexing supported: [-1] = last)
-reader.spectra["scan=19"]    # by native id (KeyError if absent)
-reader.spectra[0:5]          # slice -> list[Spectrum]
-len(reader.spectra)          # count (0 for an empty file — does not raise)
-"scan=19" in reader.spectra  # membership
-for s in reader.spectra: ... # iterate (memory-bounded; safe to collect into a list)
-```
-
-## Spectrum API (all lazy; return None/`[]` when absent)
-
-| Property | Type | Notes |
-|---|---|---|
-| `id` | `str` | native id, e.g. `"controllerType=0 controllerNumber=1 scan=1"` |
-| `id_dict` | `dict[str, int\|str]` | native id parsed into components, e.g. `{"scan": 1}`; use `spectrum.id_dict["scan"]` for the scan number |
-| `mz` | `np.ndarray \| None` | decoded m/z array |
-| `intensity` | `np.ndarray \| None` | decoded intensity array |
-| `charge` | `np.ndarray \| None` | charge array if present |
-| `ms_level` | `int \| None` | 1, 2, … |
-| `polarity` | `Literal["positive","negative"] \| None` | |
-| `spectrum_type` | `Literal["centroid","profile"] \| None` | |
-| `scan_start_time` | `timedelta \| None` | |
-| `ion_injection_time` | `timedelta \| None` | |
-| `lower_mz` / `upper_mz` | `float \| None` | scan-window limits |
-| `filter_string` | `str \| None` | instrument scan filter (e.g. Thermo) |
-| `ion_mobility` | `float \| None` | scan-level ion mobility (e.g. timsTOF 1/K0) |
-| `TIC` | `float \| None` | total ion current value for the spectrum |
-| `base_peak_mz` / `base_peak_intensity` | `float \| None` | base peak summary |
-| `lowest_observed_mz` / `highest_observed_mz` | `float \| None` | observed m/z range |
-| `precursors` | `list[Precursor]` | MSn precursor info |
-| `products` | `list[Product]` | |
-| `scans` | `list[Scan]` | |
-| `has_im` / `im_types` | `bool` / `set` | ion-mobility presence/types |
-| `index`, `default_array_length` | `int \| None` | |
-
-Generic CV access (available on every element wrapper): `get_cvparm(accession_or_name)`,
-`has_cvparm(...)`, `cv_float(accession)`, `cv_int(accession)`, `.cv_params`, `.accessions`,
-`.user_params`, `.ref_params`.
-
-### Precursors
-
-```python
-for prec in spectrum.precursors:
-    win = prec.isolation_window          # IsolationWindow | None -> .target_mz, .lower_offset, .upper_offset
-    for ion in prec.selected_ions:       # list[SelectedIon]
-        ion.selected_ion_mz              # float | None
-        ion.charge_state                 # int | None
-        ion.peak_intensity               # float | None
-    prec.activation                      # Activation | None -> .activation_type, .ce, ...
-
-for prod in spectrum.products:
-    win = prod.isolation_window          # IsolationWindow | None; also exposes .no_isolation
-```
-
-Scan-level front-end ion-mobility filters are available as `scan.faims_compensation_voltage`,
-`scan.selexion_separation_voltage`, and `scan.selexion_compensation_voltage`. For DIA files,
-`reader.file_description.file_content.is_dia` reports whether a merged DIA method term is declared,
-and `.dia_acquisition` returns that term.
-
-## Chromatograms
-
-```python
-with Mzml("run.mzML") as reader:
-    tic = reader.TIC                     # Chromatogram | None (found by id or MS:1000235 CV term)
-    for chrom in reader.chromatograms:
-        t = chrom.time                   # np.ndarray | None
-        i = chrom.intensity
-    sic = reader.chromatograms["sic"]    # by id
-```
-
-## Metadata (parsed eagerly at open)
-
-```python
-reader.id                          # mzML id
-reader.version                     # mzML version string
-reader.file_description            # FileDescription | None
-reader.instrument_configurations   # dict[str, InstrumentConfiguration]
-reader.softwares                   # dict[str, Software]
-reader.samples                     # dict[str, Sample]
-reader.data_processes              # dict[str, DataProcessing]
-reader.cvs                         # dict[str, CVElement]
-reader.referenceable_param_groups  # dict[str, ReferenceableParamGroup]
-```
-
-## Gzipped files (`.mzML.gz`)
-
-mzmlpy reads `.gz` directly (pyteomics cannot). Choose a strategy via `gzip_mode`:
-
-```python
-Mzml("run.mzML.gz")                          # in_memory=True (default): materialize the decompressed file
-Mzml("run.mzML.gz", gzip_mode="indexed", in_memory=False)  # seekable, no disk copy (needs rapidgzip)
-Mzml("run.mzML.gz", gzip_mode="stream", in_memory=False)      # lowest startup; random access re-scans (slow)
-
-from mzmlpy import clear_cache
-clear_cache()                                # remove extracted/index cache files
-```
-
-Mode differences only matter with `in_memory=False`; the default `in_memory=True` buffers the
-whole file so all modes behave alike. For random access on large files use `extract` or `indexed`,
-not `stream`.
-
-## Look up spectra by scan number (id_regex)
-
-```python
-# First capture group becomes a secondary lookup key.
-with Mzml("run.mzML", spectrum_id_regex=r"scan=(\d+)") as reader:
-    s = reader.spectra["19"]             # instead of the full native id
-# chromatogram_id_regex works the same for chromatograms.
-```
-
-## Gotchas / rules for correct code
-
-- **Decoding is not cached.** `spectrum.mz` / `.intensity` decode on *every* access. Assign to a
-  variable if you use the result more than once: `mz = spectrum.mz`.
-- **Not thread-safe.** A reader shares one file handle; use one `Mzml` per thread.
-- **Absence is `None`.** `polarity`, `ms_level`, `mz`, `TIC`, etc. return `None` when the term is
-  absent — always guard before use.
-- **Empty arrays** may be `None` or length 0 (e.g. empty MS2 frames). Check `len(...)`.
-- **Warnings, not exceptions**, for ambiguous cases (e.g. a spectrum with multiple scans warns and
-  returns the first). Missing/assumed compression or data types also warn.
-- **Use the context manager** (`with Mzml(...) as reader:`) or call `reader.close()`.
-- **Constructor:** `Mzml(file, build_index_from_scratch=False, gzip_mode="auto",
-  in_memory=True, extract_dir=None, spectrum_id_regex=None, chromatogram_id_regex=None)`. `file`
-  may be a path (str/Path) or a `BytesIO`.
-
-## Error messages you may see (they are intentionally descriptive)
-
-- `Decoding this array requires the optional 'pynumpress' package … pip install mzmlpy[numpress]`
-  → install the named extra.
-- `Cannot decode binary array: N bytes is not a multiple of the M-byte element size …`
-  → the array is corrupt/truncated or uses an unsupported truncation encoding.
-- `CV param '<name>' (MS:xxxx) has a non-numeric value '<value>'`
-  → a numeric CV term holds a malformed value in the file.
-- `Failed to base64-decode binary data array …` → corrupt `<binary>` content.
-
-## More
-
-- Getting started: https://tacular-omics.github.io/mzmlpy/getting-started/
-- API reference: https://tacular-omics.github.io/mzmlpy/api/mzml/
-- Benchmarks vs pyteomics/pymzml: `benchmarks/README.md`
-
-## Validation and filtering (0.8.0)
-
-- `validate(path, decode_binary=False, check_index=False)` returns `ValidationReport`.
-- Reports expose `valid`, `complete`, `issues`, record counts, check counters, and `to_dict()`.
-- Structural checks do not decode arrays. Full XSD and ontology validation are outside the scope.
-- `reader.validate(...)` validates the selected representation without advancing lookup cursors.
-- `reader.spectra.filter(ms_level=2, retention_time=(60, 180), polarity="positive")` is lazy.
-- Retention time is in seconds. Bounds are inclusive and may have a `None` endpoint.
-- `precursor_mz=(499, 501)` matches isolation-window overlap, with selected ions as a fallback.
-- `SpectrumFilter(...).matches(spectrum)` exposes the same predicate. Missing metadata does not match.
-- `python -m mzmlpy` supports `inspect`, `validate`, and `index-gzip`, with JSON output.
-- Custom extraction directories use source-specific, revision-specific filenames.
-
-## Numeric types (0.9.0)
-
-- Decoded ordinary arrays retain their declared float32, float64, int32, or int64 dtype.
-- Empty arrays retain that dtype. Returned arrays are writable and freshly decoded per access.
-- Numpress reconstructs float64 values. No extra narrowing conversion is applied.
-- Existing code requiring float64 should use `array.astype(np.float64)` explicitly.
-- Integer arithmetic may overflow. Choose calculation types in the consuming package.
-- MCP reports decoded dtypes and encodes integers outside `[-(2**53-1), 2**53-1]` as exact decimal strings.
-
-## MCP integration (0.9.0)
-
-- Install with `pip install "mzmlpy[mcp]"`.
-- Launch `python -m mzmlpy mcp --root /absolute/path/to/data`.
-- Seventeen default tools cover discovery, header metadata, validation, metadata inventories,
-  comparisons, spectrum batches, stored chromatograms, arbitrary arrays, and background jobs.
-- With --output-dir, export_records and read_export provide original encoded records in JSONL.
-- Read mzmlpy://capabilities, mzmlpy://guide, mzmlpy://units, and mzmlpy://schemas.
-- Spectrum processing belongs to Spectacular. Plotting belongs to companion visualization tools.
-- The JSONL handoff is an mzmlpy format, not an assumed Spectacular importer.
-- Sources are read-only. Paths stay inside the configured data directory. Exports require explicit output configuration.
-- Results contain file, revision, and data. Follow next_index with unchanged filters and expected_revision.
-- Search and chromatogram times use seconds. Peak decoding is opt-in and decodes full arrays before paging.
-- See docs/mcp.md for controls, limits, and validation scope.
+- [CLAUDE.md](https://github.com/tacular-omics/mzmlpy/blob/main/CLAUDE.md): guide for AI agents developing mzmlpy itself (commands, architecture, gotchas)
+- [Benchmarks](https://tacular-omics.github.io/mzmlpy/benchmarks/): format support and throughput versus pyteomics and pymzml
+- [GitHub repository](https://github.com/tacular-omics/mzmlpy)
+- [PyPI package](https://pypi.org/project/mzmlpy/)
+- [mzML specification](https://www.psidev.info/mzML): the HUPO-PSI standard mzmlpy reads
