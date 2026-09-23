@@ -4,9 +4,9 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [Unreleased]
 
-## [0.9.0] - 2026-09-05
+## [0.9.0] (2026-09-05)
 
 ### Added
 
@@ -32,7 +32,7 @@ All notable changes to this project are documented here. The format is based on
 - MCP array replies report decoded types and preserve large integers as exact decimal strings
   outside the interoperable JSON integer range. Paired-point replies follow the same convention.
 
-## [0.8.0] - 2026-09-04
+## [0.8.0] (2026-09-04)
 
 ### Added
 
@@ -63,7 +63,7 @@ All notable changes to this project are documented here. The format is based on
 - Cache signatures include source identity and cached-file metadata. Old caches are rebuilt.
 - `in_memory=True` remains the default. Large-file examples explicitly select disk-backed access.
 
-## [0.7.0] - 2026-08-28
+## [0.7.0] (2026-08-28)
 
 ### Added
 
@@ -79,7 +79,7 @@ All notable changes to this project are documented here. The format is based on
 - Embedded index and gzip member validation rejects duplicate identifiers, invalid offsets,
   malformed deflate streams, and checksum failures.
 
-## [0.6.0] - 2026-08-15
+## [0.6.0] (2026-08-15)
 
 Ion-mobility / DIA release, tracking the PSI "Encoding data independent acquisition, ion mobility
 data, subsampled data arrays, and additional compression types in mzML 1.1" recommendation v1.0
@@ -109,7 +109,7 @@ data, subsampled data arrays, and additional compression types in mzML 1.1" reco
 - **Referenced DIA metadata** — DIA acquisition terms inherited by `fileContent` through a valid
   `referenceableParamGroupRef` are now resolved instead of incorrectly reporting `is_dia=False`.
 
-## [0.5.0] - 2026-07-09
+## [0.5.0] (2026-07-09)
 
 A large correctness, robustness, and diagnostics release. Some behavior changed in ways that can
 affect existing code (see **Changed**).
@@ -213,7 +213,7 @@ affect existing code (see **Changed**).
 - **`MSDecoder.encode_linear` / `encode_slof`** now pass the required numpress fixed point (they
   raised `TypeError` before); encoding is functional.
 
-## [0.4.0] - 2026-04-07
+## [0.4.0] (2026-04-07)
 
 ### Added
 
@@ -241,7 +241,7 @@ affect existing code (see **Changed**).
 - Dictionary-encoded zstd now uses the actual dtype instead of guessing it from the buffer size.
 - Fixed several `pynumpress` API compatibility issues.
 
-## [0.2.0] - 2026-03-16
+## [0.2.0] (2026-03-16)
 
 ### Changed
 
@@ -264,7 +264,7 @@ affect existing code (see **Changed**).
 - Polarity accessions — `ScanPolarity.POSITIVE` and `ScanPolarity.NEGATIVE` were swapped, causing
   incorrect polarity identification for all spectra.
 
-## [0.1.0] - 2026-02-10
+## [0.1.0] (2026-02-10)
 
 ### Added
 

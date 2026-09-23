@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from . import Mzml, __version__
+from . import Mzml, Spectrum, __version__
 from ._mcp_metadata import (
     array_metadata,
     chromatogram_metadata,
@@ -92,7 +92,7 @@ def export_records(service: "MzmlTools", path: Path, revision: str, record_ids: 
                     arrays.append(
                         {**array_metadata(array), "encoded_binary": binary.text if binary is not None else None}
                     )
-                metadata = spectrum_metadata(record) if kind == "spectrum" else chromatogram_metadata(record)
+                metadata = spectrum_metadata(record) if isinstance(record, Spectrum) else chromatogram_metadata(record)
                 write_line(
                     {"kind": kind, "id": record.id, "position": position, "metadata": metadata, "arrays": arrays}
                 )
