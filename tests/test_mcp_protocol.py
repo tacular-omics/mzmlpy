@@ -72,7 +72,8 @@ def test_protocol_tools(mode: str) -> None:
             prompts = await client.list_prompts()
             assert {item.name for item in prompts.prompts} == {"inspect_run", "compare_acquisition", "prepare_handoff"}
             prompt = await client.get_prompt("prepare_handoff", {"file": "example.mzML"})
-            assert "Spectacular" in prompt.messages[0].content.text
+            assert "spxtacular" in prompt.messages[0].content.text
+            assert "Spectacular" not in prompt.messages[0].content.text
             job = await client.call_tool(
                 "start_job", {"operation": "summarize_run", "arguments": {"file": "example.mzML"}}
             )

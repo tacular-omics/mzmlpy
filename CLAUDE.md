@@ -172,8 +172,8 @@ Full signatures and examples: `llms-full.txt`.
   whole (decompressed) file, so `reader.access_strategy` is `memory` for every mode.
 - **`gzip_mode="indexed"` writes sidecars next to the source** (`X.mzML.gzidx`, `X.mzMLidx` and
   their `.src` signature files), so the source directory must be writable. Running the tests
-  creates these in `tests/data/`; `*.gzidx`/`*.mzMLidx` are gitignored, the `*.src` files are not,
-  so do not commit them.
+  would create these next to `tests/data/` files, so `tests/test_docs.py` runs the doc examples
+  against a copy in `tmp_path`; the sidecars and their `.src` files are gitignored.
 - **`gzip_mode="stream"` random access rescans the file** from the start each time and warns. Use
   `extract`, `indexed` or a self-indexed gzip for random access.
 - **Cache currency uses source signatures** (`util.source_signature`: realpath, size, mtime_ns,

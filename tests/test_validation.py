@@ -92,6 +92,31 @@ def test_report_accumulates_structural_findings(tmp_path: Path) -> None:
     assert report.spectrum_count == 2
 
 
+DATA = Path(__file__).parent / "data"
+
+
+@pytest.mark.parametrize("name", ["example.mzML", "example.mzML.gz"])
+def test_real_example_file_is_valid(name: str) -> None:
+    # Regression: cvParam children of scanList were counted against its count attribute.
+    report = validate(DATA / name, decode_binary=True, check_index=True)
+    assert report.issues == ()
+    assert report.valid and report.spectrum_count == 4 and report.chromatogram_count == 2
+
+
+def test_count_ignores_param_children_and_names_the_record(tmp_path: Path) -> None:
+    def with_scan_list(count: int) -> Path:
+        param = '<cvParam accession="MS:1000795" name="no combination"/>'
+        scan_list = f'<scanList count="{count}">{param}<scan/></scanList>'
+        return write_file(tmp_path, record().replace("<binaryDataArrayList", scan_list + "<binaryDataArrayList"))
+
+    assert validate(with_scan_list(1)).valid
+    path = with_scan_list(2)
+    (issue,) = validate(path).issues
+    assert issue.code == "count_mismatch"
+    assert issue.location == "spectrum[scan=1]/scanList"
+    assert "found 1" in issue.message
+
+
 def test_validation_expands_parameter_groups(tmp_path: Path) -> None:
     group = (
         '<referenceableParamGroupList count="1"><referenceableParamGroup id="encoding">'

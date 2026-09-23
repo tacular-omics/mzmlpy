@@ -5,8 +5,10 @@ This checklist keeps the GitHub release, PyPI package, documentation, and Zenodo
 ## Prepare
 
 1. Start from a clean branch based on the current `main` branch.
-2. Set the same version in `pyproject.toml`, `src/mzmlpy/__init__.py`, and `CITATION.cff`.
-3. Move the user-visible changes from `Unreleased` into a dated version section in `CHANGELOG.md`.
+2. Run `just set-version X.Y.Z`. The version lives only in `__version__` in `src/mzmlpy/__init__.py`
+   (`pyproject.toml` reads it dynamically); the recipe sets it, copies it to `CITATION.cff`, and turns the
+   `CHANGELOG.md` `Unreleased` section into a dated `X.Y.Z` section. Run `just check-version` to confirm.
+3. Review the new `CHANGELOG.md` section (the recipe leaves an empty `## [Unreleased]` heading above it).
 4. Confirm the package classifiers, dependency floors, citation metadata, and documentation describe the candidate accurately.
 5. Run the full local gate:
 
@@ -26,7 +28,7 @@ This checklist keeps the GitHub release, PyPI package, documentation, and Zenodo
 
 1. Create a GitHub release tagged `vX.Y.Z` at the reviewed commit on `main`.
 2. Use the matching `CHANGELOG.md` section as the release notes.
-3. The release workflow builds and publishes the package to PyPI with the configured project token.
+3. The release workflow builds and publishes the package to PyPI by trusted publishing.
 4. Confirm the new files and metadata on PyPI, then install the published wheel in a clean environment.
 5. Wait for Zenodo to archive the GitHub release and verify its title, creators, ORCIDs, version, license, repository, and files.
 6. Add the version-specific Zenodo citation to the README in a follow-up commit.

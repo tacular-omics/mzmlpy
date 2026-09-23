@@ -1,5 +1,6 @@
 """Second adversarial round: cross-mode consistency, namespace/CV robustness, scan-window units."""
 
+import shutil
 import warnings
 from importlib.util import find_spec
 
@@ -33,7 +34,7 @@ def _spectra_fingerprint(reader):
     return out
 
 
-def test_all_access_modes_agree():
+def test_all_access_modes_agree(tmp_path):
     """The same data must read identically across in_memory and every gzip_mode."""
     with Mzml(EXAMPLE) as r:
         baseline = _spectra_fingerprint(r)
@@ -45,7 +46,9 @@ def test_all_access_modes_agree():
         Mzml(EXAMPLE_GZ, gzip_mode="stream", in_memory=False),
     ]
     if find_spec("rapidgzip") is not None:
-        variants.append(Mzml(EXAMPLE_GZ, gzip_mode="indexed", in_memory=False))
+        # "indexed" writes sidecars next to its source, so use a copy outside tests/data.
+        indexed_source = shutil.copy2(EXAMPLE_GZ, tmp_path / "example.mzML.gz")
+        variants.append(Mzml(indexed_source, gzip_mode="indexed", in_memory=False))
     for r in variants:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")  # stream mode warns on random access

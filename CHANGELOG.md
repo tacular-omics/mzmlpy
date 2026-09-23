@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- `validate()` no longer reports `count_mismatch` on valid files (including `tests/data/example.mzML`): a list's
+  `count` is now compared with its own items only, not its `cvParam`/`userParam` children. Issues inside a spectrum
+  or chromatogram now name the record (`spectrum[scan=1]/scanList`), and elements without an `id` are shown without
+  empty brackets (`spectrumList`, not `spectrumList[]`).
+- The MCP server instructions, prompts and tool descriptions name the processing package correctly as spxtacular.
+- `tests/test_docs.py` and `tests/test_adversarial.py` no longer leave `gzip_mode="indexed"` sidecars in
+  `tests/data/`; `*.gzidx.src` and `*.mzMLidx.src` are gitignored.
+- Stale docstrings (`peek_spectrum_count`, `Mzml`, the `run` module), `RELEASING.md` and `justfile` comments.
+
 ## [0.9.1] (2026-09-23)
 
 ### Changed

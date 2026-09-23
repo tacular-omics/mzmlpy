@@ -26,7 +26,8 @@ pip install mzmlpy
 - [MCP server](mcp.md): connect an AI client to local mzML files.
 - [API reference](api/mzml.md): every public class and function.
 - Using an AI coding assistant? Point it at
-  [`llms.txt`](https://github.com/tacular-omics/mzmlpy/blob/main/llms.txt) for a compact API guide.
+  [`llms.txt`](https://github.com/tacular-omics/mzmlpy/blob/main/llms.txt) for a short index, or
+  [`llms-full.txt`](https://github.com/tacular-omics/mzmlpy/blob/main/llms-full.txt) for the full API guide.
 
 ## Related packages
 
