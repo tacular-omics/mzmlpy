@@ -24,8 +24,8 @@ full decode just to look at a spectrum's metadata.
   XML trees.
 - **Handles gzip well** — reads `.mzML.gz` directly, with a self-indexed gzip format for
   random access without re-extracting the file.
-- **Built-in decoders** — zlib, zstd, and MS-Numpress compression are supported out of
-  the box.
+- **Common compressions** — zlib out of the box; zstd and MS-Numpress through optional
+  extras.
 - **Validates, not just parses** — a `validate()` function reports structural and
   decoding problems instead of silently producing bad data.
 
