@@ -3,7 +3,7 @@
 
   A lightweight Python library for parsing mzML mass spectrometry files. Implements a type-safe, lazy-loading API with direct support for modern mzML structures (>= 1.1.0).
 
-  [![Python package](https://github.com/tacular-omics/mzmlpy/actions/workflows/python-package.yml/badge.svg)](https://github.com/tacular-omics/mzmlpy/actions/workflows/python-package.yml)
+  [![Python package](https://github.com/tacular-omics/mzmlpy/actions/workflows/ci.yml/badge.svg)](https://github.com/tacular-omics/mzmlpy/actions/workflows/ci.yml)
   [![codecov](https://codecov.io/github/tacular-omics/mzmlpy/graph/badge.svg?token=1CTVZVFXF7)](https://codecov.io/github/tacular-omics/mzmlpy)
   [![PyPI version](https://badge.fury.io/py/mzmlpy.svg)](https://badge.fury.io/py/mzmlpy)
   [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21960079.svg)](https://doi.org/10.5281/zenodo.21960079)
@@ -152,8 +152,8 @@ precursor filters, cache behavior, and `python -m mzmlpy` CLI commands.
 
 ## Citation
 
-Citation metadata are provided in [`CITATION.cff`](CITATION.cff). The archived v0.6.0 release is
-available from Zenodo at [doi:10.5281/zenodo.21960080](https://doi.org/10.5281/zenodo.21960080).
+Citation metadata are provided in [`CITATION.cff`](CITATION.cff). All archived releases are
+available from Zenodo at [doi:10.5281/zenodo.21960079](https://doi.org/10.5281/zenodo.21960079).
 
 
 ## Benchmarks
