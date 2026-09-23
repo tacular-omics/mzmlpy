@@ -34,7 +34,7 @@ jobs:
       # all extras on Linux only: pynumpress has no macOS/Windows wheels; the base-install and mcp jobs below cover those
       matrix:
         os: [ubuntu-latest]
-          - { os: windows-latest, python: "3.13" }
+        python: ["3.12", "3.13", "3.14"]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
