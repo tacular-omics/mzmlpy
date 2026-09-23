@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.9.1] (2026-09-23)
+
+### Changed
+
+- The `numpress` extra now requires `pynumpress>=0.1.5`, which ships wheels for macOS and Windows, so it no longer needs a source build there.
+- Releases publish to PyPI by trusted publishing, and the version lives only in `mzmlpy.__version__`.
+
+### Fixed
+
+- Type-checking fixes in the MCP server and file readers (no behaviour change).
+- `.zenodo.json` no longer hard-codes the version; Zenodo takes it from the release tag.
+
 ## [0.9.0] (2026-09-05)
 
 ### Added
