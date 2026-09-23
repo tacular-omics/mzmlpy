@@ -1,6 +1,6 @@
 default: check
 
-# Install dependencies
+# Install locked dependencies
 install:
     uv sync --locked
 
@@ -17,7 +17,7 @@ format:
 ty:
     uv run ty check src
 
-# Run type checking
+# Run lint, ty and tests (the default recipe; does not format)
 check:
     just lint
     just ty
@@ -27,6 +27,7 @@ check:
 test *args:
     uv run pytest tests {{args}}
 
+# Rewrite src and tests to Python 3.12+ syntax with pyupgrade
 upgrade:
     @echo "Upgrading Python syntax to 3.12+..."
     @find src tests -name "*.py" -type f -exec uv run --python-preference managed pyupgrade --py312-plus {} +
@@ -51,7 +52,7 @@ docs-build:  # Build docs to site/
 set-version version:
     python scripts/release_version.py sync --set {{version}}
 
-# Copy __version__ to CITATION.cff / .zenodo.json after editing it by hand
+# Copy __version__ to CITATION.cff after editing it by hand
 sync-version:
     python scripts/release_version.py sync
 

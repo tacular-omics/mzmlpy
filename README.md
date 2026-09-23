@@ -96,8 +96,10 @@ and **[API Reference](https://tacular-omics.github.io/mzmlpy/api/mzml/)** for th
 picture, including gzip mode details, the CLI, and the MCP server.
 
 Using an AI coding assistant? Point it at
-**[`llms.txt`](https://github.com/tacular-omics/mzmlpy/blob/main/llms.txt)** — a compact,
-accurate API guide for generating correct mzmlpy code.
+**[`llms.txt`](https://github.com/tacular-omics/mzmlpy/blob/main/llms.txt)**, a short index of the
+package and its docs, or at
+**[`llms-full.txt`](https://github.com/tacular-omics/mzmlpy/blob/main/llms-full.txt)** for the full API
+guide with signatures and examples.
 
 ## In the tacular-omics family
 

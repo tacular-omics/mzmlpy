@@ -10,6 +10,8 @@ tmp.py
 paper/
 *.gzidx
 *.mzMLidx
+*.gzidx.src
+*.mzMLidx.src
 
 
 # Distribution / packaging

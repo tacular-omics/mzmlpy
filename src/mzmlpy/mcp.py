@@ -398,7 +398,7 @@ class MzmlTools:
         self.jobs.close()
 
     def server_info(self) -> dict[str, Any]:
-        """Report supported operations, installed codecs, limits, and the Spectacular boundary."""
+        """Report supported operations, installed codecs, limits, and the spxtacular boundary."""
         import importlib.util
 
         return {
@@ -407,7 +407,7 @@ class MzmlTools:
             "exports_enabled": self.output_dir is not None,
             "optional_codecs": {name: importlib.util.find_spec(name) is not None for name in ("zstd", "pynumpress")},
             "scope": "File discovery, recorded metadata, validation, unchanged data access and export.",
-            "companion": "Use Spectacular for spectrum processing. Plotting belongs to a visualization client.",
+            "companion": "Use spxtacular for spectrum processing. Plotting belongs to a visualization client.",
             "excluded": ["peak picking", "smoothing", "normalization", "alignment", "identification", "XIC extraction"],
             "limits": {
                 "response_bytes": 262144,
@@ -798,7 +798,7 @@ class MzmlTools:
 
         Requires --output-dir. Generated artifact names never overwrite inputs. Each line
         includes record metadata and original encoded binary text, for downstream readers such
-        as Spectacular. No arrays are decoded, processed, or plotted. Maximum output is 100 MiB.
+        as spxtacular. No arrays are decoded, processed, or plotted. Maximum output is 100 MiB.
         """
         from ._mcp_export import export_records
 

@@ -25,6 +25,16 @@ _REFERENCE_TARGETS = {
     "scanSettingsRef": "scanSettings",
     "spectrumRef": "spectrum",
 }
+_COMPONENT_TAGS = frozenset({"source", "analyzer", "detector"})
+
+
+def _is_list_item(list_tag: str, child_tag: str) -> bool:
+    """Whether child_tag is an item counted by the count attribute of list_tag (not a cvParam etc.)."""
+    if list_tag == "componentList":
+        return child_tag in _COMPONENT_TAGS
+    if list_tag.endswith("List"):
+        return child_tag == list_tag.removesuffix("List")
+    return child_tag not in {"cvParam", "userParam", "referenceableParamGroupRef"}
 
 
 @dataclass(frozen=True)
@@ -215,6 +225,7 @@ def _validate_stream(handle: BinaryIO, *, decode_binary: bool, check_index: bool
         parents: list[ET.Element] = []
         child_counts: list[int] = []
         saw_mzml = False
+        record_location: str | None = None
         events = cast(
             Iterator[tuple[str, ET.Element | tuple[str, str]]],
             ET.iterparse(handle, events=("start", "end", "start-ns")),
@@ -227,8 +238,10 @@ def _validate_stream(handle: BinaryIO, *, decode_binary: bool, check_index: bool
             element = item
             tag = get_tag(element)
             if event == "start":
-                if child_counts:
+                if child_counts and _is_list_item(get_tag(parents[-1]), tag):
                     child_counts[-1] += 1
+                if tag in validator.records:
+                    record_location = f"{tag}[{element.get('id', '')}]"
                 parents.append(element)
                 child_counts.append(0)
                 saw_mzml |= tag == "mzML"
@@ -236,7 +249,9 @@ def _validate_stream(handle: BinaryIO, *, decode_binary: bool, check_index: bool
                 continue
             count = child_counts.pop()
             parents.pop()
-            location = f"{tag}[{element.get('id', '')}]"
+            location = f"{tag}[{element.get('id', '')}]" if "id" in element.attrib else tag
+            if record_location is not None and tag not in validator.records:
+                location = f"{record_location}/{location}"
             declared = validator.integer(element.get("count"), location, "count")
             if declared is not None and count != declared:
                 validator.issue("count_mismatch", f"Declared {declared} children, found {count}", location)
@@ -260,6 +275,7 @@ def _validate_stream(handle: BinaryIO, *, decode_binary: bool, check_index: bool
                             entries.append((entry.get("idRef", ""), offset))
             elif tag in validator.records:
                 validator.record(element)
+                record_location = None
             # Keep descendants intact until their containing record or metadata section ends.
             if parents and (tag in validator.records or get_tag(parents[-1]) == "mzML"):
                 parents[-1].remove(element)
