@@ -1,10 +1,11 @@
 """Optional local MCP tools for inspecting mzML data through the public reader API."""
 
 import json
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from itertools import islice
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
 import numpy as np
 
@@ -27,6 +28,7 @@ from ._mcp_types import (
     ComparisonData,
     DirectoryPage,
     ExportPage,
+    FileEntry,
     InspectData,
     MetadataPage,
     SpectrumData,
@@ -54,6 +56,15 @@ class FileResult[T]:
 def _bounded(value: Any) -> None:
     if len(json.dumps(value, allow_nan=False).encode()) > 262_144:
         raise ValueError("Result exceeds 256 KiB. Request a smaller page or use an export")
+
+
+class _RunSummary(TypedDict):
+    """One file's inventory and instrument metadata, gathered while comparing runs."""
+
+    file: str
+    revision: str
+    summary: SummaryData
+    instruments: list[dict[str, Any]]
 
 
 def _integer(name: str, value: int, minimum: int, maximum: int | None = None) -> None:
@@ -435,7 +446,7 @@ class MzmlTools:
             raise ValueError("Directory must be inside the configured data directory")
         if len(pattern) > 256 or "/" in pattern or "\\" in pattern:
             raise ValueError("pattern must be a filename glob with at most 256 characters")
-        entries = []
+        entries: list[FileEntry] = []
         for index, entry in enumerate(path.iterdir()):
             checkpoint("listing directory", index)
             if index >= 20000:
@@ -587,7 +598,7 @@ class MzmlTools:
         sources = [self._source(file) for file in files]
         if len({str(path) for path, _ in sources}) != len(sources):
             raise ValueError("Supply distinct files")
-        summaries = []
+        summaries: list[_RunSummary] = []
         for index, (path, revision) in enumerate(sources):
             checkpoint("comparing files", index)
             summary = self.summarize_run(str(path), revision)
@@ -602,9 +613,9 @@ class MzmlTools:
                     "instruments": instruments.data["items"],
                 }
             )
-        differences = {}
+        differences: dict[str, list[Any]] = {}
         for key in summaries[0]["summary"]:
-            values = [item["summary"][key] for item in summaries]
+            values = [cast(dict[str, Any], item["summary"])[key] for item in summaries]
             if any(value != values[0] for value in values[1:]):
                 differences[key] = values
         instruments = [item["instruments"] for item in summaries]
@@ -742,7 +753,7 @@ class MzmlTools:
         """
         import inspect
 
-        operations = {
+        operations: dict[str, Callable[..., Any]] = {
             "summarize_run": self.summarize_run,
             "validate_file": self.validate_file,
             "compare_runs": self.compare_runs,

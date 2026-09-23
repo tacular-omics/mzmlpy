@@ -203,7 +203,10 @@ class EmbeddedIndexedGzip(MzmlInterface):
                 match = _ELEMENT_PATTERNS[kind].search(member)
                 if match is None:
                     continue
-                element = self._element_at(offset, "spectrum" if kind == "spectrum" else "chromatogram").element
+                if kind == "spectrum":
+                    element = self._element_at(offset, "spectrum").element
+                else:
+                    element = self._element_at(offset, "chromatogram").element
                 identifier = element.get("id")
                 if identifier is not None:
                     target[identifier] = offset

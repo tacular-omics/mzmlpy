@@ -6,9 +6,12 @@ from collections import OrderedDict
 from functools import cached_property
 from io import BytesIO, TextIOWrapper
 from re import Pattern
-from typing import BinaryIO, TextIO, cast
+from typing import TYPE_CHECKING, BinaryIO, TextIO, cast
 from xml.etree.ElementTree import Element, ParseError
 from xml.parsers import expat
+
+if TYPE_CHECKING:
+    from _typeshed import WriteableBuffer
 
 from .. import regex_patterns
 from .._xml import read_fragment, read_header
@@ -33,9 +36,10 @@ class _MemoryViewReader(io.RawIOBase):
         self._pos += n
         return data
 
-    def readinto(self, b: bytearray) -> int:  # type: ignore[override]
-        n = min(len(b), len(self._mv) - self._pos)
-        b[:n] = self._mv[self._pos : self._pos + n]
+    def readinto(self, b: "WriteableBuffer") -> int:
+        view = memoryview(b).cast("B")
+        n = min(len(view), len(self._mv) - self._pos)
+        view[:n] = self._mv[self._pos : self._pos + n]
         self._pos += n
         return n
 
