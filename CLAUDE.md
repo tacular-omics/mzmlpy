@@ -55,7 +55,7 @@ src/mzmlpy/
 ## Dependencies
 
 - **Runtime:** `numpy>=1.26.0` only
-- **Optional:** `pynumpress>=0.0.4` (`pip install mzmlpy[numpress]`), `zstd>=1.5.5` (`pip install mzmlpy[zstd]`),
+- **Optional:** `pynumpress>=0.0.8` (`pip install mzmlpy[numpress]`), `zstd>=1.5.5` (`pip install mzmlpy[zstd]`),
   `rapidgzip>=0.14.0` (`pip install mzmlpy[rapidgzip]`, used by `gzip_mode="indexed"`)
 - **Dev:** pytest, pytest-cov, pytest-examples, ruff, ty, pyupgrade, zstd, mkdocs, mkdocs-material, mkdocstrings[python]
 - **Build:** uv + hatchling

@@ -66,6 +66,16 @@ exclude = [
 [tool.uv]
 package = true
 
+# pynumpress needs numpy to build its C extension but does not declare it as a
+# build dependency, so uv's isolated build otherwise resolves its own (unconstrained)
+# numpy for that sandbox instead of reusing the one already resolved for this project.
+# On lowest-resolution CI that pulls a numpy with no matching build backend for
+# pynumpress; on macOS/Windows it can pull an old numpy whose source build or
+# MinGW-built wheel is incompatible with current toolchains. Pin it to the same
+# floor as the runtime dependency so the build environment matches.
+[tool.uv.extra-build-dependencies]
+pynumpress = ["numpy>=1.26.0"]
+
 [dependency-groups]
 test = ["pytest>=9", "pytest-cov>=6.0.0", "pytest-examples>=0.0.14"]
 dev = [
@@ -81,12 +91,12 @@ dev = [
     "mkdocs-material>=9.5.0",
     "mkdocstrings[python]>=0.27.0",
     "rapidgzip>=0.14.0",
-    "pynumpress>=0.0.4",
+    "pynumpress>=0.0.8",
 ]
 
 [project.optional-dependencies]
 mcp = ["mcp>=2.1.1,<3"]
-numpress = ["pynumpress>=0.0.4"]
+numpress = ["pynumpress>=0.0.8"]
 zstd = ["zstd>=1.5.5"]
 rapidgzip = ["rapidgzip>=0.14.0"]
 
