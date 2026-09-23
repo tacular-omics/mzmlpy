@@ -1,0 +1,170 @@
+# Standard tacular-omics CI. Canonical copy: tacular-omics workspace templates/.
+# Package-specific jobs (extras/OS install matrices, docs build, coverage upload)
+# are appended below the standard jobs.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: uv sync --locked --all-extras --all-groups
+      - run: uv run ruff check src tests
+      - run: uv run ruff format --check src tests
+      - run: uv run ty check src
+      - run: python scripts/release_version.py check
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.12", "3.13", "3.14"]
+        include:
+          - { os: macos-latest, python: "3.13" }
+          - { os: windows-latest, python: "3.13" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv sync --locked --all-extras --all-groups
+      - run: uv run pytest tests
+
+  # Proves the declared lower bounds still work: installs the oldest allowed
+  # version of every direct dependency.
+  lowest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+      - run: uv sync --resolution lowest-direct --all-extras --all-groups
+      - run: uv run pytest tests
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: uv build
+      - run: python scripts/release_version.py check --dist dist
+      - name: Import the built wheel outside the checkout
+        working-directory: ${{ runner.temp }}
+        run: |
+          pkg=$(python -c "import tomllib;print(tomllib.load(open('${{ github.workspace }}/pyproject.toml','rb'))['project']['name'].replace('-','_'))")
+          uv run --isolated --no-project --with "$(ls ${{ github.workspace }}/dist/*.whl)" python -c "import $pkg; print($pkg.__version__)"
+
+  # Package-specific: coverage reporting, mirroring what the old python-package.yml
+  # "full" job uploaded to Codecov.
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.13"
+      - run: uv sync --locked --all-extras --all-groups
+      - name: Run tests with coverage and JUnit output
+        run: |
+          uv run pytest tests --cov=src/mzmlpy --cov-branch --cov-report=term-missing \
+            --cov-report=html --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
+      - name: Upload coverage
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          fail_ci_if_error: false
+      - name: Upload test results
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: junit.xml
+          report_type: test_results
+          fail_ci_if_error: false
+
+  # Package-specific: the base (no optional codecs) install must still work standalone.
+  base-install:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.12", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install without optional codecs
+        run: uv sync --locked --no-default-groups --group test
+      - name: Verify the base installation
+        run: uv run --no-sync python tests/wheel_smoke.py --base-only
+      - name: Test available backends
+        run: uv run --no-sync pytest tests --ignore=tests/test_docs.py
+
+  # Package-specific: the optional mcp extra must work standalone too.
+  mcp-install:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+        python: ["3.12", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install only the MCP extra and test dependencies
+        run: uv sync --locked --no-default-groups --group test --extra mcp
+      - name: Check optional SDK availability
+        run: uv run --no-sync python -c "from mcp.server import MCPServer"
+      - name: Test local tools and stdio protocol
+        run: uv run --no-sync pytest tests/test_mcp.py tests/test_mcp_extended.py tests/test_mcp_protocol.py tests/test_native_precision.py
+
+  # Package-specific: documentation builds and the built distributions install and
+  # import cleanly, with and without the mcp extra.
+  docs-and-wheel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.13"
+      - run: uv sync --locked --all-extras --all-groups
+      - run: uv run mkdocs build --strict
+      - name: Build and check distributions
+        run: |
+          uv build
+          uvx twine check dist/*
+      - name: Test the wheel with only runtime dependencies
+        run: |
+          uv venv .wheel-venv
+          uv pip install --python .wheel-venv/bin/python dist/*.whl
+          uv run --no-project --no-sync --python .wheel-venv/bin/python python tests/wheel_smoke.py --base-only --require-wheel
+      - name: Test the wheel with the MCP extra
+        run: |
+          for task_wheel in dist/*.whl
+          do
+            uv pip install --python .wheel-venv/bin/python "${task_wheel}[mcp]" pytest
+          done
+          uv run --no-project --python .wheel-venv/bin/python python -c "from mcp.server import MCPServer"
+          uv run --no-project --python .wheel-venv/bin/python python -m pytest tests/test_mcp_protocol.py tests/test_native_precision.py
