@@ -140,9 +140,7 @@ def _binary_data_array_xml_with_generic_zlib_first(
     return BinaryDataArray(ElementTree.fromstring(xml))
 
 
-@pytest.mark.parametrize(
-    "dtype_accession,np_dtype", [(FLOAT_64, np.float64), (FLOAT_32, np.float32)]
-)
+@pytest.mark.parametrize("dtype_accession,np_dtype", [(FLOAT_64, np.float64), (FLOAT_32, np.float32)])
 def test_decode_truncation_delta_end_to_end(dtype_accession, np_dtype):
     original = np.arange(300.0, 600.0, 0.25, dtype=np_dtype)
     stored = delta_encode(original).astype(np_dtype)
@@ -152,9 +150,7 @@ def test_decode_truncation_delta_end_to_end(dtype_accession, np_dtype):
     np.testing.assert_allclose(decoded, original.astype(np.float64), rtol=1e-6, atol=1e-6)
 
 
-@pytest.mark.parametrize(
-    "dtype_accession,np_dtype", [(FLOAT_64, np.float64), (FLOAT_32, np.float32)]
-)
+@pytest.mark.parametrize("dtype_accession,np_dtype", [(FLOAT_64, np.float64), (FLOAT_32, np.float32)])
 def test_decode_truncation_linear_end_to_end(dtype_accession, np_dtype):
     original = np.linspace(400.0, 1600.0, 400, dtype=np_dtype)
     stored = linear_encode(original).astype(np_dtype)
