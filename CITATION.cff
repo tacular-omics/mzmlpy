@@ -33,7 +33,7 @@ repository-code: "https://github.com/tacular-omics/mzmlpy"
 url: "https://tacular-omics.github.io/mzmlpy/"
 doi: "10.5281/zenodo.21960079"
 license: MIT
-version: "0.9.0"
+version: "0.9.1"
 date-released: "2026-09-05"
 keywords:
   - Python
