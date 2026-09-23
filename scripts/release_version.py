@@ -102,6 +102,8 @@ def check(root: Path, tag: str | None = None) -> str:
     stale = [path for path, value in actual.items() if value != version]
     if stale:
         raise ValueError(f"Stale version metadata: {', '.join(stale)}. Run just sync-version.")
+    if not re.search(r"^## \[Unreleased\]", (root / "CHANGELOG.md").read_text(encoding="utf-8"), re.MULTILINE):
+        raise ValueError("CHANGELOG.md needs a '## [Unreleased]' heading and '## [X.Y.Z] (YYYY-MM-DD)' release headings")
     if tag is not None:
         if tag != f"v{version}":
             raise ValueError(f"Release tag {tag!r} does not match v{version}")
