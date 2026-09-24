@@ -40,27 +40,29 @@ def _index(widths: tuple[int, int], body: bytes) -> bytes:
     return _gzip_header(_COMMENT) + b"FU\x01" + bytes(widths) + body
 
 
-@pytest.mark.parametrize(
-    ("content", "message"),
-    [
-        (_gzip_header(0), "no embedded index comment"),
-        (_gzip_header(0xE0), "reserved flags"),
-        (_gzip_header(0x04) + b"\x01", "Truncated gzip extra-field length"),
-        (_gzip_header(0x04) + b"\x05\x00ab", "Truncated gzip extra field"),
-        (_gzip_header(0x08) + b"name-without-terminator", "Truncated gzip header"),
-        (_gzip_header(0x08) + b"a" * (1024 * 1024 + 2), "exceeds the supported size"),
-        (_gzip_header(_COMMENT) + b"XY\x01\x02\x03\x00", "not an FU version 1 index"),
-        (_gzip_header(_COMMENT) + b"FU\x01\x05", "Truncated embedded index widths"),
-        (_index((0, 5), b"\x00"), "widths must be positive"),
-        (_index((2, 3), b""), "has no terminator"),
-        (_index((2, 3), b"ab1"), "Truncated embedded index entry"),
-        (_index((2, 3), b"\xac\xac010\x00"), "empty identifier"),
-        (_index((2, 3), b"ab011ab012\x00" + b"\x00" * 40), "Duplicate embedded index identifier: ab"),
-        (_index((2, 3), b"ab999\x00"), "outside the file: 999"),
-        (_index((2, 3), b"ab030cd020\x00" + b"\x00" * 40), "not ordered"),
-        (_index((2, 3), b"\x00"), "contains no entries"),
-    ],
-)
+_BAD_INDEXES = [
+    (_gzip_header(0), "no embedded index comment"),
+    (_gzip_header(0xE0), "reserved flags"),
+    (_gzip_header(0x04) + b"\x01", "Truncated gzip extra-field length"),
+    (_gzip_header(0x04) + b"\x05\x00ab", "Truncated gzip extra field"),
+    (_gzip_header(0x08) + b"name-without-terminator", "Truncated gzip header"),
+    (_gzip_header(0x08) + b"a" * (1024 * 1024 + 2), "exceeds the supported size"),
+    (_gzip_header(_COMMENT) + b"XY\x01\x02\x03\x00", "not an FU version 1 index"),
+    (_gzip_header(_COMMENT) + b"FU\x01\x05", "Truncated embedded index widths"),
+    (_index((0, 5), b"\x00"), "widths must be positive"),
+    (_index((2, 3), b""), "has no terminator"),
+    (_index((2, 3), b"ab1"), "Truncated embedded index entry"),
+    (_index((2, 3), b"\xac\xac010\x00"), "empty identifier"),
+    (_index((2, 3), b"ab011ab012\x00" + b"\x00" * 40), "Duplicate embedded index identifier: ab"),
+    (_index((2, 3), b"ab999\x00"), "outside the file: 999"),
+    (_index((2, 3), b"ab030cd020\x00" + b"\x00" * 40), "not ordered"),
+    (_index((2, 3), b"\x00"), "contains no entries"),
+]
+
+
+# Explicit ids: the default would embed the 1 MiB payload in the node id, which pytest exports
+# as PYTEST_CURRENT_TEST and a Windows environment variable cannot hold (the CI job hung).
+@pytest.mark.parametrize(("content", "message"), _BAD_INDEXES, ids=[message for _, message in _BAD_INDEXES])
 def test_malformed_embedded_index_raises_offset_index_error(tmp_path: Path, content: bytes, message: str) -> None:
     path = tmp_path / "bad.mzML.gz"
     path.write_bytes(content)
@@ -80,6 +82,7 @@ def _raw_deflate(data: bytes) -> bytes:
         (lambda stream: stream + b"\x00\x00\x00", "Truncated gzip trailer"),
         (lambda stream: stream + b"\x00" * 8, "checksum failed"),
     ],
+    ids=["truncated-stream", "truncated-trailer", "bad-checksum"],
 )
 def test_corrupt_indexed_member_raises_parse_error(tmp_path: Path, tail, message: str) -> None:
     path = tmp_path / "member.bin"
