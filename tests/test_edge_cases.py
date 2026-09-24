@@ -99,6 +99,12 @@ def test_contains_and_unknown_id():
             _ = r.spectra["nope"]
 
 
+def test_lookup_ids_match_iteration_order():
+    with Mzml(EXAMPLE) as r:
+        assert r.spectra.ids == [s.id for s in r.spectra]
+        assert r.chromatograms.ids == [c.id for c in r.chromatograms]
+
+
 # --------------------------------------------------------------------- lifecycle
 def test_double_close_is_safe():
     r = Mzml(EXAMPLE)

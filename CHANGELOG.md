@@ -91,6 +91,8 @@ Breaking API cleanup. Renamed names have no aliases. See the
 
 ### Added
 
+- `SpectrumLookup.ids` / `ChromatogramLookup.ids`: native ids in file order, read from the index
+  without parsing spectra.
 - The error classes and the accession enums used in return types (`BinaryDataArrayAccession`,
   `BinaryDataTypeAccession`, `ChromatogramTypeAccession`, `CollisionDissociationTypeAccession`,
   `CompressionTypeAccession`, `DIAAcquisitionAccession`, `SpectrumCombinationAccession`) are exported from `mzmlpy`.

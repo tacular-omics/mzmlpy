@@ -203,6 +203,11 @@ class BaseLookup[T: (Spectrum, Chromatogram)](ABC):
             return self._count
         return self._get_count_impl()
 
+    @property
+    def ids(self) -> list[str]:
+        """Native ids of all items, in file order, without parsing the items."""
+        return list(self._get_ids_for_map())
+
     def __iter__(self) -> Iterator[T]:
         """Iterate over all items in the file."""
         return self._iter_impl()
