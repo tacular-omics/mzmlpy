@@ -232,10 +232,9 @@ class Mzml:
                 ElementTree.iterparse(file_handle, events=("end", "start"))
             )
 
-            try:
-                _, root = next(mzml_iter)
-            except StopIteration:
-                raise MzmlParseError("File contains no XML elements") from None
+            # iterparse raises ParseError ("no element found") on input without a root element,
+            # which _parse_errors turns into MzmlParseError, so next() cannot hit StopIteration.
+            _, root = next(mzml_iter)
             if get_tag(root) not in ("mzML", "indexedmzML"):
                 raise MzmlParseError(f"Root element is <{get_tag(root)}>, not <mzML> or <indexedmzML>")
 

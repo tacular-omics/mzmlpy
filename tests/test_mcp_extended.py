@@ -295,3 +295,52 @@ def test_mobility_and_spectrum_type_filters_keep_quantities_distinct() -> None:
     assert not SpectrumFilter(mobility_type="drift_time", ion_mobility=(1, 2)).matches(spectrum)
     with pytest.raises(ValueError, match="explicit"):
         SpectrumFilter(ion_mobility=(1, 2))
+
+
+@pytest.mark.parametrize(
+    ("call", "message"),
+    [
+        (lambda t: t.list_files(pattern="a/b"), "pattern must be a filename glob"),
+        (lambda t: t.compare_runs(["run.mzML"]), "Supply 2 through 8 files"),
+        (lambda t: t.get_spectra("run.mzML", []), "Supply 1 through 20 distinct"),
+        (lambda t: t.get_spectra("run.mzML", ["scan=19", "scan=19"]), "Supply 1 through 20 distinct"),
+        (lambda t: t.get_array("run.mzML", "scan=19", 0, kind="scan"), "kind must be spectrum or chromatogram"),
+        (lambda t: t.get_spectrum("run.mzML", "scan=19", start_index=5), "requires include_peaks=True"),
+        (lambda t: t.export_records("run.mzML", ["scan=19"], kind="scan"), "kind must be spectrum or chromatogram"),
+        (lambda t: t.export_records("run.mzML", []), "Supply 1 through 100 distinct"),
+    ],
+)
+def test_tool_argument_errors_are_mzml_errors(service: MzmlTools, call, message: str) -> None:
+    from mzmlpy import MzmlError
+
+    with pytest.raises(MzmlError, match=message):
+        call(service)
+
+
+@pytest.mark.parametrize(
+    "call",
+    [
+        lambda t: t.get_spectrum("run.mzML", "scan=missing"),
+        lambda t: t.get_chromatogram("run.mzML", "missing"),
+        lambda t: t.get_array("run.mzML", "missing", 0),
+    ],
+)
+def test_tool_missing_ids_raise_record_not_found(service: MzmlTools, call) -> None:
+    from mzmlpy import MzmlRecordNotFoundError
+
+    with pytest.raises(MzmlRecordNotFoundError):
+        call(service)
+
+
+def test_exports_need_an_output_directory(tmp_path: Path) -> None:
+    from mzmlpy import MzmlError
+
+    root = tmp_path / "data"
+    root.mkdir()
+    shutil.copyfile(DATA / "example.mzML", root / "run.mzML")
+    tools = MzmlTools(root)
+    try:
+        with pytest.raises(MzmlError, match="configured output directory"):
+            tools.export_records("run.mzML", ["scan=19"])
+    finally:
+        tools.close()
