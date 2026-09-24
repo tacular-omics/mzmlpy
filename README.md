@@ -126,16 +126,19 @@ available from Zenodo at [doi:10.5281/zenodo.21960079](https://doi.org/10.5281/z
 [pyteomics](https://github.com/levitsky/pyteomics) and [pymzml](https://github.com/pymzml/pymzML)
 on compression-format support, throughput, and gzip handling.
 
-Compared against pymzml 2.6.0 on a Bruker timsTOF file with ion mobility (10 spectra, 6.7 MB):
+Measured 2026-09-24 on a 47.9 MB, 3,392-spectrum Q Exactive HF file (PRIDE PXD015669,
+`QEHF1_09771_JB`), pyteomics 5.0.1 and pymzml 2.7.0, range over two runs on a shared
+workstation (indicative only):
 
-| Benchmark | mzmlpy | pymzml | Ratio |
+| Benchmark | mzmlpy | pyteomics | pymzml |
 |---|---|---|---|
-| Startup | 0.012s | 0.092s | **8.0x faster** |
-| Iterate (decode) | 0.039s | 0.228s | **5.8x faster** |
-| Random access | 0.012s | 0.110s | **9.2x faster** |
+| Open + build index | 0.047–0.056 s | 0.94–1.08 s | — |
+| Decode every spectrum | 2.2–2.7 s | 3.4–4.8 s | 2.8–3.3 s |
+| Open + 8 scattered reads | 0.053–0.058 s | 1.1–2.1 s | error on this file |
 
-Both libraries produce identical m/z and intensity arrays. The gap narrows on smaller
-files (~1.1–1.3x) and widens on larger, more complex files. See
+Full decoding is of the same order in all three; the large differences are index
+construction, random access and encoding coverage (pymzml returns no peaks for Numpress-then-zlib and
+zstd arrays; pyteomics cannot read zstd). See
 [`benchmarks/README.md`](https://github.com/tacular-omics/mzmlpy/blob/main/benchmarks/README.md)
 for how to run it yourself, and the full results on the
 **[Benchmarks page](https://tacular-omics.github.io/mzmlpy/benchmarks/)**.
