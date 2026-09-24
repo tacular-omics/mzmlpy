@@ -109,8 +109,7 @@ def test_scan_window_with_unit_accession_only(tmp_path):
     path = _write(tmp_path, "unitacc.mzML", body)
     with Mzml(path) as r:
         s = r.spectra[0]
-        assert s.lower_mz == 100.0
-        assert s.upper_mz == 1500.0
+        assert s.mz_range == (100.0, 1500.0)
 
 
 # ---------------------------------------------------------------- multiple scans
@@ -130,8 +129,8 @@ def test_multiple_scans_warns_and_returns_first(tmp_path):
     with Mzml(path) as r:
         s = r.spectra[0]
         with pytest.warns(UserWarning, match="multiple scans"):
-            t = s.scan_start_time
-        assert t.total_seconds() == 1.0  # first scan
+            t = s.rt
+        assert t == 1.0  # first scan
 
 
 # ---------------------------------------------------------------- mz without intensity

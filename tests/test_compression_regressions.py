@@ -14,7 +14,7 @@ from xml.etree import ElementTree
 import numpy as np
 import pytest
 
-from mzmlpy.constants import CompressionTypeAccessions as C
+from mzmlpy.constants import CompressionTypeAccession as C
 from mzmlpy.spectra import BinaryDataArray
 
 FLOAT_64 = "MS:1000523"

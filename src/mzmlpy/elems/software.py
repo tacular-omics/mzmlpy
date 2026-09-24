@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from ..errors import MzmlError
 from .dtree_wrapper import _ParamGroup
 
 
@@ -16,7 +17,7 @@ class Software(_ParamGroup):
         """
         id = self.get_attribute("id")
         if id is None:
-            raise ValueError("Software ID is missing")
+            raise MzmlError("Software ID is missing")
         return id
 
     @property
@@ -29,3 +30,6 @@ class Software(_ParamGroup):
 
     def __str__(self) -> str:
         return self.__repr__()
+
+
+__all__ = ["Software"]

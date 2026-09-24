@@ -137,13 +137,13 @@ def bench_metadata_mzmlpy(reader: Mzml, max_spectra: int | None) -> None:
     for i, s in enumerate(reader.spectra):
         _ = s.id
         _ = s.ms_level
-        _ = s.scan_start_time
-        _ = s.TIC
+        _ = s.rt
+        _ = s.total_ion_current
         if s.has_precursors:
             for p in s.precursors:
                 for ion in p.selected_ions:
-                    _ = ion.selected_ion_mz
-                    _ = ion.charge_state
+                    _ = ion.mz
+                    _ = ion.charge
         if max_spectra is not None and i + 1 >= max_spectra:
             break
 
@@ -161,7 +161,7 @@ def bench_metadata_pymzml(path: str, max_spectra: int | None) -> None:
         except (AttributeError, TypeError):
             pass
         try:
-            _ = spec.TIC
+            _ = spec.total_ion_current
         except (AttributeError, TypeError):
             pass
         try:

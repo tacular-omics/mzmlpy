@@ -17,31 +17,31 @@ from typing import Literal
 import numpy as np
 
 from .constants import (
-    BINARY_DECODE_DTYPES,
+    _BINARY_DECODE_DTYPES,
     ION_MOBILITIES,
     ActivationAccession,
     BinaryDataArrayAccession,
     BinaryDataTypeAccession,
     ChromatogramTypeAccession,
     CollisionDissociationTypeAccession,
-    CompressionTypeAccessions,
+    CompressionTypeAccession,
     IsolationWindowAccession,
     MzMLElement,
     ScanPolarity,
     SelectedIonAccession,
     SpectrumCombinationAccession,
     SpectrumMSAccession,
-    XMLElement,
+    SpectrumTypeAccession,
 )
-from .constants import SpectrumType as SpectrumTypeAccessions
 from .decoder import MSDecoder
 from .elems.dtree_wrapper import _DataTreeWrapper, _DataTreeWrapperProtocol, _ParamGroup
+from .errors import MzmlDecodeError, MzmlError
 
 
 def _decode_to_native(data: bytes, data_type: str) -> np.ndarray:
     dtype = _resolve_dtype(data_type)
     if len(data) % dtype.itemsize != 0:
-        raise ValueError(
+        raise MzmlDecodeError(
             f"Cannot decode binary array: {len(data)} bytes is not a multiple of the "
             f"{dtype.itemsize}-byte element size for data type {data_type!r}. The data may be "
             f"corrupt, truncated, or use a truncation encoding that mzmlpy does not support."
@@ -49,7 +49,7 @@ def _decode_to_native(data: bytes, data_type: str) -> np.ndarray:
     return np.frombuffer(data, dtype=dtype)
 
 
-def decode_to_numpy(data: bytes, data_type: str) -> np.ndarray:
+def _decode_to_numpy(data: bytes, data_type: str) -> np.ndarray:
     """Decode a writable array in its declared numeric type."""
     return _decode_to_native(data, data_type).copy()
 
@@ -60,19 +60,19 @@ def _resolve_dtype(data_type: str) -> np.dtype:
         accession = BinaryDataTypeAccession(data_type)
     except ValueError:
         accession = None
-    dtype_str = BINARY_DECODE_DTYPES.get(accession) if accession is not None else None
+    dtype_str = _BINARY_DECODE_DTYPES.get(accession) if accession is not None else None
     if dtype_str is None:
-        raise ValueError(
+        raise MzmlDecodeError(
             f"Unsupported or unknown binary data type accession {data_type!r}; mzmlpy can decode "
             f"32-/64-bit float and 32-/64-bit integer arrays."
         )
     return np.dtype(dtype_str)
 
 
-_C = CompressionTypeAccessions
+_C = CompressionTypeAccession
 
 # Generic codec term -> combined terms that already include that codec.
-_COMBINED_WITH_GENERIC: dict[CompressionTypeAccessions, frozenset[CompressionTypeAccessions]] = {
+_COMBINED_WITH_GENERIC: dict[CompressionTypeAccession, frozenset[CompressionTypeAccession]] = {
     _C.ZLIB_COMPRESSION: frozenset(
         {
             _C.MS_NUMPRESS_LINEAR_PREDICTION_ZLIB,
@@ -95,7 +95,7 @@ _COMBINED_WITH_GENERIC: dict[CompressionTypeAccessions, frozenset[CompressionTyp
 }
 
 # (bare numpress term, generic codec term) -> the combined "numpress followed by codec" term.
-_NUMPRESS_COMBINATIONS: dict[tuple[CompressionTypeAccessions, CompressionTypeAccessions], CompressionTypeAccessions] = {
+_NUMPRESS_COMBINATIONS: dict[tuple[CompressionTypeAccession, CompressionTypeAccession], CompressionTypeAccession] = {
     (_C.MS_NUMPRESS_LINEAR_PREDICTION, _C.ZLIB_COMPRESSION): _C.MS_NUMPRESS_LINEAR_PREDICTION_ZLIB,
     (_C.MS_NUMPRESS_POSITIVE_INTEGER, _C.ZLIB_COMPRESSION): _C.MS_NUMPRESS_POSITIVE_INTEGER_ZLIB,
     (_C.MS_NUMPRESS_SHORT_LOGGED_FLOAT, _C.ZLIB_COMPRESSION): _C.MS_NUMPRESS_SHORT_LOGGED_FLOAT_ZLIB,
@@ -139,7 +139,7 @@ class BinaryDataArray(_ParamGroup):
     """
 
     @cached_property
-    def compression(self) -> CompressionTypeAccessions | None:
+    def compression(self) -> CompressionTypeAccession | None:
         """Return the compression accession for this array, or None if no compression CV term is present.
 
         cvParam order has no meaning in mzML, so when several compression terms are present they are
@@ -148,16 +148,16 @@ class BinaryDataArray(_ParamGroup):
         the combined "followed by zlib" terms existed) resolves to the combined term, and "no
         compression" never masks a real codec. Any other conflict warns and returns the first term.
         """
-        found: list[CompressionTypeAccessions] = []
+        found: list[CompressionTypeAccession] = []
         for param in self.cv_params:
             with contextlib.suppress(ValueError):
-                term = CompressionTypeAccessions(param.accession)
+                term = CompressionTypeAccession(param.accession)
                 if term not in found:
                     found.append(term)
         if len(found) <= 1:
             return found[0] if found else None
 
-        terms = [t for t in found if t != CompressionTypeAccessions.NO_COMPRESSION]
+        terms = [t for t in found if t != CompressionTypeAccession.NO_COMPRESSION]
         # Drop a generic codec term that a combined term in the same array already includes.
         for generic, combined_terms in _COMBINED_WITH_GENERIC.items():
             if generic in terms and any(t in combined_terms for t in terms):
@@ -196,7 +196,7 @@ class BinaryDataArray(_ParamGroup):
         binary_data_type = self.encoding
 
         if compression_type is None:
-            compression_type = CompressionTypeAccessions.NO_COMPRESSION
+            compression_type = CompressionTypeAccession.NO_COMPRESSION
             warnings.warn(f"Compression type not specified. Assuming {compression_type}.", UserWarning, stacklevel=2)
 
         if binary_data_type is None:
@@ -215,57 +215,59 @@ class BinaryDataArray(_ParamGroup):
         try:
             out_data = base64.b64decode("".join(binary_element.text.split()), validate=True)
         except ValueError as e:  # binascii.Error subclasses ValueError
-            raise ValueError(f"Failed to base64-decode binary data array (data type {binary_data_type}): {e}") from e
+            raise MzmlDecodeError(
+                f"Failed to base64-decode binary data array (data type {binary_data_type}): {e}"
+            ) from e
 
         if len(out_data) == 0:
             return np.array([], dtype=result_dtype)
 
         # Decompress based on compression type
         match compression_type:
-            case CompressionTypeAccessions.BYTE_SHUFFLED_ZSTD:
+            case CompressionTypeAccession.BYTE_SHUFFLED_ZSTD:
                 unshuffled = MSDecoder.decode_byte_shuffled_zstd(out_data, _resolve_dtype(binary_data_type).itemsize)
-                return decode_to_numpy(unshuffled, binary_data_type)
-            case CompressionTypeAccessions.MS_NUMPRESS_SHORT_LOGGED_FLOAT:
+                return _decode_to_numpy(unshuffled, binary_data_type)
+            case CompressionTypeAccession.MS_NUMPRESS_SHORT_LOGGED_FLOAT:
                 return MSDecoder.decode_slof(out_data)
-            case CompressionTypeAccessions.TRUNCATION_LINEAR_PREDICTION_ZLIB:
+            case CompressionTypeAccession.TRUNCATION_LINEAR_PREDICTION_ZLIB:
                 # Reverse the linear predictor in the stored precision.
                 native = _decode_to_native(MSDecoder.decode_zlib(out_data), binary_data_type)
                 return MSDecoder.reverse_linear_prediction(native)
-            case CompressionTypeAccessions.ZLIB_COMPRESSION:
-                return decode_to_numpy(MSDecoder.decode_zlib(out_data), binary_data_type)
-            case CompressionTypeAccessions.NO_COMPRESSION:
-                return decode_to_numpy(out_data, binary_data_type)
-            case CompressionTypeAccessions.DICTIONARY_ENCODED_ZSTD:
+            case CompressionTypeAccession.ZLIB_COMPRESSION:
+                return _decode_to_numpy(MSDecoder.decode_zlib(out_data), binary_data_type)
+            case CompressionTypeAccession.NO_COMPRESSION:
+                return _decode_to_numpy(out_data, binary_data_type)
+            case CompressionTypeAccession.DICTIONARY_ENCODED_ZSTD:
                 return MSDecoder.decode_dict_encoded_zstd(out_data, _resolve_dtype(binary_data_type))
-            case CompressionTypeAccessions.MS_NUMPRESS_LINEAR_PREDICTION_ZLIB:
+            case CompressionTypeAccession.MS_NUMPRESS_LINEAR_PREDICTION_ZLIB:
                 return MSDecoder.decode_linear(MSDecoder.decode_zlib(out_data))
-            case CompressionTypeAccessions.TRUNCATION_ZLIB:
-                return decode_to_numpy(MSDecoder.decode_zlib(out_data), binary_data_type)
-            case CompressionTypeAccessions.MS_NUMPRESS_SHORT_LOGGED_FLOAT_ZLIB:
+            case CompressionTypeAccession.TRUNCATION_ZLIB:
+                return _decode_to_numpy(MSDecoder.decode_zlib(out_data), binary_data_type)
+            case CompressionTypeAccession.MS_NUMPRESS_SHORT_LOGGED_FLOAT_ZLIB:
                 return MSDecoder.decode_slof(MSDecoder.decode_zlib(out_data))
-            case CompressionTypeAccessions.MS_NUMPRESS_LINEAR_PREDICTION_ZSTD:
+            case CompressionTypeAccession.MS_NUMPRESS_LINEAR_PREDICTION_ZSTD:
                 return MSDecoder.decode_linear(MSDecoder.decode_ztsd(out_data))
-            case CompressionTypeAccessions.MS_NUMPRESS_POSITIVE_INTEGER_ZLIB:
+            case CompressionTypeAccession.MS_NUMPRESS_POSITIVE_INTEGER_ZLIB:
                 return MSDecoder.decode_pic(MSDecoder.decode_zlib(out_data))
-            case CompressionTypeAccessions.MS_NUMPRESS_SHORT_LOGGED_FLOAT_ZSTD:
+            case CompressionTypeAccession.MS_NUMPRESS_SHORT_LOGGED_FLOAT_ZSTD:
                 return MSDecoder.decode_slof(MSDecoder.decode_ztsd(out_data))
-            case CompressionTypeAccessions.MS_NUMPRESS_LINEAR_PREDICTION:
+            case CompressionTypeAccession.MS_NUMPRESS_LINEAR_PREDICTION:
                 return MSDecoder.decode_linear(out_data)
-            case CompressionTypeAccessions.MS_NUMPRESS_POSITIVE_INTEGER:
+            case CompressionTypeAccession.MS_NUMPRESS_POSITIVE_INTEGER:
                 return MSDecoder.decode_pic(out_data)
-            case CompressionTypeAccessions.TRUNCATION_DELTA_PREDICTION_ZLIB:
+            case CompressionTypeAccession.TRUNCATION_DELTA_PREDICTION_ZLIB:
                 # Reverse the delta predictor in the stored precision.
                 native = _decode_to_native(MSDecoder.decode_zlib(out_data), binary_data_type)
                 return MSDecoder.reverse_delta_prediction(native)
-            case CompressionTypeAccessions.ZSTD_COMPRESSION:
-                return decode_to_numpy(MSDecoder.decode_ztsd(out_data), binary_data_type)
-            case CompressionTypeAccessions.MS_NUMPRESS_POSITIVE_INTEGER_ZSTD:
+            case CompressionTypeAccession.ZSTD_COMPRESSION:
+                return _decode_to_numpy(MSDecoder.decode_ztsd(out_data), binary_data_type)
+            case CompressionTypeAccession.MS_NUMPRESS_POSITIVE_INTEGER_ZSTD:
                 return MSDecoder.decode_pic(MSDecoder.decode_ztsd(out_data))
             case _:
                 try:
-                    return decode_to_numpy(out_data, binary_data_type)
+                    return _decode_to_numpy(out_data, binary_data_type)
                 except Exception as e:
-                    raise ValueError(f"Unsupported compression type: {compression_type}") from e
+                    raise MzmlDecodeError(f"Unsupported compression type: {compression_type}") from e
 
     @property
     def data(self) -> np.ndarray:
@@ -288,7 +290,7 @@ class _BinaryDataArrayList(_ParamGroup):
     @property
     def binary_arrays(self) -> list[BinaryDataArray]:
         """Get a list of BinaryDataConverter objects for each binary data array."""
-        return [BinaryDataArray(elem) for elem in self.element.findall(f"./{self.ns}{XMLElement.BINARY_DATA_ARRAY}")]
+        return [BinaryDataArray(elem) for elem in self.element.findall(f"./{self.ns}{MzMLElement.BINARY_DATA_ARRAY}")]
 
     def get_binary_array(self, id: str) -> BinaryDataArray | None:
         """Get a BinaryDataConverter object for the binary data array with the specified id."""
@@ -313,7 +315,7 @@ class _BinaryDataArrayMixin(_DataTreeWrapperProtocol):
     @property
     def _binary_array_list(self) -> _BinaryDataArrayList | None:
         """Get a BinaryDataArrayList object for the binary data array list of this spectrum, if present."""
-        binary_array_list_element = self.element.find(f"./{self.ns}{XMLElement.BINARY_DATA_ARRAY_LIST}")
+        binary_array_list_element = self.element.find(f"./{self.ns}{MzMLElement.BINARY_DATA_ARRAY_LIST}")
         if binary_array_list_element is not None:
             return _BinaryDataArrayList(binary_array_list_element)
         return None
@@ -354,6 +356,14 @@ class ScanWindow(_ParamGroup):
         """Get scan window upper limit for this spectrum."""
         return self.cv_float(SpectrumMSAccession.SCAN_WINDOW_UPPER_LIMIT)
 
+    @property
+    def mz_range(self) -> tuple[float, float] | None:
+        """``(lower_mz, upper_mz)`` of this scan window, or None if either limit is missing."""
+        lower, upper = self.lower_mz, self.upper_mz
+        if lower is None or upper is None:
+            return None
+        return (lower, upper)
+
 
 @dataclass(frozen=True)
 class _ScanWindowList(_ParamGroup):
@@ -362,12 +372,12 @@ class _ScanWindowList(_ParamGroup):
     @property
     def scan_windows(self) -> list[ScanWindow]:
         """Get a list of ScanWindow objects for each scan window in the scan window list."""
-        return [ScanWindow(elem) for elem in self.element.findall(f"./{self.ns}{XMLElement.SCAN_WINDOW}")]
+        return [ScanWindow(elem) for elem in self.element.findall(f"./{self.ns}{MzMLElement.SCAN_WINDOW}")]
 
     @property
     def has_scan_windows(self) -> bool:
         """Check if this scan has a scan window list."""
-        return self.element.find(f"./{self.ns}{XMLElement.SCAN_WINDOW}") is not None
+        return self.element.find(f"./{self.ns}{MzMLElement.SCAN_WINDOW}") is not None
 
 
 @dataclass(frozen=True)
@@ -377,12 +387,12 @@ class Scan(_ParamGroup):
     @property
     def _has_scan_windows_list(self) -> bool:
         """Check if this scan has a scan window list."""
-        return self.element.find(f"./{self.ns}{XMLElement.SCAN_WINDOW_LIST}") is not None
+        return self.element.find(f"./{self.ns}{MzMLElement.SCAN_WINDOW_LIST}") is not None
 
     @property
     def _scan_window_list(self) -> _ScanWindowList | None:
         """Get a ScanWindowList object for the scan window list of this scan, or None."""
-        scan_window_list_element = self.element.find(f"./{self.ns}{XMLElement.SCAN_WINDOW_LIST}")
+        scan_window_list_element = self.element.find(f"./{self.ns}{MzMLElement.SCAN_WINDOW_LIST}")
         if scan_window_list_element is not None:
             return _ScanWindowList(scan_window_list_element)
         return None
@@ -406,59 +416,48 @@ class Scan(_ParamGroup):
         )
 
     @property
-    def lower_mz(self) -> float | None:
-        """Get scan window lower limit for this scan, if it has a single scan window."""
-        if self._scan_window_list is not None:
-            if not self.is_single_windowed_scan:
-                warnings.warn(
-                    "This scan has multiple scan windows. Cannot determine a single lower limit.",
-                    UserWarning,
-                    stacklevel=2,
-                )
-                return None
-            return self.scan_windows[0].lower_mz
-        return None
+    def mz_range(self) -> tuple[float, float] | None:
+        """m/z range acquired by this scan: ``(lowest lower limit, highest upper limit)`` over its
+        scan windows, or None if no window has both limits.
+
+        A scan with several windows returns the envelope of all complete windows; use
+        :attr:`scan_windows` for the individual windows.
+        """
+        ranges = [r for w in self.scan_windows if (r := w.mz_range) is not None]
+        if not ranges:
+            return None
+        return (min(r[0] for r in ranges), max(r[1] for r in ranges))
 
     @property
-    def upper_mz(self) -> float | None:
-        """Get scan window upper limit for this scan, if it has a single scan window."""
-        if self._scan_window_list is not None:
-            if not self.is_single_windowed_scan:
-                warnings.warn(
-                    "This scan has multiple scan windows. Cannot determine a single upper limit.",
-                    UserWarning,
-                    stacklevel=2,
-                )
-                return None
-            return self.scan_windows[0].upper_mz
-        return None
+    def rt(self) -> float | None:
+        """Retention time (scan start time, MS:1000016) of this scan in seconds, or None if absent.
 
-    @property
-    def scan_start_time(self) -> timedelta | None:
-        """Get scan start time for this scan."""
-        cv = self.get_cvparm(SpectrumMSAccession.SCAN_START_TIME)
-        return cv.to_timedelta if cv is not None else None
+        Values stored in minutes, milliseconds or hours are converted to seconds.
+        """
+        cv = self.get_cv_param(SpectrumMSAccession.SCAN_START_TIME)
+        elapsed = cv.to_timedelta if cv is not None else None
+        return elapsed.total_seconds() if elapsed is not None else None
 
     @property
     def ion_injection_time(self) -> timedelta | None:
         """Get ion injection time for this scan."""
-        cv = self.get_cvparm(SpectrumMSAccession.ION_INJECTION_TIME)
+        cv = self.get_cv_param(SpectrumMSAccession.ION_INJECTION_TIME)
         return cv.to_timedelta if cv is not None else None
 
     @property
-    def inverse_reduced_ion_mobility(self) -> float | None:
-        """Inverse reduced ion mobility (1/K0) for this scan (MS:1002815), e.g. Bruker timsTOF."""
+    def ook0(self) -> float | None:
+        """Inverse reduced ion mobility 1/K0 (Vs/cm², MS:1002815) of this scan, e.g. Bruker timsTOF, or None."""
         return self.cv_float(SpectrumMSAccession.INVERSE_REDUCED_ION_MOBILITY)
 
     @property
-    def ion_mobility_drift_time(self) -> float | None:
-        """Ion mobility drift time for this scan (MS:1002476)."""
+    def drift_time(self) -> float | None:
+        """Ion mobility drift time (MS:1002476) of this scan, or None."""
         return self.cv_float(SpectrumMSAccession.ION_MOBILITY_DRIFT_TIME)
 
     @property
     def filter_string(self) -> str | None:
         """Instrument filter string for this scan (MS:1000512), e.g. a Thermo scan filter."""
-        cv = self.get_cvparm(SpectrumMSAccession.FILTER_STRING)
+        cv = self.get_cv_param(SpectrumMSAccession.FILTER_STRING)
         return cv.value if cv is not None else None
 
     @property
@@ -491,7 +490,7 @@ class _ScanList(_ParamGroup):
     @property
     def scans(self) -> list[Scan]:
         """Get a list of Scan objects for each scan in the scan list."""
-        return [Scan(elem) for elem in self.element.findall(f"./{self.ns}{XMLElement.SCAN}")]
+        return [Scan(elem) for elem in self.element.findall(f"./{self.ns}{MzMLElement.SCAN}")]
 
     @property
     def spectra_combination(self) -> SpectrumCombinationAccession | None:
@@ -506,20 +505,19 @@ class _ScanList(_ParamGroup):
 class _ScanListMixin(_DataTreeWrapperProtocol):
     """Mixin that exposes scan-level convenience properties on `Spectrum`.
 
-    Delegates to the first scan for single-valued properties such as `scan_start_time`,
-    `ion_injection_time`, `lower_mz`, and `upper_mz`, emitting a warning when multiple
-    scans are present.
+    Delegates to the first scan for single-valued properties such as `rt`,
+    `ion_injection_time` and `mz_range`, emitting a warning when multiple scans are present.
     """
 
     @property
     def _has_scan_list(self) -> bool:
         """Check if this spectrum has a scan list."""
-        return self.element.find(f"./{self.ns}{XMLElement.SCAN_LIST}") is not None
+        return self.element.find(f"./{self.ns}{MzMLElement.SCAN_LIST}") is not None
 
     @property
     def _scan_list(self) -> _ScanList | None:
         """Get a ScanList object for the scan list of this spectrum, or None if no scan list is present."""
-        scan_list_element = self.element.find(f"./{self.ns}{XMLElement.SCAN_LIST}")
+        scan_list_element = self.element.find(f"./{self.ns}{MzMLElement.SCAN_LIST}")
         if scan_list_element is not None:
             return _ScanList(scan_list_element)
         return None
@@ -577,22 +575,16 @@ class _ScanListMixin(_DataTreeWrapperProtocol):
         return scans[0]
 
     @property
-    def lower_mz(self) -> float | None:
-        """Get scan window lower limit for this spectrum, if it has a single scan with a single scan window."""
-        scan = self._first_scan("lower limit")
-        return scan.lower_mz if scan is not None else None
+    def mz_range(self) -> tuple[float, float] | None:
+        """m/z range acquired for this spectrum (see :attr:`Scan.mz_range`), from its first scan."""
+        scan = self._first_scan("m/z range")
+        return scan.mz_range if scan is not None else None
 
     @property
-    def upper_mz(self) -> float | None:
-        """Get scan window upper limit for this spectrum, if it has a single scan with a single scan window."""
-        scan = self._first_scan("upper limit")
-        return scan.upper_mz if scan is not None else None
-
-    @property
-    def scan_start_time(self) -> timedelta | None:
-        """Get scan start time for this spectrum, if it has a single scan."""
-        scan = self._first_scan("scan start time")
-        return scan.scan_start_time if scan is not None else None
+    def rt(self) -> float | None:
+        """Retention time (scan start time) of this spectrum in seconds, from its first scan."""
+        scan = self._first_scan("retention time")
+        return scan.rt if scan is not None else None
 
     @property
     def ion_injection_time(self) -> timedelta | None:
@@ -609,8 +601,17 @@ class _ScanListMixin(_DataTreeWrapperProtocol):
         scan = self._first_scan("ion mobility")
         if scan is None:
             return None
-        irim = scan.inverse_reduced_ion_mobility
-        return irim if irim is not None else scan.ion_mobility_drift_time
+        ook0 = scan.ook0
+        return ook0 if ook0 is not None else scan.drift_time
+
+    @property
+    def ook0(self) -> float | None:
+        """Inverse reduced ion mobility 1/K0 (Vs/cm²) from this spectrum's first scan, or None.
+
+        Unlike :attr:`ion_mobility`, this never falls back to drift time.
+        """
+        scan = self._first_scan("1/K0")
+        return scan.ook0 if scan is not None else None
 
     @property
     def filter_string(self) -> str | None:
@@ -642,6 +643,14 @@ class IsolationWindow(_ParamGroup):
         return self.cv_float(IsolationWindowAccession.UPPER_OFFSET)
 
     @property
+    def mz_range(self) -> tuple[float, float] | None:
+        """``(target_mz - lower_offset, target_mz + upper_offset)``, or None if any of the three is missing."""
+        target, lower, upper = self.target_mz, self.lower_offset, self.upper_offset
+        if target is None or lower is None or upper is None:
+            return None
+        return (target - lower, target + upper)
+
+    @property
     def no_isolation(self) -> bool:
         """Whether this window carries the "no isolation" marker (MS:1003159).
 
@@ -655,33 +664,33 @@ class IsolationWindow(_ParamGroup):
 class SelectedIon(_ParamGroup):
     """Represents a selected ion element within a precursor.
 
-    Provides access to the selected ion m/z, peak intensity, charge state,
-    ion mobility values, FAIMS voltages, and collisional cross section.
+    Provides access to the selected ion m/z, peak intensity, charge, ion mobility values,
+    FAIMS voltages, and collisional cross section.
     """
 
     @property
-    def selected_ion_mz(self) -> float | None:
-        """Get selected ion m/z for this precursor."""
+    def mz(self) -> float | None:
+        """Selected ion m/z (MS:1000744), or None."""
         return self.cv_float(SelectedIonAccession.SELECTED_ION_MZ)
 
     @property
-    def peak_intensity(self) -> float | None:
-        """Get peak intensity for this precursor."""
+    def intensity(self) -> float | None:
+        """Peak intensity of the selected ion (MS:1000042), or None."""
         return self.cv_float(SelectedIonAccession.PEAK_INTENSITY)
 
     @property
-    def charge_state(self) -> int | None:
-        """Get charge state for this precursor."""
+    def charge(self) -> int | None:
+        """Charge state of the selected ion (MS:1000041), or None."""
         return self.cv_int(SelectedIonAccession.CHARGE_STATE)
 
     @property
-    def ir_im(self) -> float | None:
-        """Get inversion reduced ion mobility for this precursor."""
+    def ook0(self) -> float | None:
+        """Inverse reduced ion mobility 1/K0 (Vs/cm², MS:1002815) of the selected ion, or None."""
         return self.cv_float(SelectedIonAccession.INVERSE_REDUCED_ION_MOBILITY)
 
     @property
-    def im_drift_time(self) -> float | None:
-        """Get ion mobility drift time for this precursor."""
+    def drift_time(self) -> float | None:
+        """Ion mobility drift time of the selected ion, or None."""
         return self.cv_float(SelectedIonAccession.ION_MOBILITY_DRIFT_TIME)
 
     @property
@@ -722,13 +731,16 @@ class Activation(_ParamGroup):
         return self.cv_float(ActivationAccession.ACTIVATION_ENERGY)
 
     @property
-    def ce(self) -> float | None:
-        """Get collision energy for this precursor."""
+    def collision_energy(self) -> float | None:
+        """Collision energy in eV (MS:1000045), or None.
+
+        Does not fall back to :attr:`activation_energy` (MS:1000509), which is a separate term.
+        """
         return self.cv_float(ActivationAccession.COLLISION_ENERGY)
 
     @property
-    def supplemental_ce(self) -> float | None:
-        """Get supplemental collision energy for this precursor."""
+    def supplemental_collision_energy(self) -> float | None:
+        """Supplemental collision energy in eV (MS:1002680), or None."""
         return self.cv_float(ActivationAccession.SUPPLEMENTAL_COLLISION_ENERGY)
 
     @property
@@ -739,7 +751,7 @@ class Activation(_ParamGroup):
         the term name, so this returns the parameter's value when one is present and otherwise the
         term name — instead of returning ``None`` for the (common) valueless case.
         """
-        cv = self.get_cvparm(ActivationAccession.COLLISION_GAS)
+        cv = self.get_cv_param(ActivationAccession.COLLISION_GAS)
         if cv is None:
             return None
         return cv.value if cv.value else cv.name
@@ -866,9 +878,9 @@ class _ProductListMixin(_DataTreeWrapperProtocol):
 class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorListMixin, _ProductListMixin):
     """An mzML `spectrum` element.
 
-    Exposes binary data arrays (`mz`, `intensity`, `charge`, ion mobility via `has_im`/`im_types`),
-    scan metadata (`scan_start_time`, `ion_injection_time`, `lower_mz`, `upper_mz`, `spectrum_type`,
-    `polarity`, `ms_level`, `TIC`), and structured precursor/product lists.
+    Exposes binary data arrays (`mz`, `intensity`, `charge_array`, ion mobility via `has_im`/`im_types`),
+    scan metadata (`rt`, `ion_injection_time`, `mz_range`, `ook0`, `spectrum_type`, `polarity`,
+    `ms_level`, `total_ion_current`), and structured precursor/product lists.
     """
 
     @property
@@ -876,7 +888,7 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
         """Get spectrum id."""
         id = self.get_attribute("id")
         if id is None:
-            raise ValueError("Spectrum ID is missing")
+            raise MzmlError("Spectrum ID is missing")
         return id
 
     @property
@@ -948,8 +960,12 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
         return None
 
     @property
-    def charge(self) -> np.ndarray | None:
-        """Return the per-point charge array, or None if no charge binary array is present."""
+    def charge_array(self) -> np.ndarray | None:
+        """Return the per-point charge array (MS:1000516), or None if no charge binary array is present.
+
+        Named ``charge_array`` because ``charge`` means a single precursor charge state elsewhere
+        (:attr:`SelectedIon.charge`).
+        """
         binary_array = self.get_binary_array(BinaryDataArrayAccession.CHARGE)
         if binary_array is not None:
             return binary_array._decode()
@@ -963,7 +979,7 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
             if barray.binary_array_type in ION_MOBILITIES:
                 return True
         for scan in self.scans:
-            if scan.inverse_reduced_ion_mobility is not None or scan.ion_mobility_drift_time is not None:
+            if scan.ook0 is not None or scan.drift_time is not None:
                 return True
         return False
 
@@ -979,9 +995,9 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
     @cached_property
     def spectrum_type(self) -> Literal["centroid", "profile"] | None:
         """Get spectrum type (centroid / profile / unknown)."""
-        if SpectrumTypeAccessions.CENTROID in self.accessions:
+        if SpectrumTypeAccession.CENTROID in self.accessions:
             return "centroid"
-        elif SpectrumTypeAccessions.PROFILE in self.accessions:
+        elif SpectrumTypeAccession.PROFILE in self.accessions:
             return "profile"
         return None
 
@@ -996,9 +1012,8 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
         return None
 
     @cached_property
-    def TIC(self) -> float | None:
-        """Get total ion current (TIC) for this spectrum."""
-
+    def total_ion_current(self) -> float | None:
+        """Total ion current of this spectrum (MS:1000285), or None if absent."""
         return self.cv_float(SpectrumMSAccession.TOTAL_ION_CURRENT)
 
     @cached_property
@@ -1040,7 +1055,7 @@ class Chromatogram(_ParamGroup, _BinaryDataArrayMixin):
         """Get chromatogram id."""
         id = self.get_attribute("id")
         if id is None:
-            raise ValueError("Chromatogram ID is missing")
+            raise MzmlError("Chromatogram ID is missing")
         return id
 
     @property
@@ -1123,7 +1138,7 @@ class Chromatogram(_ParamGroup, _BinaryDataArrayMixin):
         for acc in ChromatogramTypeAccession:
             if acc in self.accessions:
                 match acc:
-                    case ChromatogramTypeAccession.EMMISION:
+                    case ChromatogramTypeAccession.EMISSION:
                         return "emission"
                     case ChromatogramTypeAccession.SELECTED_ION_MONITORING:
                         return "sim"
@@ -1140,3 +1155,17 @@ class Chromatogram(_ParamGroup, _BinaryDataArrayMixin):
                     case ChromatogramTypeAccession.SELECTED_ION_CURRENT:
                         return "sic"
         return None
+
+
+__all__ = [
+    "Activation",
+    "BinaryDataArray",
+    "Chromatogram",
+    "IsolationWindow",
+    "Precursor",
+    "Product",
+    "Scan",
+    "ScanWindow",
+    "SelectedIon",
+    "Spectrum",
+]

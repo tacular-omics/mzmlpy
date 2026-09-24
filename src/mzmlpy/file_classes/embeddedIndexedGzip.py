@@ -15,6 +15,7 @@ from xml.parsers import expat
 
 from .._xml import read_fragment, read_header
 from ..embedded_indexed_gzip import decompress_indexed_member, read_embedded_index
+from ..errors import MzmlOffsetIndexError, MzmlRecordNotFoundError
 from .interface import MzmlInterface
 from .xml_tuple import ChromatogramElement, MzmlXMLElement, SpectrumElement
 
@@ -168,7 +169,7 @@ class EmbeddedIndexedGzip(MzmlInterface):
         member = decompress_indexed_member(self.path, offset)
         match = re.search(rb"<(?:[\w.-]+:)?" + kind.encode() + rb"(?=\s|>)", member)
         if match is None:
-            raise ValueError(f"Indexed member at offset {offset} contains no {kind}")
+            raise MzmlOffsetIndexError(f"Indexed member at offset {offset} contains no {kind}")
         try:
             element = read_fragment(io.BytesIO(member[match.start() :]), self.encoding, self._namespaces)
         except ParseError as error:
@@ -233,10 +234,10 @@ class EmbeddedIndexedGzip(MzmlInterface):
         try:
             offset = self.spectrum_offsets[key]
         except KeyError as error:
-            raise KeyError(f"Spectrum ID {key} not found in embedded index") from error
+            raise MzmlRecordNotFoundError(f"Spectrum ID {key} not found in embedded index") from error
         result = self._element_at(offset, "spectrum")
         if self._modern_index and result.element.get("id") != key:
-            raise ValueError(f"Embedded index entry {key!r} points to a different spectrum")
+            raise MzmlOffsetIndexError(f"Embedded index entry {key!r} points to a different spectrum")
         return result
 
     def get_spectrum_by_index(self, index: int) -> SpectrumElement:
@@ -256,10 +257,10 @@ class EmbeddedIndexedGzip(MzmlInterface):
         try:
             offset = self.chromatogram_offsets[key]
         except KeyError as error:
-            raise KeyError(f"Chromatogram ID {key} not found in embedded index") from error
+            raise MzmlRecordNotFoundError(f"Chromatogram ID {key} not found in embedded index") from error
         result = self._element_at(offset, "chromatogram")
         if self._modern_index and result.element.get("id") != key:
-            raise ValueError(f"Embedded index entry {key!r} points to a different chromatogram")
+            raise MzmlOffsetIndexError(f"Embedded index entry {key!r} points to a different chromatogram")
         return result
 
     def get_chromatogram_by_index(self, index: int) -> ChromatogramElement:
@@ -271,13 +272,6 @@ class EmbeddedIndexedGzip(MzmlInterface):
         except IndexError as error:
             raise IndexError(f"Chromatogram index {index} out of range [0, {len(self._chromatogram_keys)})") from error
         return self.get_chromatogram_by_id(key)
-
-    @property
-    def TIC(self) -> ChromatogramElement:
-        try:
-            return self.get_chromatogram_by_id("TIC")
-        except KeyError:
-            return self.get_chromatogram_by_id("tic")
 
     @cached_property
     def spectrum_count(self) -> int | None:

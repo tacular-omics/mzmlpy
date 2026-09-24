@@ -15,7 +15,7 @@ import pytest
 
 from mzmlpy import BinaryDataArray, Mzml
 from mzmlpy.constants import BinaryDataTypeAccession as DType
-from mzmlpy.constants import CompressionTypeAccessions as Compression
+from mzmlpy.constants import CompressionTypeAccession as Compression
 from mzmlpy.decoder import MSDecoder
 from mzmlpy.mcp import MzmlTools, _points
 
@@ -149,7 +149,7 @@ def test_public_array_accessors(tmp_path, accession, dtype, compressed, in_memor
         chromatogram = next(iter(reader.chromatograms))
         assert spectrum.mz.dtype == np.dtype("<f4")
         assert chromatogram.time.dtype == np.dtype("<f4")
-        for actual in [spectrum.intensity, spectrum.charge, chromatogram.intensity]:
+        for actual in [spectrum.intensity, spectrum.charge_array, chromatogram.intensity]:
             assert actual.dtype == values.dtype
             assert actual.tobytes() == values.tobytes()
 

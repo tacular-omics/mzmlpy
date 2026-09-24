@@ -42,23 +42,24 @@ def reader() -> Mzml:
 
 def test_filter_combines_metadata_and_normalizes_time_units() -> None:
     with reader() as source:
-        assert [s.id for s in source.spectra.filter(ms_level=2, retention_time=(120, 180), polarity="positive")] == [
+        assert [s.id for s in source.spectra.filter(ms_level=2, rt=(120, 180), polarity="positive")] == [
             "scan=2"
         ]
-        assert [s.id for s in source.spectra.filter(retention_time=(None, 60))] == ["scan=0"]
-        assert [s.id for s in source.spectra.filter(retention_time=(180, None))] == ["scan=2"]
+        assert [s.id for s in source.spectra.filter(rt=(None, 60))] == ["scan=0"]
+        assert [s.id for s in source.spectra.filter(rt=(180, None))] == ["scan=2"]
         assert len(list(source.spectra.filter())) == 4
         assert len(list(source.spectra.filter(precursor_mz=(503, 505)))) == 3
         assert list(source.spectra.filter(precursor_mz=(504, 505))) == []
 
 
-def test_filter_is_lazy_and_independent_of_next_cursor() -> None:
+def test_filter_is_lazy_and_independent_of_other_iterators() -> None:
     with reader() as source:
         selected = source.spectra.filter(ms_level=1)
         assert iter(selected) is selected
-        assert source.spectra.next().id == "scan=0"
+        other = iter(source.spectra)
+        assert next(other).id == "scan=0"
         assert next(selected).id == "scan=0"
-        assert source.spectra.next().id == "scan=1"
+        assert next(other).id == "scan=1"
         with pytest.raises(StopIteration):
             next(selected)
         assert SpectrumFilter(ms_level=2).matches(source.spectra[1])
@@ -70,8 +71,8 @@ def test_filter_is_lazy_and_independent_of_next_cursor() -> None:
         {"ms_level": 0},
         {"ms_level": True},
         {"polarity": "unknown"},
-        {"retention_time": (2, 1)},
-        {"retention_time": (-1, 1)},
+        {"rt": (2, 1)},
+        {"rt": (-1, 1)},
         {"precursor_mz": (0, float("inf"))},
         {"precursor_mz": (float("nan"), None)},
     ],
@@ -95,4 +96,4 @@ def test_selected_ion_fallback_and_missing_metadata() -> None:
     )
     assert SpectrumFilter(precursor_mz=(600, 600)).matches(spectrum)
     assert not SpectrumFilter(ms_level=1).matches(spectrum)
-    assert not SpectrumFilter(retention_time=(None, None)).matches(spectrum)
+    assert not SpectrumFilter(rt=(None, None)).matches(spectrum)

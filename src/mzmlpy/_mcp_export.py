@@ -18,6 +18,7 @@ from ._mcp_metadata import (
 )
 from ._mcp_types import ArtifactData, ExportPage
 from ._progress import checkpoint
+from .errors import MzmlError
 
 if TYPE_CHECKING:
     from .mcp import MzmlTools
@@ -44,7 +45,7 @@ def export_records(service: "MzmlTools", path: Path, revision: str, record_ids: 
                     data = chunk.encode("utf-8")
                     byte_count += len(data)
                     if byte_count > 104_857_599:
-                        raise ValueError("Export exceeds 100 MiB. Select fewer records")
+                        raise MzmlError("Export exceeds 100 MiB. Select fewer records")
                     output.write(data)
                     digest.update(data)
                 output.write(b"\n")
@@ -84,7 +85,7 @@ def export_records(service: "MzmlTools", path: Path, revision: str, record_ids: 
                 if record.id not in wanted:
                     continue
                 if record.id in found:
-                    raise ValueError(f"Duplicate native ID {record.id!r} in export source")
+                    raise MzmlError(f"Duplicate native ID {record.id!r} in export source")
                 found.add(record.id)
                 arrays = []
                 for array in record.binary_arrays:
@@ -97,7 +98,7 @@ def export_records(service: "MzmlTools", path: Path, revision: str, record_ids: 
                     {"kind": kind, "id": record.id, "position": position, "metadata": metadata, "arrays": arrays}
                 )
             if found != wanted:
-                raise ValueError(f"Missing record IDs: {sorted(wanted - found)}")
+                raise MzmlError(f"Missing record IDs: {sorted(wanted - found)}")
             service._source(str(path), revision)
             checkpoint("publishing export", len(found))
             output.flush()
@@ -121,10 +122,10 @@ def export_records(service: "MzmlTools", path: Path, revision: str, record_ids: 
 
 def read_export(output_dir: Path, artifact_id: str, start_line: int, limit: int) -> ExportPage:
     if not re.fullmatch(r"[0-9a-f]{32}", artifact_id):
-        raise ValueError("Invalid artifact ID")
+        raise MzmlError("Invalid artifact ID")
     path = output_dir / f"{artifact_id}.jsonl"
     if path.is_symlink() or not path.resolve().is_relative_to(output_dir):
-        raise ValueError("Artifact must remain inside the configured output directory")
+        raise MzmlError("Artifact must remain inside the configured output directory")
     values = []
     with path.open("rb") as handle:
         for index in range(start_line + limit + 1):
@@ -133,7 +134,7 @@ def read_export(output_dir: Path, artifact_id: str, start_line: int, limit: int)
             if not line:
                 return {"artifact_id": artifact_id, "lines": values, "next_line": None}
             if not line.endswith(b"\n"):
-                raise ValueError("Export line is too large for MCP. Read the local artifact with a companion package")
+                raise MzmlError("Export line is too large for MCP. Read the local artifact with a companion package")
             if index == start_line + limit:
                 return {"artifact_id": artifact_id, "lines": values, "next_line": index}
             if index >= start_line:

@@ -1,5 +1,14 @@
 __version__ = "0.9.3"
 
+from .constants import (
+    BinaryDataArrayAccession,
+    BinaryDataTypeAccession,
+    ChromatogramTypeAccession,
+    CollisionDissociationTypeAccession,
+    CompressionTypeAccession,
+    DIAAcquisitionAccession,
+    SpectrumCombinationAccession,
+)
 from .content import CVElement
 from .elems import (
     AnalyzerComponent,
@@ -28,6 +37,13 @@ from .embedded_indexed_gzip import (
     index_gzip,
     is_embedded_indexed_gzip,
     write_indexed_gzip,
+)
+from .errors import (
+    MzmlDecodeError,
+    MzmlError,
+    MzmlOffsetIndexError,
+    MzmlParseError,
+    MzmlRecordNotFoundError,
 )
 from .file_interface import AccessStrategy
 from .filtering import SpectrumFilter
@@ -95,4 +111,16 @@ __all__ = [
     "Precursor",
     "Product",
     "CVElement",
+    "MzmlError",
+    "MzmlParseError",
+    "MzmlOffsetIndexError",
+    "MzmlDecodeError",
+    "MzmlRecordNotFoundError",
+    "BinaryDataArrayAccession",
+    "BinaryDataTypeAccession",
+    "ChromatogramTypeAccession",
+    "CollisionDissociationTypeAccession",
+    "CompressionTypeAccession",
+    "DIAAcquisitionAccession",
+    "SpectrumCombinationAccession",
 ]

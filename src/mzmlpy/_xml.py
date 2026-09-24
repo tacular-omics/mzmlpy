@@ -7,6 +7,7 @@ from typing import BinaryIO, TextIO, cast
 from xml.etree import ElementTree as ET
 from xml.sax.saxutils import quoteattr
 
+from .errors import MzmlParseError
 from .util import get_tag
 
 
@@ -51,7 +52,7 @@ def read_fragment(handle: BinaryIO, encoding: str, namespaces: dict[str, str]) -
                 return element
         if not chunk:
             break
-    raise ValueError("Could not find end of XML element (file may be truncated)")
+    raise MzmlParseError("Could not find end of XML element (file may be truncated)")
 
 
 def read_header(
@@ -91,5 +92,5 @@ def read_header(
             if parents and get_tag(item) in {"spectrum", "chromatogram"}:
                 parents[-1].remove(item)
     if target is not None:
-        raise ValueError(f"Record {target!r} was not found while resolving namespaces")
+        raise MzmlParseError(f"Record {target!r} was not found while resolving namespaces")
     return namespaces, count

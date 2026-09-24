@@ -20,6 +20,7 @@ from xml.etree import ElementTree as ET
 from ._xml import iter_records
 from .constants import ChromatogramTypeAccession
 from .embedded_indexed_gzip import is_embedded_indexed_gzip
+from .errors import MzmlError, _parse_errors
 from .file_classes import (
     BytesMzml,
     ChromatogramElement,
@@ -59,18 +60,18 @@ class AccessStrategy(StrEnum):
 
 
 @overload
-def convert_mzml_element_to_object(
+def _convert_mzml_element_to_object(
     mzml_element: SpectrumElement,
 ) -> Spectrum: ...
 
 
 @overload
-def convert_mzml_element_to_object(
+def _convert_mzml_element_to_object(
     mzml_element: ChromatogramElement,
 ) -> Chromatogram: ...
 
 
-def convert_mzml_element_to_object(
+def _convert_mzml_element_to_object(
     mzml_element: SpectrumElement | ChromatogramElement,
 ) -> Spectrum | Chromatogram:
     """Convert MzmlXMLElement to Spectrum or Chromatogram object."""
@@ -79,7 +80,7 @@ def convert_mzml_element_to_object(
     elif mzml_element.element_type == "chromatogram":
         return Chromatogram(mzml_element.element)
     else:
-        raise ValueError(f"Unknown element_type: {mzml_element.element_type}")
+        raise MzmlError(f"Unknown element_type: {mzml_element.element_type}")
 
 
 class FileInterface:
@@ -100,7 +101,7 @@ class FileInterface:
         self.encoding: str = encoding
         self.index_regex: Pattern[bytes] | None = index_regex
         if gzip_mode not in {"auto", "extract", "indexed", "stream"}:
-            raise ValueError(f"Unsupported gzip_mode: {gzip_mode}")
+            raise MzmlError(f"Unsupported gzip_mode: {gzip_mode}")
         self.gzip_mode: Literal["auto", "extract", "indexed", "stream"] = gzip_mode
         self.in_memory: bool = in_memory
         self._extract_dir: str | None = extract_dir
@@ -286,24 +287,28 @@ class FileInterface:
         return expand_param_group_refs(element, self._param_group_templates)
 
     def get_chromatogram_by_id(self, identifier: str) -> Chromatogram:
-        mzml_element = self.file_handler.get_chromatogram_by_id(identifier)
-        self._expand_param_group_refs(mzml_element.element)
-        return convert_mzml_element_to_object(mzml_element)
+        with _parse_errors():
+            mzml_element = self.file_handler.get_chromatogram_by_id(identifier)
+            self._expand_param_group_refs(mzml_element.element)
+        return _convert_mzml_element_to_object(mzml_element)
 
     def get_chromatogram_by_index(self, index: int) -> Chromatogram:
-        mzml_element = self.file_handler.get_chromatogram_by_index(index)
-        self._expand_param_group_refs(mzml_element.element)
-        return convert_mzml_element_to_object(mzml_element)
+        with _parse_errors():
+            mzml_element = self.file_handler.get_chromatogram_by_index(index)
+            self._expand_param_group_refs(mzml_element.element)
+        return _convert_mzml_element_to_object(mzml_element)
 
     def get_spectrum_by_id(self, identifier: str) -> Spectrum:
-        mzml_element = self.file_handler.get_spectrum_by_id(identifier)
-        self._expand_param_group_refs(mzml_element.element)
-        return convert_mzml_element_to_object(mzml_element)
+        with _parse_errors():
+            mzml_element = self.file_handler.get_spectrum_by_id(identifier)
+            self._expand_param_group_refs(mzml_element.element)
+        return _convert_mzml_element_to_object(mzml_element)
 
     def get_spectrum_by_index(self, index: int) -> Spectrum:
-        mzml_element = self.file_handler.get_spectrum_by_index(index)
-        self._expand_param_group_refs(mzml_element.element)
-        return convert_mzml_element_to_object(mzml_element)
+        with _parse_errors():
+            mzml_element = self.file_handler.get_spectrum_by_index(index)
+            self._expand_param_group_refs(mzml_element.element)
+        return _convert_mzml_element_to_object(mzml_element)
 
     @overload
     def _iter_xml_elements(self, tag_suffix: Literal["spectrum"]) -> Iterator[SpectrumElement]: ...
@@ -315,7 +320,7 @@ class FileInterface:
         self, tag_suffix: Literal["spectrum", "chromatogram"]
     ) -> Iterator[SpectrumElement] | Iterator[ChromatogramElement]:
         """Iterate with a private handle and bounded memory for either record kind."""
-        with self.file_handler.get_file_handler(self.encoding) as handle:
+        with _parse_errors(), self.file_handler.get_file_handler(self.encoding) as handle:
             for element in iter_records(handle, tag_suffix):
                 if tag_suffix == "spectrum":
                     yield MzmlXMLElement(element=element, element_type="spectrum")
@@ -332,39 +337,45 @@ class FileInterface:
         for mzml_element in self._iter_xml_elements("chromatogram"):
             yield Chromatogram(self._expand_param_group_refs(mzml_element.element))
 
-    @property
-    def TIC(self) -> Chromatogram:
-        """Retrieve the Total Ion Chromatogram (TIC).
+    def total_ion_chromatogram(self) -> Chromatogram | None:
+        """Return the total ion chromatogram, or None if the file has none.
 
         The conventional id ``"TIC"`` is tried first; if that is absent, chromatograms are searched
         for the one carrying the "total ion current chromatogram" CV term (MS:1000235), since the
-        id spelling varies by writer (e.g. ``"tic"``). Raises ``KeyError`` if no TIC is present.
+        id spelling varies by writer (e.g. ``"tic"``).
         """
         try:
             return self.get_chromatogram_by_id("TIC")
         except KeyError:
             for cid in self.chromatogram_ids:
                 chromatogram = self.get_chromatogram_by_id(cid)
-                if chromatogram.has_cvparm(ChromatogramTypeAccession.TOTAL_ION_CURRENT):
+                if chromatogram.has_cv_param(ChromatogramTypeAccession.TOTAL_ION_CURRENT):
                     return chromatogram
-            raise
+            return None
 
     @property
     def spectrum_ids(self) -> list[str]:
         """All spectrum IDs from the file index."""
-        return self.file_handler.spectrum_ids
+        with _parse_errors():
+            return self.file_handler.spectrum_ids
 
     @property
     def chromatogram_ids(self) -> list[str]:
         """All chromatogram IDs from the file index."""
-        return self.file_handler.chromatogram_ids
+        with _parse_errors():
+            return self.file_handler.chromatogram_ids
 
     @property
     def spectrum_count(self) -> int | None:
         """Count of spectra in the file, if determinable."""
-        return self.file_handler.spectrum_count
+        with _parse_errors():
+            return self.file_handler.spectrum_count
 
     @property
     def chromatogram_count(self) -> int | None:
         """Count of chromatograms in the file, if determinable."""
-        return self.file_handler.chromatogram_count
+        with _parse_errors():
+            return self.file_handler.chromatogram_count
+
+
+__all__ = ["AccessStrategy"]

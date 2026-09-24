@@ -84,7 +84,7 @@ def test_xml_variants_agree_on_counts_and_lookup(tmp_path: Path, mode: str, vari
         assert reader.spectra[0].id == reader.spectra["scan=1"].id == spectra[0].id
         assert reader.spectra[-1].id == "scan=1"
         assert len(reader.chromatograms) == 1
-        assert reader.chromatograms[0].id == reader.TIC.id == "tic"
+        assert reader.chromatograms[0].id == reader.total_ion_chromatogram.id == "tic"
         for lookup in (reader.spectra, reader.chromatograms):
             for index in (-2, 1):
                 with pytest.raises(IndexError):
@@ -122,7 +122,7 @@ def test_embedded_absent_record_kinds(tmp_path: Path, count: int, chromatograms:
     with open_mode(path, "embedded") as reader:
         assert len(reader.spectra) == len(list(reader.spectra)) == count
         assert len(reader.chromatograms) == len(list(reader.chromatograms)) == int(chromatograms)
-        assert (reader.TIC is not None) == chromatograms
+        assert (reader.total_ion_chromatogram is not None) == chromatograms
 
 
 def test_shared_extraction_cache_preserves_both_sources(tmp_path: Path) -> None:

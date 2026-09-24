@@ -12,11 +12,10 @@ from .spectra import Chromatogram, Spectrum
 class BaseLookup[T: (Spectrum, Chromatogram)](ABC):
     """Base class for spectrum and chromatogram lookups."""
 
-    def __init__(self, file_object: FileInterface, count: int | None = None, id_regex: str | None = None) -> None:
-        self.file_object = file_object
+    def __init__(self, file_object: FileInterface, *, count: int | None = None, id_regex: str | None = None) -> None:
+        self._file_object = file_object
         self._count = count
         self._id_regex = id_regex
-        self._cursor: Iterator[T] | None = None
 
     @cached_property
     def _id_map(self) -> dict[str, str]:
@@ -37,10 +36,10 @@ class BaseLookup[T: (Spectrum, Chromatogram)](ABC):
         """Return the list of all IDs used to build the regex ID map."""
         ...
 
-    def get_by_index(self, index: int | str) -> T:
+    def get_by_index(self, index: int) -> T:
         """Get item by index. Negative indices count from the end, like a list."""
-        if isinstance(index, str):
-            index = int(index)
+        if isinstance(index, bool) or not isinstance(index, int):
+            raise TypeError(f"index must be an int, got {type(index).__name__}")
         if index < 0:
             # Normalize against the count so lookup[-1] mirrors slice behavior (lookup[-1:]).
             count = self.count
@@ -88,20 +87,6 @@ class BaseLookup[T: (Spectrum, Chromatogram)](ABC):
         if isinstance(index, int):
             return self.get_by_index(index)
         return self.get_by_id(index)
-
-    def next(self) -> T:
-        """Advance a persistent cursor and return the next item.
-
-        The cursor is created on first call and advances on each subsequent call, raising
-        ``StopIteration`` once every item has been returned. Call :meth:`reset` to start over.
-        """
-        if self._cursor is None:
-            self._cursor = iter(self)
-        return next(self._cursor)
-
-    def reset(self) -> None:
-        """Reset the cursor used by :meth:`next` so the next call starts from the first item."""
-        self._cursor = None
 
     # Abstract methods to be implemented by subclasses
     @abstractmethod
@@ -157,7 +142,7 @@ class SpectrumLookup(BaseLookup[Spectrum]):
         self,
         *,
         ms_level: int | None = None,
-        retention_time: tuple[float | None, float | None] | None = None,
+        rt: tuple[float | None, float | None] | None = None,
         polarity: Literal["positive", "negative"] | None = None,
         precursor_mz: tuple[float | None, float | None] | None = None,
         spectrum_type: Literal["centroid", "profile"] | None = None,
@@ -172,59 +157,69 @@ class SpectrumLookup(BaseLookup[Spectrum]):
         metadata does not match a requested criterion. Keep the reader open while iterating.
         """
         predicate = SpectrumFilter(
-            ms_level, retention_time, polarity, precursor_mz, spectrum_type, mobility_type, ion_mobility, faims_voltage
+            ms_level=ms_level,
+            rt=rt,
+            polarity=polarity,
+            precursor_mz=precursor_mz,
+            spectrum_type=spectrum_type,
+            mobility_type=mobility_type,
+            ion_mobility=ion_mobility,
+            faims_voltage=faims_voltage,
         )
         return (spectrum for spectrum in self if predicate.matches(spectrum))
 
     def _get_by_index_impl(self, index: int) -> Spectrum:
-        return self.file_object.get_spectrum_by_index(index)
+        return self._file_object.get_spectrum_by_index(index)
 
     def _get_by_id_impl(self, identifier: str) -> Spectrum:
         try:
-            return self.file_object.get_spectrum_by_id(identifier)
+            return self._file_object.get_spectrum_by_id(identifier)
         except KeyError:
             if self._id_regex is not None and (mapped := self._id_map.get(identifier)):
-                return self.file_object.get_spectrum_by_id(mapped)
+                return self._file_object.get_spectrum_by_id(mapped)
             raise
 
     def _get_ids_for_map(self) -> list[str]:
-        return self.file_object.spectrum_ids
+        return self._file_object.spectrum_ids
 
     def _get_count_impl(self) -> int | None:
         if self._count is not None:
             return self._count
-        return self.file_object.spectrum_count
+        return self._file_object.spectrum_count
 
     def _iter_impl(self) -> Iterator[Spectrum]:
-        return self.file_object.iter_spectra()
+        return self._file_object.iter_spectra()
 
 
 class ChromatogramLookup(BaseLookup[Chromatogram]):
     """Lookup interface for chromatograms."""
 
     def _get_by_index_impl(self, index: int) -> Chromatogram:
-        return self.file_object.get_chromatogram_by_index(index)
+        return self._file_object.get_chromatogram_by_index(index)
 
     def _get_by_id_impl(self, identifier: str) -> Chromatogram:
         try:
-            return self.file_object.get_chromatogram_by_id(identifier)
+            return self._file_object.get_chromatogram_by_id(identifier)
         except KeyError:
             if self._id_regex is not None and (mapped := self._id_map.get(identifier)):
-                return self.file_object.get_chromatogram_by_id(mapped)
+                return self._file_object.get_chromatogram_by_id(mapped)
             raise
 
     def _get_ids_for_map(self) -> list[str]:
-        return self.file_object.chromatogram_ids
+        return self._file_object.chromatogram_ids
 
     def _get_count_impl(self) -> int | None:
         if self._count is not None:
             return self._count
-        return self.file_object.chromatogram_count
+        return self._file_object.chromatogram_count
 
     def _iter_impl(self) -> Iterator[Chromatogram]:
-        return self.file_object.iter_chromatograms()
+        return self._file_object.iter_chromatograms()
 
     @property
-    def TIC(self) -> Chromatogram:
-        """Access Total Ion Chromatogram."""
-        return self.file_object.TIC
+    def total_ion_chromatogram(self) -> Chromatogram | None:
+        """The total ion chromatogram, or None if the file has none."""
+        return self._file_object.total_ion_chromatogram()
+
+
+__all__ = ["BaseLookup", "SpectrumLookup", "ChromatogramLookup"]

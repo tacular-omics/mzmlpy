@@ -18,9 +18,9 @@ def test_data_processing(filename):
     assert method.order == 1
     assert method.software_ref == "CompassXtract"
 
-    assert method.get_cvparm("MS:1000033").name == "deisotoping"
-    assert method.get_cvparm("MS:1000034").name == "charge deconvolution"
-    assert method.get_cvparm("MS:1000035").name == "peak picking"
+    assert method.get_cv_param("MS:1000033").name == "deisotoping"
+    assert method.get_cv_param("MS:1000034").name == "charge deconvolution"
+    assert method.get_cv_param("MS:1000035").name == "peak picking"
 
     # Check pwiz processing
     pwiz_proc = procs["pwiz_processing"]
@@ -30,4 +30,4 @@ def test_data_processing(filename):
     assert method.order == 2
     assert method.software_ref == "pwiz"
 
-    assert method.get_cvparm("MS:1000544").name == "Conversion to mzML"
+    assert method.get_cv_param("MS:1000544").name == "Conversion to mzML"

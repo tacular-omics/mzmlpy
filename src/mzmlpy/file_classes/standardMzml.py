@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 from .. import regex_patterns
 from .._xml import read_fragment, read_header
+from ..errors import MzmlOffsetIndexError, MzmlParseError, MzmlRecordNotFoundError
 from ..util import get_tag
 from .interface import MzmlInterface
 from .xml_tuple import ChromatogramElement, MzmlXMLElement, SpectrumElement
@@ -117,7 +118,7 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
             identifier = str(identifier)
 
         if identifier not in self.spectrum_offsets:
-            raise KeyError(f"Spectrum ID {identifier} not found in index")
+            raise MzmlRecordNotFoundError(f"Spectrum ID {identifier} not found in index")
 
         return MzmlXMLElement(
             self._read_record(self.spectrum_offsets[identifier], "spectrum", identifier), element_type="spectrum"
@@ -145,11 +146,13 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
                     handle.seek(offset)
                     element = read_fragment(handle, self.encoding, context)
             except Exception as error:
-                raise ValueError(
+                raise MzmlParseError(
                     f"Could not find end or parse {kind} {identifier!r} at offset {offset}: {error}"
                 ) from error
         if get_tag(element) != kind or element.get("id") != identifier:
-            raise ValueError(f"Index entry for {kind} {identifier!r} points to a different element at offset {offset}")
+            raise MzmlOffsetIndexError(
+                f"Index entry for {kind} {identifier!r} points to a different element at offset {offset}"
+            )
         return element
 
     def get_spectrum_by_index(self, index: int) -> SpectrumElement:
@@ -180,7 +183,7 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
             identifier = str(identifier)
 
         if identifier not in self.chromatogram_offsets:
-            raise KeyError(f"Chromatogram ID {identifier} not found in index")
+            raise MzmlRecordNotFoundError(f"Chromatogram ID {identifier} not found in index")
 
         return MzmlXMLElement(
             self._read_record(self.chromatogram_offsets[identifier], "chromatogram", identifier),
@@ -248,34 +251,34 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
         seeker.seek(index_offset)
         root = read_fragment(seeker, self.encoding, namespaces)
         if get_tag(root) != "indexList":
-            raise ValueError("indexListOffset does not point to an indexList")
+            raise MzmlOffsetIndexError("indexListOffset does not point to an indexList")
         indices = list(root)
         if int(root.get("count", str(len(indices)))) != len(indices):
-            raise ValueError("Index list count does not match its entries")
+            raise MzmlOffsetIndexError("Index list count does not match its entries")
         for index in indices:
             kind = index.get("name")
             if get_tag(index) != "index" or kind not in {"spectrum", "chromatogram"}:
-                raise ValueError("Unknown index kind")
+                raise MzmlOffsetIndexError("Unknown index kind")
             for entry in index:
                 if get_tag(entry) != "offset":
-                    raise ValueError("Unexpected element in index")
+                    raise MzmlOffsetIndexError("Unexpected element in index")
                 offset = int(entry.text or "")
                 if not 0 <= offset < index_offset:
-                    raise ValueError("Record offset is outside the data section")
+                    raise MzmlOffsetIndexError("Record offset is outside the data section")
                 self._add_offset_entry(kind, entry.attrib["idRef"], offset)
         if expected_spectra is not None and len(self.spectrum_offsets) != expected_spectra:
-            raise ValueError("Spectrum index count does not match spectrumList")
+            raise MzmlOffsetIndexError("Spectrum index count does not match spectrumList")
 
     def _add_offset_entry(self, index_type: str, native_id: str, offset: int) -> None:
         """Add an offset entry to the appropriate dictionary with duplicate checking."""
         if index_type == "spectrum":
             if native_id in self.spectrum_offsets:
-                raise ValueError(f"Duplicate spectrum ID found in index: {native_id}")
+                raise MzmlOffsetIndexError(f"Duplicate spectrum ID found in index: {native_id}")
             self.spectrum_offsets[native_id] = offset
 
         elif index_type == "chromatogram":
             if native_id in self.chromatogram_offsets:
-                raise ValueError(f"Duplicate chromatogram ID found in index: {native_id}")
+                raise MzmlOffsetIndexError(f"Duplicate chromatogram ID found in index: {native_id}")
             self.chromatogram_offsets[native_id] = offset
 
     def _finalize_index(self) -> None:
@@ -285,7 +288,7 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
                 not isinstance(identifier, str) or type(offset) is not int or offset < 0
                 for identifier, offset in offsets.items()
             ):
-                raise ValueError("Invalid record ID or byte offset in index")
+                raise MzmlOffsetIndexError("Invalid record ID or byte offset in index")
         self._validate_unique_offsets()
         self.spectrum_offsets = OrderedDict(sorted(self.spectrum_offsets.items(), key=lambda item: item[1]))
         self.chromatogram_offsets = OrderedDict(sorted(self.chromatogram_offsets.items(), key=lambda item: item[1]))
@@ -297,16 +300,16 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
         # Check for duplicates within spectra
         spectrum_offset_values = list(self.spectrum_offsets.values())
         if len(spectrum_offset_values) != len(set(spectrum_offset_values)):
-            raise ValueError("Duplicate offsets found within spectrum index")
+            raise MzmlOffsetIndexError("Duplicate offsets found within spectrum index")
 
         # Check for duplicates within chromatograms
         chromatogram_offset_values = list(self.chromatogram_offsets.values())
         if len(chromatogram_offset_values) != len(set(chromatogram_offset_values)):
-            raise ValueError("Duplicate offsets found within chromatogram index")
+            raise MzmlOffsetIndexError("Duplicate offsets found within chromatogram index")
 
         # Check for shared offsets between spectra and chromatograms
         if shared := set(spectrum_offset_values) & set(chromatogram_offset_values):
-            raise ValueError(f"Offsets shared between spectra and chromatograms: {sorted(shared)}")
+            raise MzmlOffsetIndexError(f"Offsets shared between spectra and chromatograms: {sorted(shared)}")
 
     def _build_index_from_scratch(self, seeker: BinaryIO) -> None:
         """Build byte offsets with an XML parser, without retaining the document tree."""
@@ -360,11 +363,6 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
     def close(self) -> None:
         """Close file handler."""
         self.file_handler.close()
-
-    @property
-    def TIC(self) -> ChromatogramElement:
-        """Retrieve the Total Ion Chromatogram (TIC)."""
-        return self.get_chromatogram_by_id("TIC")
 
     @cached_property
     def spectrum_count(self) -> int | None:

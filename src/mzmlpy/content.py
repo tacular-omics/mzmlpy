@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import NamedTuple
 
-from .constants import MzMLElement, XMLNamespace
+from .constants import MzMLElement
 from .elems import (
     DataProcessing,
     FileDescription,
@@ -17,6 +17,8 @@ from .elems import (
 )
 from .regex_patterns import MZML_VERSION_PATTERN
 from .util import expand_param_group_refs, get_tag
+
+_SCHEMA_LOCATION = "{http://www.w3.org/2001/XMLSchema-instance}schemaLocation"
 
 
 class CVElement(NamedTuple):
@@ -53,7 +55,7 @@ class _MzMLContent:
     xsi_schema_location: str | None = None
 
 
-class MzMLContentBuilder:
+class _MzMLContentBuilder:
     """Builder that parses mzML metadata from XML iterator."""
 
     def __init__(self) -> None:
@@ -116,7 +118,7 @@ class MzMLContentBuilder:
         if version := element.attrib.get("version"):
             self._version = version
         else:
-            schema_location = element.attrib.get(XMLNamespace.SCHEMA_LOCATION, "")
+            schema_location = element.attrib.get(_SCHEMA_LOCATION, "")
             if match := MZML_VERSION_PATTERN.search(schema_location):
                 self._version = match.group()
 
@@ -218,3 +220,6 @@ class MzMLContentBuilder:
             data_processes={dp.id: dp for dp in self._data_processing_list},
             run=self._run,
         )
+
+
+__all__ = ["CVElement"]

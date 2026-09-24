@@ -58,7 +58,7 @@ def test_spectrum_pages_and_filtering(source: tuple[MzmlTools, str]) -> None:
         assert ids == [s.id for s in reader.spectra]
         matches = tools.find_spectra(name, ms_level=2, retention_time_min_seconds=0, polarity="positive")
         assert [s["id"] for s in matches.data["spectra"]] == [
-            s.id for s in reader.spectra.filter(ms_level=2, retention_time=(0, None), polarity="positive")
+            s.id for s in reader.spectra.filter(ms_level=2, rt=(0, None), polarity="positive")
         ]
     page = tools.find_spectra(name, ms_level=99, scan_limit=1)
     assert page.data["spectra"] == []

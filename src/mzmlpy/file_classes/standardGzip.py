@@ -3,6 +3,7 @@ from functools import cached_property
 from typing import TextIO
 
 from .._xml import iter_records
+from ..errors import MzmlRecordNotFoundError
 from ..util import get_tag, gzip_open_text
 from .interface import MzmlInterface
 from .xml_tuple import ChromatogramElement, MzmlXMLElement, SpectrumElement
@@ -62,7 +63,7 @@ class StandardGzip(MzmlInterface):
                     if element.get("id") == identifier:
                         return MzmlXMLElement(element=element, element_type="spectrum")
 
-        raise KeyError(f"Spectrum ID {identifier} not found in file")
+        raise MzmlRecordNotFoundError(f"Spectrum ID {identifier} not found in file")
 
     def get_spectrum_by_index(self, index: int) -> SpectrumElement:
         """Retrieve spectrum by 0-based index.
@@ -112,7 +113,7 @@ class StandardGzip(MzmlInterface):
                     if elem_id and elem_id == identifier:
                         return MzmlXMLElement(element=element, element_type="chromatogram")
 
-        raise KeyError(f"Chromatogram ID {identifier} not found in file")
+        raise MzmlRecordNotFoundError(f"Chromatogram ID {identifier} not found in file")
 
     def get_chromatogram_by_index(self, index: int) -> ChromatogramElement:
         """Retrieve chromatogram by 0-based index.
@@ -137,11 +138,6 @@ class StandardGzip(MzmlInterface):
                     current_index += 1
 
         raise IndexError(f"Chromatogram index {index} out of range [0, {current_index})")
-
-    @property
-    def TIC(self) -> ChromatogramElement:
-        """Retrieve the Total Ion Chromatogram (TIC)."""
-        return self.get_chromatogram_by_id("TIC")
 
     @cached_property
     def _ids(self) -> tuple[list[str], list[str]]:

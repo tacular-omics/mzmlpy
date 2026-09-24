@@ -31,19 +31,19 @@ def test_missing_optional_dependency_error_is_actionable():
 
 def test_unsupported_dtype_error_names_the_accession():
     """The 'unsupported data type' error must show the actual accession, not None."""
-    from mzmlpy.spectra import decode_to_numpy
+    from mzmlpy.spectra import _decode_to_numpy
 
     with pytest.raises(ValueError) as exc:
-        decode_to_numpy(b"\x00" * 8, "MS:9999999")
+        _decode_to_numpy(b"\x00" * 8, "MS:9999999")
     assert "MS:9999999" in str(exc.value)
 
 
 def test_buffer_size_mismatch_error_is_contextual():
     """A byte count that isn't a multiple of the element size explains why, not a raw numpy error."""
-    from mzmlpy.spectra import decode_to_numpy
+    from mzmlpy.spectra import _decode_to_numpy
 
     with pytest.raises(ValueError) as exc:
-        decode_to_numpy(b"\x00" * 7, "MS:1000523")  # 7 bytes, 64-bit float = 8-byte elements
+        _decode_to_numpy(b"\x00" * 7, "MS:1000523")  # 7 bytes, 64-bit float = 8-byte elements
     msg = str(exc.value)
     assert "7 bytes" in msg
     assert "8-byte" in msg
@@ -66,7 +66,7 @@ def test_non_numeric_cv_value_error_names_the_term(tmp_path):
     with Mzml(path) as r:
         si = r.spectra[0].precursors[0].selected_ions[0]
         with pytest.raises(ValueError) as exc:
-            _ = si.selected_ion_mz
+            _ = si.mz
         msg = str(exc.value)
         assert "MS:1000744" in msg
         assert "not_a_number" in msg

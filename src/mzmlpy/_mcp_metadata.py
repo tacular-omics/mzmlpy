@@ -10,6 +10,7 @@ from xml.etree import ElementTree as ET
 from . import Chromatogram, Mzml, Spectrum
 from ._progress import checkpoint
 from .elems.dtree_wrapper import _DataTreeWrapper, _ParamGroup
+from .errors import MzmlError
 from .util import get_tag, gzip_open_binary
 
 
@@ -37,7 +38,7 @@ def metadata_tree(group: _DataTreeWrapper, *, omit_arrays: bool = False) -> dict
 
     def visit(element: Any) -> dict[str, Any]:
         if get_tag(element) in {"binary", "spectrumList", "chromatogramList"}:
-            raise ValueError("Record arrays and lists are not header metadata")
+            raise MzmlError("Record arrays and lists are not header metadata")
         return {
             "tag": get_tag(element),
             "attributes": dict(element.attrib),
@@ -77,16 +78,14 @@ def spectrum_metadata(spectrum: Spectrum) -> dict[str, Any]:
         "structure": metadata_tree(spectrum, omit_arrays=True),
         "terms": params(spectrum),
         "user_params": [asdict(param) for param in spectrum.user_params],
-        "retention_times_seconds": [
-            time.total_seconds() if (time := scan.scan_start_time) is not None else None for scan in spectrum.scans
-        ],
+        "retention_times_seconds": [scan.rt for scan in spectrum.scans],
         "scans": [
             {
                 "attributes": dict(scan.element.attrib),
                 "terms": params(scan),
                 "user_params": [asdict(param) for param in scan.user_params],
-                "inverse_reduced_ion_mobility": scan.inverse_reduced_ion_mobility,
-                "ion_mobility_drift_time": scan.ion_mobility_drift_time,
+                "inverse_reduced_ion_mobility": scan.ook0,
+                "ion_mobility_drift_time": scan.drift_time,
                 "faims_compensation_voltage": scan.faims_compensation_voltage,
                 "windows": [metadata_tree(window) for window in scan.scan_windows],
             }
@@ -144,14 +143,14 @@ def inventory(reader: Mzml) -> dict[str, Any]:
             max_length = length if max_length is None else max(max_length, length)
         scans = spectrum.scans
         multiple_scans += len(scans) > 1
-        times = [t.total_seconds() for scan in scans if (t := scan.scan_start_time) is not None]
+        times = [t for scan in scans if (t := scan.rt) is not None]
         missing_time += not times
         for time in times:
             earliest = time if earliest is None else min(earliest, time)
             latest = time if latest is None else max(latest, time)
         # Consecutive timing statistics use only the first recorded scan time.
-        if scans and (first := scans[0].scan_start_time) is not None:
-            time = first.total_seconds()
+        if scans and (first := scans[0].rt) is not None:
+            time = first
             if previous is not None:
                 delta = time - previous
                 regressions += delta < 0
@@ -169,7 +168,7 @@ def inventory(reader: Mzml) -> dict[str, Any]:
             if window is not None:
                 item = (window.target_mz, window.lower_offset, window.upper_offset)
                 if any(value is not None and not math.isfinite(value) for value in item):
-                    raise ValueError("Nonfinite isolation window metadata")
+                    raise MzmlError("Nonfinite isolation window metadata")
                 if item not in windows:
                     if len(windows) < 100:
                         windows.add(item)

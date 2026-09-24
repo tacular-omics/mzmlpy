@@ -42,7 +42,7 @@ def test_get_spectrum_by_index(indexed_reader, reference_reader):
         s_ref = reference_reader.spectra[i]
         assert s_idx.id == s_ref.id
         assert s_idx.ms_level == s_ref.ms_level
-        assert s_idx.TIC == s_ref.TIC
+        assert s_idx.total_ion_current == s_ref.total_ion_current
 
 
 def test_get_spectrum_by_id(indexed_reader, reference_reader):

@@ -106,7 +106,7 @@ from mzmlpy import Mzml
 with Mzml("tests/data/example.mzML") as reader:
     # Iterate all spectra
     for spectrum in reader.spectra:
-        print(f"Scan {spectrum.id} (MS{spectrum.ms_level}) - TIC: {spectrum.TIC}")
+        print(f"Scan {spectrum.id} (MS{spectrum.ms_level}) - TIC: {spectrum.total_ion_current}")
 
     # Access by index
     first = reader.spectra[0]
@@ -123,7 +123,7 @@ with Mzml("tests/data/example.mzML") as reader:
 
 ## Native IDs and Summary Values
 
-The native `id` string encodes vendor-specific components (e.g. Thermo's `controllerType=0 controllerNumber=1 scan=19`); `id_dict` parses it into a dict with numeric components coerced to `int`. Common summary values and the instrument scan filter are also exposed directly, instead of requiring a manual `get_cvparm` lookup:
+The native `id` string encodes vendor-specific components (e.g. Thermo's `controllerType=0 controllerNumber=1 scan=19`); `id_dict` parses it into a dict with numeric components coerced to `int`. Common summary values and the instrument scan filter are also exposed directly, instead of requiring a manual `get_cv_param` lookup:
 
 ```python
 from mzmlpy import Mzml
@@ -159,7 +159,7 @@ with Mzml("tests/data/example.mzML") as reader:
 
     mz = spec.mz  # np.ndarray | None
     intensity = spec.intensity  # np.ndarray | None
-    charge = spec.charge  # np.ndarray | None
+    charge = spec.charge_array  # np.ndarray | None
 
     # For less common array types, use get_binary_array with a CV accession
     barr = spec.get_binary_array(c.BinaryDataArrayAccession.RAW_ION_MOBILITY)
@@ -173,7 +173,7 @@ with Mzml("tests/data/example.mzML") as reader:
 
 ## Working with Scan Timing
 
-Retention time and ion injection time are accessible as `timedelta` objects through the spectrum, which delegates to the first scan:
+Retention time is a float in seconds (`rt`), ion injection time is a `timedelta`, and `mz_range` is the scan window envelope. The spectrum delegates each to its first scan:
 
 ```python
 from mzmlpy import Mzml
@@ -181,17 +181,17 @@ from mzmlpy import Mzml
 with Mzml("tests/data/example.mzML") as reader:
     spec = reader.spectra[0]
 
-    if spec.scan_start_time is not None:
-        rt_seconds = spec.scan_start_time.total_seconds()
-        rt_minutes = rt_seconds / 60
+    if spec.rt is not None:
+        rt_minutes = spec.rt / 60
         print(f"RT: {rt_minutes:.4f} min")
 
     if spec.ion_injection_time is not None:
         iit_ms = spec.ion_injection_time.total_seconds() * 1000
         print(f"Ion injection time: {iit_ms:.2f} ms")
 
-    print(f"Lower m/z: {spec.lower_mz}")
-    print(f"Upper m/z: {spec.upper_mz}")
+    if spec.mz_range is not None:
+        lower, upper = spec.mz_range
+        print(f"Scan window: {lower}-{upper} m/z")
 ```
 
 ## Working with Ion Mobility
@@ -286,7 +286,7 @@ how many arrays and index entries were checked, and whether XML parsing complete
 Malformed content is reported through `report.issues`.
 
 An open reader also has `reader.validate(...)`. It uses a fresh handle to the selected
-representation and preserves the lookup cursor. Use standalone `validate(path)` when the
+representation and leaves open iterators untouched. Use standalone `validate(path)` when the
 original source file, rather than a cached representation, is what you want to inspect.
 These checks do not constitute full XSD or controlled-vocabulary validation, and they do
 not verify the embedded gzip index itself.
@@ -330,12 +330,12 @@ endpoint open. Retention times are expressed in seconds, with source units norma
 from mzmlpy import Mzml
 
 with Mzml("tests/data/example.mzML", in_memory=False) as reader:
-    selected = reader.spectra.filter(ms_level=2, retention_time=(0, None))
+    selected = reader.spectra.filter(ms_level=2, rt=(0, None))
     for spectrum in selected:
         print(spectrum.id, spectrum.ms_level)
 ```
 
-Available criteria are `ms_level`, `retention_time=(lower_seconds, upper_seconds)`,
+Available criteria are `ms_level`, `rt=(lower_seconds, upper_seconds)`,
 `polarity="positive"` or `"negative"`, `precursor_mz=(lower_mz, upper_mz)`,
 `spectrum_type="centroid"` or `"profile"`, and scan-level mobility or FAIMS selection.
 Retention time matches any scan. Precursor m/z matches overlap with any reported isolation
@@ -350,7 +350,7 @@ an explicit mobility type. `faims_voltage=(lower, upper)` accepts signed volts. 
 criteria inspect scan metadata and do not process per-peak mobility arrays.
 
 Filtering is a sequential scan. Keep the reader open while consuming the returned iterator.
-It neither builds a retention-time index nor changes the cursor used by `reader.spectra.next()`.
+It does not build a retention-time index, and each call returns a new, independent iterator.
 
 ## Command-line inspection
 

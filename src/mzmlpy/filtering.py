@@ -4,6 +4,7 @@ import math
 from dataclasses import dataclass
 from typing import Literal
 
+from .errors import MzmlError
 from .spectra import Spectrum
 
 
@@ -11,12 +12,12 @@ def _check_range(name: str, bounds: tuple[float | None, float | None] | None, *,
     if bounds is None:
         return
     if len(bounds) != 2:
-        raise ValueError(f"{name} must contain a lower and an upper bound")
+        raise MzmlError(f"{name} must contain a lower and an upper bound")
     lower, upper = bounds
     if any(value is not None and (not math.isfinite(value) or (not signed and value < 0)) for value in bounds):
-        raise ValueError(f"{name} bounds must be finite, nonnegative unless signed, or None")
+        raise MzmlError(f"{name} bounds must be finite, nonnegative unless signed, or None")
     if lower is not None and upper is not None and lower > upper:
-        raise ValueError(f"{name} lower bound must not exceed the upper bound")
+        raise MzmlError(f"{name} lower bound must not exceed the upper bound")
 
 
 def _within(value: float | None, bounds: tuple[float | None, float | None]) -> bool:
@@ -29,7 +30,7 @@ def _within(value: float | None, bounds: tuple[float | None, float | None]) -> b
     )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class SpectrumFilter:
     """Combine metadata criteria with AND, without decoding binary arrays.
 
@@ -40,7 +41,7 @@ class SpectrumFilter:
     """
 
     ms_level: int | None = None
-    retention_time: tuple[float | None, float | None] | None = None
+    rt: tuple[float | None, float | None] | None = None
     polarity: Literal["positive", "negative"] | None = None
     precursor_mz: tuple[float | None, float | None] | None = None
 
@@ -51,18 +52,18 @@ class SpectrumFilter:
 
     def __post_init__(self) -> None:
         if self.ms_level is not None and (type(self.ms_level) is not int or self.ms_level < 1):
-            raise ValueError("ms_level must be a positive integer")
+            raise MzmlError("ms_level must be a positive integer")
         if self.polarity not in {None, "positive", "negative"}:
-            raise ValueError("polarity must be 'positive' or 'negative'")
+            raise MzmlError("polarity must be 'positive' or 'negative'")
         if self.spectrum_type not in {None, "centroid", "profile"}:
-            raise ValueError("spectrum_type must be centroid or profile")
+            raise MzmlError("spectrum_type must be centroid or profile")
         if self.mobility_type not in {None, "inverse_reduced", "drift_time"}:
-            raise ValueError("mobility_type must be inverse_reduced or drift_time")
+            raise MzmlError("mobility_type must be inverse_reduced or drift_time")
         if self.ion_mobility is not None and self.mobility_type is None:
-            raise ValueError("ion_mobility requires an explicit mobility_type")
+            raise MzmlError("ion_mobility requires an explicit mobility_type")
         _check_range("ion_mobility", self.ion_mobility)
         _check_range("faims_voltage", self.faims_voltage, signed=True)
-        _check_range("retention_time", self.retention_time)
+        _check_range("rt", self.rt)
         _check_range("precursor_mz", self.precursor_mz)
 
     def matches(self, spectrum: Spectrum) -> bool:
@@ -70,9 +71,7 @@ class SpectrumFilter:
         if self.spectrum_type is not None and spectrum.spectrum_type != self.spectrum_type:
             return False
         if self.mobility_type is not None:
-            attribute = (
-                "inverse_reduced_ion_mobility" if self.mobility_type == "inverse_reduced" else "ion_mobility_drift_time"
-            )
+            attribute = "ook0" if self.mobility_type == "inverse_reduced" else "drift_time"
             if not any(_within(getattr(scan, attribute), self.ion_mobility or (None, None)) for scan in spectrum.scans):
                 return False
         if self.faims_voltage is not None:
@@ -82,11 +81,8 @@ class SpectrumFilter:
             return False
         if self.polarity is not None and spectrum.polarity != self.polarity:
             return False
-        if self.retention_time is not None:
-            if not any(
-                (time := scan.scan_start_time) is not None and _within(time.total_seconds(), self.retention_time)
-                for scan in spectrum.scans
-            ):
+        if self.rt is not None:
+            if not any(_within(scan.rt, self.rt) for scan in spectrum.scans):
                 return False
         if self.precursor_mz is not None and not self._matches_precursor(spectrum):
             return False
@@ -108,6 +104,9 @@ class SpectrumFilter:
                     if (lower is None or target + right >= lower) and (upper is None or target - left <= upper):
                         return True
                     continue
-            if any(_within(ion.selected_ion_mz, self.precursor_mz) for ion in precursor.selected_ions):
+            if any(_within(ion.mz, self.precursor_mz) for ion in precursor.selected_ions):
                 return True
         return False
+
+
+__all__ = ["SpectrumFilter"]

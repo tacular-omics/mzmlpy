@@ -78,7 +78,7 @@ def test_reader_matches_plain_mzml(embedded_file: Path) -> None:
             expected = reference.spectra[position]
             assert actual.id == expected.id
             assert actual.ms_level == expected.ms_level
-            assert actual.TIC == expected.TIC
+            assert actual.total_ion_current == expected.total_ion_current
 
 
 def test_fast_sequential_stream_reconstructs_mzml(embedded_file: Path) -> None:

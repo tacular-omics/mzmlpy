@@ -15,6 +15,7 @@ try:
 except ImportError:
     RapidgzipFile = None  # type: ignore[assignment, misc]
 
+from ..errors import MzmlOffsetIndexError
 from ..util import atomic_write_path, cache_is_current, source_signature, write_cache_signature
 from .standardMzml import AbstractRandomAccessMzml
 
@@ -193,10 +194,10 @@ class IndexedGzip(AbstractRandomAccessMzml):
         if len(self.spectrum_offsets) != len(data["spectrum_offsets"]) or len(self.chromatogram_offsets) != len(
             data["chromatogram_offsets"]
         ):
-            raise ValueError("Duplicate IDs in cached mzML index")
+            raise MzmlOffsetIndexError("Duplicate IDs in cached mzML index")
         expected_spectra = self._header[1]
         if expected_spectra is not None and len(self.spectrum_offsets) != expected_spectra:
-            raise ValueError("Cached spectrum count does not match the file")
+            raise MzmlOffsetIndexError("Cached spectrum count does not match the file")
 
     def _save_mzml_index(self, expected_source: str | None = None) -> None:
         """Save mzML offsets to the .mzidx JSON file."""

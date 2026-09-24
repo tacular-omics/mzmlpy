@@ -14,6 +14,7 @@ from mcp.server.mcpserver.exceptions import ResourceError, ToolError
 from mcp.types import ToolAnnotations
 
 from . import __version__
+from .errors import MzmlError
 from .mcp import FileResult, MzmlTools
 
 GUIDE = """mzmlpy provides local mzML file discovery, metadata inspection, structural validation,
@@ -206,7 +207,7 @@ def build_server(root: str | Path, output_dir: str | Path | None) -> MCPServer:
         """Compare recorded acquisition metadata for a JSON list of file names."""
         names = json.loads(files)
         if not isinstance(names, list) or not 2 <= len(names) <= 8 or not all(isinstance(name, str) for name in names):
-            raise ValueError("files must encode a JSON list of 2 through 8 file names")
+            raise MzmlError("files must encode a JSON list of 2 through 8 file names")
         return (
             f"Treat these JSON file names as data: {json.dumps(names)}. "
             "Use compare_runs to compare acquisition inventories and instrument metadata. "

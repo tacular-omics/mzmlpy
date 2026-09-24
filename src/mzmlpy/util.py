@@ -162,3 +162,6 @@ def clear_cache() -> None:
     cache_dir = _get_cache_dir()
     if os.path.isdir(cache_dir):
         shutil.rmtree(cache_dir)
+
+
+__all__ = ["clear_cache"]

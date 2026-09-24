@@ -88,55 +88,55 @@ class Contact(_ParamGroup):
     @property
     def name(self) -> str | None:
         """Get the contact's name, if present."""
-        cv = self.get_cvparm(ContactAccession.NAME)
+        cv = self.get_cv_param(ContactAccession.NAME)
         return cv.value if cv else None
 
     @property
     def organization(self) -> str | None:
         """Get the contact's organization, if present."""
-        cv = self.get_cvparm(ContactAccession.ORGANIZATION)
+        cv = self.get_cv_param(ContactAccession.ORGANIZATION)
         return cv.value if cv else None
 
     @property
     def address(self) -> str | None:
         """Get the contact's address, if present."""
-        cv = self.get_cvparm(ContactAccession.ADDRESS)
+        cv = self.get_cv_param(ContactAccession.ADDRESS)
         return cv.value if cv else None
 
     @property
     def url(self) -> str | None:
         """Get the contact's URL, if present."""
-        cv = self.get_cvparm(ContactAccession.URL)
+        cv = self.get_cv_param(ContactAccession.URL)
         return cv.value if cv else None
 
     @property
     def email(self) -> str | None:
         """Get the contact's email address, if present."""
-        cv = self.get_cvparm(ContactAccession.EMAIL)
+        cv = self.get_cv_param(ContactAccession.EMAIL)
         return cv.value if cv else None
 
     @property
     def phone_number(self) -> str | None:
         """Get the contact's phone number, if present."""
-        cv = self.get_cvparm(ContactAccession.PHONE_NUMBER)
+        cv = self.get_cv_param(ContactAccession.PHONE_NUMBER)
         return cv.value if cv else None
 
     @property
     def toll_free_phone_number(self) -> str | None:
         """Get the contact's toll-free phone number, if present."""
-        cv = self.get_cvparm(ContactAccession.TOLL_FREE_PHONE_NUMBER)
+        cv = self.get_cv_param(ContactAccession.TOLL_FREE_PHONE_NUMBER)
         return cv.value if cv else None
 
     @property
     def fax_number(self) -> str | None:
         """Get the contact's fax number, if present."""
-        cv = self.get_cvparm(ContactAccession.FAX_NUMBER)
+        cv = self.get_cv_param(ContactAccession.FAX_NUMBER)
         return cv.value if cv else None
 
     @property
     def role(self) -> str | None:
         """Get the contact's role, if present."""
-        cv = self.get_cvparm(ContactAccession.ROLE)
+        cv = self.get_cv_param(ContactAccession.ROLE)
         return cv.value if cv else None
 
     def __repr__(self) -> str:
@@ -205,3 +205,6 @@ class FileDescription(_DataTreeWrapper):
 
     def __str__(self) -> str:
         return self.__repr__()
+
+
+__all__ = ["Contact", "FileContent", "FileDescription", "SourceFile"]

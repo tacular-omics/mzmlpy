@@ -10,3 +10,6 @@ INDEX_LIST_OFFSET_PATTERN: Pattern[bytes] = re.compile(
     rb"<(?:[\w.-]+:)?indexListOffset\s*>\s*(?P<indexListOffset>[0-9]+)\s*</(?:[\w.-]+:)?indexListOffset\s*>"
 )
 MZML_VERSION_PATTERN: Pattern[str] = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
+
+
+__all__: list[str] = []
