@@ -17,6 +17,7 @@ from ._mcp_metadata import (
     metadata_tree,
     record_list_attributes,
     spectrum_metadata,
+    spectrum_summary,
 )
 from ._mcp_runtime import JobManager, JobStatus, ResultCache
 from ._mcp_types import (
@@ -258,8 +259,15 @@ class MzmlTools:
         mobility_max: float | None = None,
         faims_voltage_min: float | None = None,
         faims_voltage_max: float | None = None,
+        include_structure: bool = False,
     ) -> FileResult[SpectrumPage]:
         """Find spectra by metadata, with AND criteria and inclusive bounds, without decoding arrays.
+
+        Each row is a compact summary (id, index, position, ms_level, polarity, spectrum_type,
+        default_array_length, rt, precursor_mz, precursor_charge, isolation_mz_range, ook0) taken
+        from the first scan and first precursor. include_structure=True adds the full metadata
+        record (XML structure, terms, scans, precursors, arrays), as get_spectrum returns it; use
+        a small limit then, or call get_spectrum/get_spectra for the IDs you need.
 
         Precursor m/z overlaps isolation windows, with selected-ion fallback. Retention time
         matches any scan. start_index is a zero-based file position. Continue with next_index
@@ -303,7 +311,10 @@ class MzmlTools:
                 checkpoint("finding spectra", position)
                 scanned += 1
                 if predicate.matches(spectrum):
-                    matches.append({"position": position, **_spectrum(spectrum)})
+                    row = {"position": position, **spectrum_summary(spectrum)}
+                    if include_structure:
+                        row.update(_spectrum(spectrum))
+                    matches.append(row)
         return self._result(
             path,
             revision,

@@ -464,13 +464,19 @@ def test_mcp_json_keys_match_reader_attribute_names(tmp_path: Path) -> None:
     write_indexed(tmp_path / "keys.mzML", [spectrum_xml(0, None, ms_level=2, extra=extra)])
     tools = MzmlTools(tmp_path)
     try:
-        spectrum = tools.find_spectra("keys.mzML").data["spectra"][0]
+        row = tools.find_spectra("keys.mzML").data["spectra"][0]
+        assert (row["rt"], row["ook0"], row["isolation_mz_range"]) == (12.5, 1.1, [499.0, 501.5])
+        assert "scans" not in row and "structure" not in row
+        spectrum = tools.find_spectra("keys.mzML", include_structure=True).data["spectra"][0]
         assert "retention_times_seconds" not in spectrum
+        assert spectrum["rt"] == 12.5 and spectrum["structure"]
         scan = spectrum["scans"][0]
         assert (scan["rt"], scan["ook0"], scan["drift_time"]) == (12.5, 1.1, None)
         assert "inverse_reduced_ion_mobility" not in scan and "ion_mobility_drift_time" not in scan
         summary = tools.summarize_run("keys.mzML").data
         assert summary["isolation_windows"] == [{"isolation_mz": 500.0, "lower_offset": 1.0, "upper_offset": 1.5}]
+        assert (summary["rt_min"], summary["rt_max"], summary["rt_span"], summary["missing_rt"]) == (12.5, 12.5, 0.0, 0)
+        assert not any(key.startswith("retention_time") for key in summary)
     finally:
         tools.close()
 

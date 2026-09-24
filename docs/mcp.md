@@ -56,7 +56,7 @@ Diagnostics go to stderr, while stdout carries only the MCP protocol.
 | `summarize_run` | Inventory recorded acquisition metadata without decoding peaks |
 | `compare_runs` | Compare metadata inventories and instruments for 2 through 8 files |
 | `validate_file` | Structural validation, with optional binary and XML offset checks |
-| `find_spectra` | Page spectra selected by metadata |
+| `find_spectra` | Page compact spectrum rows selected by metadata; full records with `include_structure` |
 | `get_spectrum` | Exact native ID metadata and optional bounded peak pairs |
 | `get_spectra` | Retrieve metadata for up to 20 exact IDs in one scan |
 | `list_chromatograms` | Page stored chromatogram IDs and metadata without decoding |
@@ -128,6 +128,18 @@ after `start_index`, plus one lookahead record. The default budget is 10,000, wi
 of 100,000. A page with no matches can still have a `next_index`. Continue with unchanged
 filters until `exhausted` is true.
 
+Each `find_spectra` row is compact by default: `position`, `id`, `index`, `ms_level`, `polarity`,
+`spectrum_type`, `default_array_length`, `rt` (seconds), `precursor_mz`, `precursor_charge`,
+`isolation_mz_range` and `ook0`, named as the `Spectrum` attributes and taken from the first scan
+and first precursor. A default page of 20 rows is a few kilobytes. Pass `include_structure=true`
+to add each spectrum's full metadata record (the fields below, including the XML `structure`
+tree); that is about 6 KB per spectrum, so use a small `limit`, or call `get_spectrum` or
+`get_spectra` for the IDs you need. Every result is capped at 256 KiB and fails with a clear
+error beyond that.
+
+Unknown arguments are rejected with an error that names them, so a misspelled or renamed filter
+(for example `mz_range` on `find_spectra`) fails instead of returning unfiltered results.
+
 Spectrum records use the reader's attribute names. Each entry of `scans` carries `rt`
 (seconds), `ook0`, `drift_time` and `faims_compensation_voltage`, as on `Scan`, plus the
 scan's attributes, CV terms, user parameters and scan windows.
@@ -156,8 +168,8 @@ intensities and mismatched lengths. Encoded exports retain original binary repre
 
 `summarize_run` scans recorded metadata and reports counts by MS level, polarity, spectrum
 representation, array type, and compression. It includes declared empty-array counts,
-missing retention times, recorded time ranges, multi-scan counts, and observed isolation
-windows. At most 100 distinct isolation windows are returned, with explicit truncation. Each
+missing retention times (`missing_rt`), the recorded time range (`rt_min`, `rt_max`, `rt_span`,
+in seconds), multi-scan counts, and observed isolation windows. At most 100 distinct isolation windows are returned, with explicit truncation. Each
 window reports `isolation_mz`, `lower_offset` and `upper_offset` (m/z), the `IsolationWindow`
 attribute names.
 

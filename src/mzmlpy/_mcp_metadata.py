@@ -1,6 +1,7 @@
 """Metadata-only serialization and acquisition inventories for MCP clients."""
 
 import math
+import warnings
 from collections import Counter
 from dataclasses import asdict
 from pathlib import Path
@@ -107,6 +108,27 @@ def spectrum_metadata(spectrum: Spectrum) -> dict[str, Any]:
     }
 
 
+def spectrum_summary(spectrum: Spectrum) -> dict[str, Any]:
+    """Compact find_spectra row: scalar Spectrum attributes only, first scan and first precursor."""
+    with warnings.catch_warnings():
+        # Multi-scan spectra report their first scan; the full scan list is opt-in detail.
+        warnings.simplefilter("ignore", UserWarning)
+        isolation = spectrum.isolation_mz_range
+        return {
+            "id": spectrum.id,
+            "index": spectrum.index,
+            "ms_level": spectrum.ms_level,
+            "polarity": spectrum.polarity,
+            "spectrum_type": spectrum.spectrum_type,
+            "default_array_length": spectrum.default_array_length,
+            "rt": spectrum.rt,
+            "precursor_mz": spectrum.precursor_mz,
+            "precursor_charge": spectrum.precursor_charge,
+            "isolation_mz_range": list(isolation) if isolation is not None else None,
+            "ook0": spectrum.ook0,
+        }
+
+
 def chromatogram_metadata(chromatogram: Chromatogram) -> dict[str, Any]:
     return {
         "id": chromatogram.id,
@@ -183,11 +205,11 @@ def inventory(reader: Mzml) -> dict[str, Any]:
         "chromatogram_count": chromatogram_count,
         **{name: dict(value) for name, value in counts.items()},
         "empty_spectra_declared": empty,
-        "missing_retention_time": missing_time,
+        "missing_rt": missing_time,
         "spectra_with_multiple_scans": multiple_scans,
-        "retention_time_min_seconds": earliest,
-        "retention_time_max_seconds": latest,
-        "retention_time_span_seconds": latest - earliest if latest is not None and earliest is not None else None,
+        "rt_min": earliest,
+        "rt_max": latest,
+        "rt_span": latest - earliest if latest is not None and earliest is not None else None,
         "first_scan_time_regressions": regressions,
         "largest_adjacent_first_scan_gap_seconds": largest_gap,
         "declared_array_length_min": min_length,

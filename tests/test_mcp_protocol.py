@@ -92,6 +92,8 @@ def test_protocol_tools(mode: str) -> None:
                 ("find_spectra", {"file": "example.mzML", "limit": 101}, "limit"),
                 ("get_spectrum", {"file": "example.mzML", "spectrum_id": "absent"}, "absent"),
                 ("inspect_file", {}, "file"),
+                ("find_spectra", {"file": "example.mzML", "mz_range": [100, 200]}, "mz_range"),
+                ("summarize_run", {"file": "example.mzML", "bogus": 1}, "bogus"),
             ]:
                 result = await client.call_tool(name, args)
                 assert result.is_error
