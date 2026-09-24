@@ -10,7 +10,7 @@ from .xml_tuple import ChromatogramElement, MzmlXMLElement, SpectrumElement
 
 _STREAM_WARNING = (
     "Random access on gzip_mode='stream' requires scanning the file from the beginning "
-    "for every access. Use gzip_mode='extract' or gzip_mode='indexed' for efficient random access."
+    "for every access. Use gzip_mode='auto' or 'indexed', or write_indexed_gzip(), for efficient random access."
 )
 
 
@@ -36,7 +36,7 @@ class StandardGzip(MzmlInterface):
 
         Warning:
             This scans the file from the beginning on every call.
-            Use ``gzip_mode='extract'`` or ``gzip_mode='indexed'`` for
+            Use ``gzip_mode='indexed'`` or :func:`mzmlpy.write_indexed_gzip` for
             efficient random access.
 
         Args:

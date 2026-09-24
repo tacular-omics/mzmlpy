@@ -41,8 +41,9 @@ def test_all_access_modes_agree(tmp_path):
 
     variants = [
         Mzml(EXAMPLE, in_memory=False),
-        Mzml(EXAMPLE_GZ, gzip_mode="extract"),
-        Mzml(EXAMPLE_GZ, gzip_mode="extract", in_memory=False),
+        Mzml(EXAMPLE_GZ, in_memory=True),
+        # "auto" may write rapidgzip sidecars next to its source, so use a copy outside tests/data.
+        Mzml(shutil.copy2(EXAMPLE_GZ, tmp_path / "auto.mzML.gz"), in_memory=False),
         Mzml(EXAMPLE_GZ, gzip_mode="stream", in_memory=False),
     ]
     if find_spec("rapidgzip") is not None:

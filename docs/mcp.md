@@ -24,7 +24,7 @@ python -m mzmlpy mcp --root /absolute/path/to/data --output-dir /absolute/path/t
 
 The server exposes 17 tools by default and two additional export tools with `--output-dir`.
 It uses local stdio, with no network listener. Source files are never modified, and the server
-does not create extracted caches or sidecar indexes.
+does not create sidecar indexes or other files.
 
 ## Client configuration
 

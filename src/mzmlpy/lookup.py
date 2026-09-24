@@ -304,7 +304,7 @@ class SpectrumLookup(BaseLookup[Spectrum]):
         :class:`SpectrumFilter` for how each criterion matches. Keep the reader open while
         iterating.
 
-        With an indexed reader (access strategy ``plain``, ``extracted``, ``rapidgzip`` or
+        With an indexed reader (access strategy ``plain``, ``rapidgzip`` or
         ``memory``; ``stream`` and ``embedded`` scan every spectrum), the first retention-time
         query reads the scan times of every spectrum once, from the metadata before each
         record's binary arrays, and caches them. It and later queries then read in full only the

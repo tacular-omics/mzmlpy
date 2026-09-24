@@ -3,11 +3,8 @@
 
 import atexit
 import gzip
-import hashlib
 import logging
 import os
-import shutil
-import tempfile
 import warnings
 import weakref
 from collections.abc import Iterator
@@ -35,20 +32,13 @@ from .file_classes import (
     SpectrumElement,
     StandardGzip,
     StandardMzml,
-    has_cached_indexes,
 )
 from .spectra import Chromatogram, Spectrum
 from .util import (
-    _LIVE_PRIVATE_COPIES,
-    _private_copy_dir,
-    atomic_write_path,
-    cache_is_current,
+    _HAS_RAPIDGZIP,
     expand_param_group_refs,
     get_tag,
     gzip_decompress,
-    gzip_open_binary,
-    source_signature,
-    write_cache_signature,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,7 +50,6 @@ class AccessStrategy(StrEnum):
     MEMORY = "memory"
     PLAIN = "plain"
     EMBEDDED = "embedded"
-    EXTRACTED = "extracted"
     RAPIDGZIP = "rapidgzip"
     STREAM = "stream"
 
@@ -143,9 +132,8 @@ def _close_at_exit() -> None:
 
     rapidgzip aborts the process when one of its handles is finalized after its worker threads
     see the interpreter shutting down, so unclosed readers must be closed while it still runs.
-    Iterators are closed before readers, and a reader closes its handles before deleting its
-    private copy (Windows cannot delete an open file). Readers and iterators inherited by a
-    forked child belong to the parent and are left alone.
+    Iterators are closed before readers. Readers and iterators inherited by a forked child
+    belong to the parent and are left alone: closing an inherited rapidgzip handle can hang.
     """
     pid = os.getpid()
     for iterator in list(_LIVE_ITERATORS):
@@ -160,31 +148,6 @@ def _close_at_exit() -> None:
             logger.debug("Closing an mzML reader at exit failed: %s", error)
 
 
-def _discard_copy(handler: MzmlInterface, path: str, owner_pid: int) -> None:
-    """Close ``handler`` and delete its private decompressed copy at ``path``.
-
-    Only in the process that made the copy: a forked child shares the file with its parent,
-    which is still reading it.
-    """
-    if os.getpid() != owner_pid:
-        return
-    try:
-        handler.close()
-    finally:
-        _LIVE_PRIVATE_COPIES.discard(path)
-        _remove_file(path)
-
-
-def _remove_file(path: str) -> None:
-    """Delete ``path`` if it still exists (finalizer for a private decompressed copy)."""
-    try:
-        os.remove(path)
-    except FileNotFoundError:
-        pass
-    except OSError as error:  # e.g. still open on Windows; clear_cache() removes it later
-        logger.debug("Could not remove temporary copy %s: %s", path, error)
-
-
 class FileInterface:
     """Interface to different mzML formats."""
 
@@ -194,23 +157,21 @@ class FileInterface:
         encoding: str,
         build_index_from_scratch: bool = False,
         index_regex: Pattern[bytes] | None = None,
-        gzip_mode: Literal["auto", "extract", "indexed", "stream"] = "auto",
+        gzip_mode: Literal["auto", "indexed", "stream"] = "auto",
         in_memory: bool = False,
-        extract_dir: str | None = None,
     ) -> None:
         """Initialize FileInterface with path and encoding options."""
         self.build_index_from_scratch: bool = build_index_from_scratch
         self.encoding: str = encoding
         self.index_regex: Pattern[bytes] | None = index_regex
-        if gzip_mode not in {"auto", "extract", "indexed", "stream"}:
-            raise MzmlError(f"Unsupported gzip_mode: {gzip_mode}")
-        self.gzip_mode: Literal["auto", "extract", "indexed", "stream"] = gzip_mode
+        if gzip_mode not in {"auto", "indexed", "stream"}:
+            removed = " gzip_mode='extract' was removed in 0.10." if gzip_mode == "extract" else ""
+            raise MzmlError(
+                f"Unsupported gzip_mode: {gzip_mode!r}.{removed} Use 'auto', 'indexed' or 'stream'; "
+                "for fast random access to a .gz, run write_indexed_gzip() on it once."
+            )
+        self.gzip_mode: Literal["auto", "indexed", "stream"] = gzip_mode
         self.in_memory: bool = in_memory
-        self._extract_dir: str | None = extract_dir
-        # A private decompressed copy (gzip input, no ``extract_dir``) is deleted on close(),
-        # when the reader is garbage collected, or at interpreter exit, whichever comes first.
-        self._temporary_copy: weakref.finalize | None = None
-        self._temporary_path: str | None = None
         self._iterators: weakref.WeakSet[_TrackedIterator[Any]] = weakref.WeakSet()
         self._pid = os.getpid()
         self.access_strategy: AccessStrategy
@@ -218,32 +179,19 @@ class FileInterface:
         _LIVE_READERS.add(self)
 
     def close(self) -> None:
-        """Close the internal file handler and delete a private decompressed copy, if any."""
+        """Close the internal file handler and any iterators still holding a file handle."""
         try:
             for iterator in list(self._iterators):
                 iterator.close()
             self.file_handler.close()
         finally:
             self.file_handler = _ClosedBackend()  # ty: ignore[invalid-assignment]
-            # detach() rather than calling the finalizer: weakref.finalize ignores calls once its
-            # own exit hook has run, which is before _close_at_exit closes this reader.
-            detached = self._temporary_copy.detach() if self._temporary_copy is not None else None
-            if detached is not None:
-                _, discard, args, _ = detached
-                discard(*args)
 
     def _track[T](self, generator: Iterator[T]) -> Iterator[T]:
         """Register an iterator that holds a file handle so close() can release it."""
         iterator = _TrackedIterator(generator)
         self._iterators.add(iterator)
         return iterator
-
-    @property
-    def temporary_copy(self) -> str | None:
-        """Path of the private decompressed copy this reader deletes on close, if it made one."""
-        if self._temporary_copy is None or not self._temporary_copy.alive:
-            return None
-        return self._temporary_path
 
     def _open(self, path_or_file: str | Path | BinaryIO) -> MzmlInterface:
         """Open appropriate file handler based on file type and format."""
@@ -275,7 +223,7 @@ class FileInterface:
         # Handle in_memory mode - load entire file into memory
         if self.in_memory:
             if path.endswith((".gz", ".igz")):
-                if self.gzip_mode not in {"auto", "extract"}:
+                if self.gzip_mode != "auto":
                     # "indexed"/"stream" exist to avoid holding the whole file in memory; in_memory
                     # (the default) decompresses it all anyway, so the mode is a no-op here.
                     warnings.warn(
@@ -307,24 +255,6 @@ class FileInterface:
                 else:
                     self.access_strategy = AccessStrategy.EMBEDDED
                     return embedded
-            if self.gzip_mode == "auto":
-                extracted_path = self._get_extract_path(path) if self._extract_dir is not None else None
-                if extracted_path is not None and cache_is_current(extracted_path, path):
-                    self.access_strategy = AccessStrategy.EXTRACTED
-                    return self._open_extracted(path, extracted_path)
-                if has_cached_indexes(path):
-                    self.access_strategy = AccessStrategy.RAPIDGZIP
-                    return IndexedGzip(
-                        path,
-                        self.encoding,
-                        self.build_index_from_scratch,
-                        index_regex=self.index_regex,
-                    )
-                self.access_strategy = AccessStrategy.EXTRACTED
-                return self._open_extracted(path, extracted_path)
-            if self.gzip_mode == "extract":
-                self.access_strategy = AccessStrategy.EXTRACTED
-                return self._open_extracted(path)
             if self.gzip_mode == "indexed":
                 self.access_strategy = AccessStrategy.RAPIDGZIP
                 return IndexedGzip(
@@ -333,6 +263,25 @@ class FileInterface:
                     self.build_index_from_scratch,
                     index_regex=self.index_regex,
                 )
+            if self.gzip_mode == "auto":
+                if _HAS_RAPIDGZIP:
+                    # rapidgzip reads the compressed file in place, building sidecar indexes next
+                    # to it on first use (or reusing current ones).
+                    try:
+                        handler = IndexedGzip(
+                            path,
+                            self.encoding,
+                            self.build_index_from_scratch,
+                            index_regex=self.index_regex,
+                        )
+                    except OSError as error:  # e.g. no write access for the sidecars
+                        logger.warning("Reading %s into memory; rapidgzip indexing failed: %s", path, error)
+                    else:
+                        self.access_strategy = AccessStrategy.RAPIDGZIP
+                        return handler
+                # No embedded index and no usable rapidgzip: decompress into memory, as 0.9 did.
+                self.access_strategy = AccessStrategy.MEMORY
+                return BytesMzml(BytesIO(gzip_decompress(path)), self.encoding, self.build_index_from_scratch)
             self.access_strategy = AccessStrategy.STREAM
             return StandardGzip(path, self.encoding)
 
@@ -344,73 +293,6 @@ class FileInterface:
             self.build_index_from_scratch,
             index_regex=self.index_regex,
         )
-
-    def _open_extracted(self, gz_path: str, extracted_path: str | None = None) -> StandardMzml:
-        """Open a decompressed copy of ``gz_path``.
-
-        With ``extract_dir`` the copy is a cache: it is kept after close and reused by later
-        readers while the source is unchanged. Without it the copy is private to this reader,
-        written under ``<tmpdir>/mzmlpy/`` and deleted on close.
-        """
-        if self._extract_dir is None:
-            return self._open_private_copy(gz_path)
-        target = extracted_path or self._get_extract_path(gz_path)
-        if cache_is_current(target, gz_path):
-            logger.debug("Using cached extraction: %s", target)
-        else:
-            logger.debug("Extracting %s to %s", gz_path, target)
-            signature = source_signature(gz_path)
-            with atomic_write_path(target) as temporary_path:
-                with open(temporary_path, "wb") as output, gzip_open_binary(gz_path) as source:
-                    shutil.copyfileobj(source, output, length=1024 * 1024)
-                if source_signature(gz_path) != signature:
-                    raise OSError("Source changed during extraction. Reopen the reader to retry.")
-            write_cache_signature(target, gz_path, signature)
-        return StandardMzml(
-            target,
-            self.encoding,
-            self.build_index_from_scratch,
-            index_regex=self.index_regex,
-        )
-
-    def _open_private_copy(self, gz_path: str) -> StandardMzml:
-        """Decompress ``gz_path`` into a fresh temporary file that close() deletes."""
-        private_dir = _private_copy_dir()
-        os.makedirs(private_dir, exist_ok=True)
-        # The owner pid in the name lets clear_cache() tell a live process's copy from a leftover.
-        prefix = f"{Path(gz_path).stem}.pid{self._pid}."
-        fd, target = tempfile.mkstemp(prefix=prefix, suffix=".mzML", dir=private_dir)
-        target = os.path.abspath(target)
-        _LIVE_PRIVATE_COPIES.add(target)
-        try:
-            with os.fdopen(fd, "wb") as output, gzip_open_binary(gz_path) as source:
-                shutil.copyfileobj(source, output, length=1024 * 1024)
-            handler = StandardMzml(
-                target,
-                self.encoding,
-                self.build_index_from_scratch,
-                index_regex=self.index_regex,
-            )
-        except BaseException:
-            _LIVE_PRIVATE_COPIES.discard(target)
-            _remove_file(target)
-            raise
-        # The finalizer closes the backend before deleting: when the reader is garbage collected
-        # its handles may not be closed yet, and Windows cannot delete an open file. At exit,
-        # _close_at_exit runs it after closing iterators, so it does not run on its own then.
-        finalizer = weakref.finalize(self, _discard_copy, handler, target, self._pid)
-        finalizer.atexit = False
-        self._temporary_copy = finalizer
-        self._temporary_path = target
-        return handler
-
-    def _get_extract_path(self, gz_path: str) -> str:
-        """Use a source-specific, revision-specific filename in either cache directory."""
-        cache_dir = self._extract_dir or os.path.join(tempfile.gettempdir(), "mzmlpy")
-        os.makedirs(cache_dir, exist_ok=True)
-        path_hash = hashlib.sha256(source_signature(gz_path).encode()).hexdigest()[:24]
-        filename = Path(gz_path).stem + f"_{path_hash}.mzML"
-        return os.path.join(cache_dir, filename)
 
     def read(self, size: int = -1) -> bytes | str:
         """Read binary data from file handler (size=-1 reads to end)."""
@@ -530,7 +412,7 @@ class FileInterface:
 
     def can_read_spectrum_heads(self) -> bool:
         """Whether :meth:`iter_spectrum_heads` is supported: an indexed, ASCII-compatible file
-        whose index lists every spectrum (plain, extracted, rapidgzip and in-memory readers)."""
+        whose index lists every spectrum (plain, rapidgzip and in-memory readers)."""
         backend = self.file_handler
         return isinstance(backend, AbstractRandomAccessMzml) and backend.can_iterate_indexed("spectrum")
 

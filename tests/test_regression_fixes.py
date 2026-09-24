@@ -125,11 +125,11 @@ def test_gzip_mode_stream_warns_when_in_memory() -> None:
     reader.close()
 
 
-def test_gzip_mode_extract_default_does_not_warn() -> None:
-    """The default `gzip_mode='extract'` is compatible with `in_memory=True` and warns about nothing."""
+def test_gzip_mode_auto_does_not_warn_when_in_memory() -> None:
+    """The default `gzip_mode='auto'` is compatible with `in_memory=True` and warns about nothing."""
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        reader = Mzml(EXAMPLE_GZ, gzip_mode="extract")
+        reader = Mzml(EXAMPLE_GZ, gzip_mode="auto", in_memory=True)
         reader.close()
     assert not any("ignored because in_memory" in str(w.message) for w in caught)
 

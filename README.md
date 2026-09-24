@@ -23,7 +23,7 @@ full decode just to look at a spectrum's metadata.
 - **Type-safe** — dataclass-based models with full type annotations, not loosely-typed
   XML trees.
 - **Handles gzip well** — reads `.mzML.gz` directly, with a self-indexed gzip format for
-  random access without re-extracting the file.
+  random access without decompressing the whole file.
 - **Common compressions** — zlib out of the box; zstd and MS-Numpress through optional
   extras.
 - **Validates, not just parses** — a `validate()` function reports structural and
@@ -76,9 +76,9 @@ with Mzml("data.mzML") as reader:
         print(spectrum.id)
 ```
 
-Gzipped files get the same lazy, indexable access as plain mzML — `gzip_mode` picks
-between an embedded index, an extracted cache, or streaming, and self-indexed files
-(via `write_indexed_gzip`) support random access with no extraction step at all. Ion
+Gzipped files get the same lazy, indexable access as plain mzML — `gzip_mode="auto"` uses an
+embedded index, then rapidgzip if installed, then decompression into memory, and self-indexed
+files (via `write_indexed_gzip`) support random access with no extra files at all. Ion
 mobility data (e.g. Bruker timsTOF PASEF) is exposed on the spectrum whether it's stored
 as a binary array or a scan-level parameter.
 

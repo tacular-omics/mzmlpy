@@ -68,11 +68,9 @@ Benchmarked on a 33,535-spectrum DDA file (cold start, with rapidgzip):
 |---|---|---|---|
 | plain `.mzML` | 0.042s | 0.087s | 0.001s |
 | `in_memory=True` | 1.499s | 0.362s | 0.002s |
-| `gzip_mode="extract"` | 0.957s | 0.083s | 0.001s |
 | `gzip_mode="indexed"` | 6.850s | 0.135s | 0.074s |
 | `gzip_mode="stream"` | 0.089s | 0.155s | 22.8s |
 
-`"extract"` pays a one-time decompression cost then matches plain `.mzML` speed.
 `"indexed"` startup includes building the gzip seek index and mzML offset index on first open — both are cached alongside the file, so subsequent opens are fast.
 `"stream"` is sequential-only — random access requires re-scanning from the start.
 

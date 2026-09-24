@@ -3,8 +3,6 @@ import gzip
 import io
 import json
 import os
-import re
-import shutil
 import tempfile
 import xml.etree.ElementTree as ElementTree
 from collections.abc import Iterator
@@ -148,79 +146,4 @@ def write_cache_signature(cache_path: str, source_path: str, expected_source: st
         json.dump({"source": signature, "cache": [st.st_size, st.st_mtime_ns]}, handle)
 
 
-def _get_cache_dir() -> str:
-    """Return the mzmlpy cache directory path."""
-    return os.path.join(tempfile.gettempdir(), "mzmlpy")
-
-
-# Private decompressed copies of open readers live in ``<tmpdir>/mzmlpy/private/`` and are named
-# ``<stem>.pid<owner pid>.<random>.mzML``. This process's live copies are also registered here.
-_PRIVATE_DIR = "private"
-_PRIVATE_NAME = re.compile(r"\.pid(\d+)\.[^.]+\.mzML$")
-_LIVE_PRIVATE_COPIES: set[str] = set()
-
-
-def _private_copy_dir() -> str:
-    return os.path.join(_get_cache_dir(), _PRIVATE_DIR)
-
-
-def _process_is_alive(pid: int) -> bool:
-    """Whether process ``pid`` exists. On Windows (no safe probe) every other pid counts as alive."""
-    if pid == os.getpid():
-        return True
-    if os.name == "nt":
-        return True
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except OSError:  # e.g. PermissionError: it exists but belongs to another user
-        return True
-    return True
-
-
-def _private_copy_in_use(path: str) -> bool:
-    if os.path.abspath(path) in _LIVE_PRIVATE_COPIES:
-        return True
-    match = _PRIVATE_NAME.search(os.path.basename(path))
-    if match is None:
-        return False
-    # A copy made by this process but no longer registered belongs to a closed reader.
-    pid = int(match.group(1))
-    return pid != os.getpid() and _process_is_alive(pid)
-
-
-def clear_cache() -> None:
-    """Remove cached files from the mzmlpy temporary directory, ``<tmpdir>/mzmlpy/``.
-
-    This deletes extraction caches kept there by earlier versions and any private decompressed
-    copies left behind by a process that ended without closing its readers. Copies still in use
-    by an open reader (in this or another running process) are kept; a reader deletes its own
-    copy when it is closed. Caches in an explicit ``extract_dir`` are not touched.
-
-    Example::
-
-        from mzmlpy import clear_cache
-        clear_cache()
-    """
-    cache_dir = _get_cache_dir()
-    if not os.path.isdir(cache_dir):
-        return
-    private_dir = _private_copy_dir()
-    for entry in os.scandir(cache_dir):
-        if entry.path == private_dir:
-            continue
-        if entry.is_dir(follow_symlinks=False):
-            shutil.rmtree(entry.path, ignore_errors=True)
-        else:
-            with contextlib.suppress(FileNotFoundError):
-                os.remove(entry.path)
-    if os.path.isdir(private_dir):
-        for entry in os.scandir(private_dir):
-            if _private_copy_in_use(entry.path):
-                continue
-            with contextlib.suppress(OSError):  # e.g. still open on Windows
-                os.remove(entry.path)
-
-
-__all__ = ["clear_cache"]
+__all__: list[str] = []  # internal helpers only

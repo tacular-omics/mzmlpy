@@ -41,16 +41,19 @@ Both `.mzML` and `.mzML.gz` files are supported. The reader lazily parses the fi
 
 When working with `.mzML.gz` files, the `gzip_mode` parameter controls how the compressed file is accessed:
 
-`gzip_mode="auto"` is the default. Reading from disk (the default), it selects an embedded
-index, a current extracted cache in `extract_dir` (when given), or complete rapidgzip sidecars in
-that order. If none exists, it extracts. Inspect `reader.access_strategy` to see the concrete route.
+`gzip_mode="auto"` is the default. Reading from disk (the default), it uses, in order:
 
-Without `extract_dir`, extraction writes a private temporary copy under `<tmpdir>/mzmlpy/private/`, which
-needs free disk space about the size of the decompressed file. It is deleted on `close()`, when
-the reader is garbage collected, or when the interpreter exits. With `extract_dir=...` the copy is
-a cache that is kept and reused by later readers while the source file is unchanged.
+1. The embedded index, if the file has one (written by `write_indexed_gzip`, below).
+2. `rapidgzip`, if it is installed (`pip install mzmlpy[rapidgzip]`). It reads the compressed
+   file in place and keeps two small sidecar indexes next to it, so later opens start fast. If
+   the sidecars cannot be written (for example, a read-only directory), it falls back to step 3.
+3. Otherwise it decompresses the whole file into memory, as 0.9 did.
 
-For fast random access without cache files, create a self-indexed gzip file once:
+Inspect `reader.access_strategy` to see the route taken (`"embedded"`, `"rapidgzip"` or
+`"memory"`). For a large `.mzML.gz`, step 3 needs memory about the size of the decompressed
+file, so run `write_indexed_gzip` on it once or install the rapidgzip extra.
+
+For fast random access with no extra files, create a self-indexed gzip file once:
 
 ```python
 from pathlib import Path
@@ -69,39 +72,37 @@ with TemporaryDirectory() as directory:
 mzmlpy detects this pyMZML-compatible embedded format automatically. The file remains a standard
 concatenated gzip stream, and decompressing it reconstructs the original mzML bytes exactly.
 
-- **`"auto"`** (default) selects the best valid representation already available and otherwise extracts, as `"extract"` does.
-- **`"extract"`** decompresses to a file, then reads with full random access. Without `extract_dir` it is a private copy under `<tmpdir>/mzmlpy/private/`, deleted when the reader is closed, garbage collected or the interpreter exits; every open decompresses again. With `extract_dir=...` it is a cache that persists across Python sessions, so later opens of the same unchanged file skip decompression.
-- **`"indexed"`** — Use the `rapidgzip` library for seekable access to the compressed file without extracting to disk. Requires `pip install mzmlpy[rapidgzip]`. Builds a gzip seek index (`.gzidx`) and mzML offset index (`.mzMLidx`) on first open, cached alongside the file for instant startup on subsequent opens.
+- **`"auto"`** (default) takes the first of the routes above that is available.
+- **`"indexed"`** — Use the `rapidgzip` library for seekable access to the compressed file without decompressing it all. Requires `pip install mzmlpy[rapidgzip]`. Builds a gzip seek index (`.gzidx`) and mzML offset index (`.mzMLidx`) on first open, cached alongside the file for instant startup on subsequent opens.
 - **`"stream"`** — Stream the file sequentially with no index. Lowest startup cost, but random access (e.g. `reader.spectra[0]`) scans from the beginning each time — a warning is emitted.
 
-`"extract"` pays a decompression cost on open (once per file with `extract_dir`, whose copy is
-reused), then matches plain `.mzML` speed. `"indexed"` pays a one-time index-build cost for
-seekable access with no disk copy, then fast random access on later opens (the index is cached
-alongside the file). `"stream"` has the lowest startup cost, but random access re-scans from the
-start each time. For a reproducible benchmark with real numbers — including a comparison against
-pyteomics and pymzml — see [`benchmarks/`](https://github.com/tacular-omics/mzmlpy/tree/main/benchmarks)
-in the repository.
+`gzip_mode="extract"` and `extract_dir` were removed in 0.10; see the [migration notes](migration.md).
 
-For best performance with `.mzML.gz` files, use `"extract"` or `"indexed"`:
+An embedded index gives fast random access with no extra files. `"indexed"` pays a one-time
+index-build cost, then fast random access on later opens (the index is cached alongside the
+file). `"stream"` has the lowest startup cost, but random access re-scans from the start each
+time. For a reproducible benchmark with real numbers — including a comparison against pyteomics
+and pymzml — see [`benchmarks/`](https://github.com/tacular-omics/mzmlpy/tree/main/benchmarks)
+in the repository.
 
 ```python
 from mzmlpy import Mzml
 
-# Indexed mode — no extraction, seekable (requires rapidgzip)
+# Indexed mode — seekable, no full decompression (requires rapidgzip)
 with Mzml("tests/data/example.mzML.gz", gzip_mode="indexed") as reader:
     print(f"Spectra: {len(reader.spectra)}")
     spec = reader.spectra[0]
     print(spec.id)
 ```
 
-A process that ends without closing its readers (a crash or `os._exit`) can leave private copies
-behind. To remove them, and anything else in `<tmpdir>/mzmlpy/`, without touching the copies of
-readers that are still open:
+### Readers and multiprocessing
 
-```python
-from mzmlpy import clear_cache
-clear_cache()
-```
+Open readers inside each worker process rather than passing an open reader to it. A child
+process forked (`os.fork`, or the `fork` start method) while it holds a rapidgzip-backed reader
+can abort when it exits (`terminate called`, exit status 134). This is a limitation of rapidgzip,
+which cannot be forked safely once its worker threads are running; the parent is not affected.
+If workers must inherit readers, use the `spawn` start method:
+`multiprocessing.get_context("spawn")`.
 
 ## Iterating Spectra
 
@@ -360,7 +361,7 @@ For mobility selection, use `ook0_range=(lower, upper)` (1/K0, V·s/cm²) or
 all. `faims_voltage_range=(lower, upper)` accepts signed volts. These criteria inspect scan
 metadata and do not process per-peak mobility arrays.
 
-With an indexed reader (access strategy `plain`, `extracted`, `rapidgzip` or `memory`; not
+With an indexed reader (access strategy `plain`, `rapidgzip` or `memory`; not
 `stream` or `embedded`, which scan every spectrum), the first retention-time criterion reads the scan times of every spectrum once, from the bytes before
 each record's binary arrays, and caches them on `reader.spectra`. That query and every later
 one then read in full only the spectra inside the window. Record order does not matter, so
@@ -381,17 +382,11 @@ python -m mzmlpy index-gzip data.mzML data.indexed.mzML.gz
 Exit codes are `0` for success, `1` for validation findings with errors, and `2` for an
 operational error. Inspection reads metadata and counts without decoding arrays.
 
-## Memory and extracted caches
+## Memory
 
 Since 0.10 the reader reads records from disk on demand by default. Pass `in_memory=True` to
 load the whole (decompressed) file once, which suits many random reads of a small file.
-`gzip_mode` only applies when reading from disk. Extraction copies decompressed chunks directly to disk.
+`gzip_mode` only applies when reading from disk.
 Sequential iteration detaches completed spectra and chromatograms, including records that
 are skipped while finding the requested kind. Keeping returned spectra in a list still
 retains their XML in your own code.
-
-An `extract_dir` cache uses filenames based on source identity and filesystem revision.
-Files with matching basenames in different directories do not share an extracted file.
-Replacing a source creates a new cache path, so existing readers can continue using their
-previous extracted copy. Older cache files remain until you clean the directory;
-`clear_cache()` does not touch `extract_dir`.

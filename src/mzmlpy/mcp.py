@@ -141,7 +141,7 @@ class MzmlTools:
     """Read-only operations restricted to one configured data directory.
 
     Each call opens and closes its own reader. Gzip input uses streaming access or an
-    existing embedded index, with no extracted cache or sidecar creation.
+    existing embedded index, with no sidecar creation.
     """
 
     def __init__(self, root: str | Path, output_dir: str | Path | None = None) -> None:

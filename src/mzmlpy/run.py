@@ -136,23 +136,20 @@ class Mzml:
             automatically when ``in_memory=False``. They use their embedded index regardless of
             this setting.
 
-            - ``"auto"`` (default): Use an embedded index, a current extracted cache, or
-              complete rapidgzip sidecars in that order. Extract when none is available.
-            - ``"extract"``: Decompress to a temporary file on disk, then use
-              standard random-access reading.
+            - ``"auto"`` (default): Use the embedded index if the file has one. Otherwise use
+              ``rapidgzip`` if it is installed, building sidecar indexes next to the file on
+              first use. Otherwise decompress the whole file into memory. For large files,
+              run :func:`mzmlpy.write_indexed_gzip` once or ``pip install mzmlpy[rapidgzip]``.
             - ``"indexed"``: Use the ``rapidgzip`` library for seekable access to the
-              compressed file without extracting to disk. Requires
+              compressed file without decompressing it all. Requires
               ``pip install mzmlpy[rapidgzip]``.
             - ``"stream"``: Stream the file sequentially without building an index.
               Individual spectrum access re-scans the file from the beginning each time.
+
+            ``"extract"`` and ``extract_dir`` were removed in 0.10.
         in_memory: Load the entire (decompressed) file into memory. Defaults to ``False``: plain
             files are read from disk through their index and gzip files follow ``gzip_mode``.
             Pass ``True`` to buffer a small file, or a gzip file you will read many times.
-        extract_dir: Directory to store extracted ``.mzML`` files when using
-            ``gzip_mode='extract'``. If ``None`` (default), a system temp directory
-            is used (``<tmpdir>/mzmlpy/``). Set this to a custom path to manage
-            extracted files yourself — useful for batch processing where you want
-            to extract all files to one directory and clean up afterward.
         spectrum_id_regex: Optional regex applied to spectrum IDs to create a secondary lookup
             key. The first capture group (or full match if no groups) becomes the simplified key.
             For example, ``r"scan=(\\d+)"`` lets you look up spectra by scan number
@@ -166,9 +163,8 @@ class Mzml:
         file: str | Path | BinaryIO,
         *,
         build_index_from_scratch: bool = False,
-        gzip_mode: Literal["auto", "extract", "indexed", "stream"] = "auto",
+        gzip_mode: Literal["auto", "indexed", "stream"] = "auto",
         in_memory: bool = False,
-        extract_dir: str | Path | None = None,
         spectrum_id_regex: str | None = None,
         chromatogram_id_regex: str | None = None,
     ) -> None:
@@ -209,11 +205,10 @@ class Mzml:
                 build_index_from_scratch=build_index_from_scratch,
                 gzip_mode=gzip_mode,
                 in_memory=in_memory,
-                extract_dir=str(extract_dir) if extract_dir is not None else None,
             )
 
         # Parse metadata. If parsing fails, close the file object so a half-constructed
-        # reader does not leak extracted temp files or rapidgzip worker threads — the caller
+        # reader does not leak file handles or rapidgzip worker threads — the caller
         # never receives the object, so it can never call close() itself.
         try:
             with _parse_errors(source):

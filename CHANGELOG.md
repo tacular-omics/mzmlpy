@@ -24,6 +24,11 @@ Breaking API cleanup. Renamed names have no aliases. See the
   `XMLNamespace`, `PROTON_MASS`, `ISOTOPE_AVERAGE_DIFFERENCE`, `ISOLATION_WINDOW_TARGET_MZ`. `XMLElement` is merged
   into `MzMLElement`.
 
+- `gzip_mode="extract"`, the `extract_dir` parameter and `clear_cache()`: mzmlpy no longer writes decompressed
+  copies to disk. `gzip_mode="extract"` raises `MzmlError` and `extract_dir=` raises `TypeError`. For fast random
+  access to a `.mzML.gz`, run `write_indexed_gzip` on it once or install the rapidgzip extra.
+  `AccessStrategy.EXTRACTED` is gone with them.
+
 ### Changed
 
 - Reader vocabulary shared with tdfpy and spxtacular: `scan_start_time` (`timedelta`) -> `rt` (float, seconds) on
@@ -45,14 +50,13 @@ Breaking API cleanup. Renamed names have no aliases. See the
   for a non-str. A negative index past the start names the valid range.
 - A well-formed XML file whose root is not `<mzML>` or `<indexedmzML>` raises `MzmlParseError` on open.
 - `Mzml(..., in_memory=False)` is the default; pass `in_memory=True` to load the whole file as before.
-  For a `.mzML.gz` this means `Mzml("x.mzML.gz")` now decompresses to a private temporary file under
-  `<tmpdir>/mzmlpy/private/` (it needs disk space about the size of the decompressed file) instead of into
-  memory. The copy is deleted on `close()`, when the reader is garbage collected, or at interpreter exit, only by
-  the process that made it (a forked child leaves it alone). Pass `extract_dir=`
-  to keep a reusable copy there instead (the old default cache in `<tmpdir>/mzmlpy/` is no longer reused), or
-  `in_memory=True` for the old behaviour. `clear_cache()` removes copies left behind by a crashed process and keeps those of open readers.
+  For a `.mzML.gz`, `gzip_mode="auto"` (the default) uses the embedded index if the file has one (written by
+  `write_indexed_gzip`), else rapidgzip if it is installed (building sidecar indexes next to the file, and falling
+  back to memory if it cannot write them), else decompresses the file into memory as 0.9 did.
 - Reading through a closed reader, including an iterator started before `close()`, raises `MzmlError` instead of
-  silently reopening the file.
+  silently reopening the file. Readers and iterators left open are closed at interpreter exit, so an unclosed
+  rapidgzip reader no longer aborts the interpreter. A child forked while holding a rapidgzip reader can still abort
+  at exit, an upstream rapidgzip limitation: open readers inside each worker, or use the `spawn` start method.
 - `IsolationWindow.target_mz` -> `isolation_mz`. `Chromatogram.time` (array in its recorded unit) -> `rt`
   (float64 seconds, converted from the recorded unit, warning once when the unit is missing).
 - `Spectrum.charge` is removed (it was the per-point array, now `charge_array`); the precursor charge is `Spectrum.precursor_charge` (`int | None`). Old `spec.charge` code raises `AttributeError`.

@@ -1,8 +1,8 @@
 """Performance benchmark for mzML gzip reading modes.
 
 Compares startup cost, iteration time, and random access time across:
-- in_memory=True (default)
-- gzip_mode="extract"
+- in_memory=True
+- a self-indexed copy written by write_indexed_gzip (embedded index)
 - gzip_mode="indexed"
 - gzip_mode="stream"
 - plain .mzML (baseline)
@@ -12,9 +12,7 @@ Usage:
     uv run python benchmarks/bench_gzip_modes.py --file path/to/large.mzML.gz
 
 Each run copies the input file to a fresh temporary directory so that
-gzip_mode="extract" measures real decompression cost rather than a
-cache hit from a previous run. The extracted cache is also deleted
-between startup repeats to ensure every measurement is a cold start.
+benchmark file I/O is isolated and no sidecars from an earlier run are reused.
 """
 
 import argparse
@@ -28,7 +26,7 @@ import tempfile
 import time
 from contextlib import contextmanager
 
-from mzmlpy import Mzml
+from mzmlpy import Mzml, write_indexed_gzip
 
 
 @contextmanager
@@ -41,37 +39,18 @@ def timer():
     result["elapsed"] = time.perf_counter() - start
 
 
-def _extract_cache_path(gz_path: str, extract_dir: str) -> str:
-    """Return the path where Mzml would cache the extracted file."""
-    filename = os.path.basename(gz_path)
-    if filename.endswith(".gz"):
-        filename = filename[:-3]
-    return os.path.join(extract_dir, filename)
-
-
 def bench_startup(
     path: str,
     *,
-    gzip_mode: str = "extract",
+    gzip_mode: str = "auto",
     in_memory: bool = False,
     repeats: int = 3,
-    extract_dir: str | None = None,
 ) -> list[float]:
-    """Measure time to open the file and build the index.
-
-    For gzip_mode="extract" the cached extracted file is deleted before each
-    repeat so every measurement reflects a true cold-start decompression cost.
-    """
+    """Measure time to open the file and build the index."""
     times = []
     for _ in range(repeats):
-        # Delete the extracted cache so each repeat is a cold start.
-        if gzip_mode == "extract" and not in_memory and extract_dir is not None:
-            cached = _extract_cache_path(path, extract_dir)
-            if os.path.exists(cached):
-                os.remove(cached)
-
         with timer() as t:
-            reader = Mzml(path, gzip_mode=gzip_mode, in_memory=in_memory, extract_dir=extract_dir)
+            reader = Mzml(path, gzip_mode=gzip_mode, in_memory=in_memory)
         times.append(t["elapsed"])
         del reader
         gc.collect()
@@ -81,16 +60,15 @@ def bench_startup(
 def bench_iterate(
     path: str,
     *,
-    gzip_mode: str = "extract",
+    gzip_mode: str = "auto",
     in_memory: bool = False,
     repeats: int = 3,
     max_spectra: int | None = None,
-    extract_dir: str | None = None,
 ) -> list[float]:
     """Measure time to iterate through spectra after startup."""
     times = []
     for _ in range(repeats):
-        reader = Mzml(path, gzip_mode=gzip_mode, in_memory=in_memory, extract_dir=extract_dir)
+        reader = Mzml(path, gzip_mode=gzip_mode, in_memory=in_memory)
         with timer() as t:
             for i, s in enumerate(reader.spectra):
                 _ = s.id
@@ -105,14 +83,13 @@ def bench_iterate(
 def bench_random_access(
     path: str,
     *,
-    gzip_mode: str = "extract",
+    gzip_mode: str = "auto",
     in_memory: bool = False,
     n_accesses: int = 20,
     repeats: int = 3,
-    extract_dir: str | None = None,
 ) -> list[float]:
     """Measure time for N random spectrum accesses after startup."""
-    reader = Mzml(path, gzip_mode=gzip_mode, in_memory=in_memory, extract_dir=extract_dir)
+    reader = Mzml(path, gzip_mode=gzip_mode, in_memory=in_memory)
     count = len(reader.spectra)
     del reader
     gc.collect()
@@ -124,7 +101,7 @@ def bench_random_access(
 
     times = []
     for _ in range(repeats):
-        reader = Mzml(path, gzip_mode=gzip_mode, in_memory=in_memory, extract_dir=extract_dir)
+        reader = Mzml(path, gzip_mode=gzip_mode, in_memory=in_memory)
         with timer() as t:
             for idx in indices:
                 s = reader.spectra[idx]
@@ -150,36 +127,35 @@ def run_benchmarks(
     repeats: int,
     n_accesses: int,
     max_spectra: int | None = None,
-    extract_dir: str | None = None,
+    embedded_path: str | None = None,
 ) -> None:
     modes: list[dict] = [
-        {"label": "plain .mzML", "path": mzml_path, "gzip_mode": "extract", "in_memory": False, "extract_dir": None},
-        {"label": "in_memory=True", "path": gz_path, "gzip_mode": "extract", "in_memory": True, "extract_dir": None},
+        {"label": "plain .mzML", "path": mzml_path, "gzip_mode": "auto", "in_memory": False},
+        {"label": "in_memory=True", "path": gz_path, "gzip_mode": "auto", "in_memory": True},
         {
-            "label": 'gzip_mode="extract"',
-            "path": gz_path,
-            "gzip_mode": "extract",
+            "label": "embedded index",
+            "path": embedded_path,
+            "gzip_mode": "auto",
             "in_memory": False,
-            "extract_dir": extract_dir,
         },
         {
             "label": 'gzip_mode="indexed"',
             "path": gz_path,
             "gzip_mode": "indexed",
             "in_memory": False,
-            "extract_dir": None,
         },
         {
             "label": 'gzip_mode="stream"',
             "path": gz_path,
             "gzip_mode": "stream",
             "in_memory": False,
-            "extract_dir": None,
         },
     ]
 
     if mzml_path is None:
         modes = [m for m in modes if m["label"] != "plain .mzML"]
+    if embedded_path is None:
+        modes = [m for m in modes if m["label"] != "embedded index"]
 
     # Print file info
     reader = Mzml(gz_path, in_memory=True)
@@ -206,7 +182,6 @@ def run_benchmarks(
         kwargs = {
             "gzip_mode": mode["gzip_mode"],
             "in_memory": mode["in_memory"],
-            "extract_dir": mode["extract_dir"],
         }
 
         startup_times = bench_startup(path, **kwargs, repeats=repeats)
@@ -248,13 +223,13 @@ def main() -> None:
         if args.mzml is not None:
             mzml_path = args.mzml
 
-        # Dedicated extract_dir so gzip_mode="extract" cache is isolated and
-        # can be deleted between startup repeats for cold-start measurements.
-        extract_dir = os.path.join(tmpdir, "extract_cache")
-        os.makedirs(extract_dir, exist_ok=True)
+        # A self-indexed copy for the embedded-index row.
+        embedded_path = os.path.join(tmpdir, "embedded." + gz_basename)
+        print(f"Writing self-indexed gzip → {embedded_path}")
+        write_indexed_gzip(mzml_path, embedded_path)
 
         print()
-        run_benchmarks(gz_path, mzml_path, args.repeats, args.accesses, args.max_spectra, extract_dir)
+        run_benchmarks(gz_path, mzml_path, args.repeats, args.accesses, args.max_spectra, embedded_path)
 
 
 if __name__ == "__main__":

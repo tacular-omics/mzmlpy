@@ -8,8 +8,8 @@ Open a file with `from mzmlpy import Mzml; with Mzml("run.mzML") as reader: ...`
 and `reader.chromatograms` support indexing, native-id lookup, slicing, iteration and (for spectra)
 lazy metadata filtering; `Spectrum.mz` / `.intensity` return numpy arrays decoded on every access.
 Header metadata (instruments, software, samples, CV lists) is parsed when the file opens.
-`.mzML.gz` is read directly by extracting, rapidgzip-indexed access, streaming, or a
-pyMZML-compatible self-indexed gzip written by `write_indexed_gzip`. `python -m mzmlpy` offers
+`.mzML.gz` is read directly through a pyMZML-compatible self-indexed gzip written by
+`write_indexed_gzip`, rapidgzip-indexed access, streaming, or decompression into memory. `python -m mzmlpy` offers
 `inspect`, `validate`, `index-gzip` and `mcp` commands with JSON output.
 
 Absent CV terms return `None`; readers are not thread-safe; retention time (`Spectrum.rt`) and
@@ -26,7 +26,7 @@ filter bounds are in seconds; errors subclass `MzmlError` (a `ValueError`). mzml
 
 ## API
 
-- [Mzml reader](https://tacular-omics.github.io/mzmlpy/api/mzml/): `Mzml`, `peek_spectrum_count`, `clear_cache`
+- [Mzml reader](https://tacular-omics.github.io/mzmlpy/api/mzml/): `Mzml`, `peek_spectrum_count`
 - [Spectrum](https://tacular-omics.github.io/mzmlpy/api/spectrum/): `Spectrum`, `BinaryDataArray`, `Scan`, `ScanWindow`
 - [Chromatogram](https://tacular-omics.github.io/mzmlpy/api/chromatogram/): `Chromatogram`
 - [Lookup](https://tacular-omics.github.io/mzmlpy/api/lookup/): `SpectrumLookup`, `ChromatogramLookup`

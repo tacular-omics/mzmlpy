@@ -61,7 +61,6 @@ from .spectra import (
     SelectedIon,
     Spectrum,
 )
-from .util import clear_cache
 from .validation import ValidationIssue, ValidationReport, validate
 
 __all__ = [
@@ -72,7 +71,6 @@ __all__ = [
     "SpectrumFilter",
     "Mzml",
     "peek_spectrum_count",
-    "clear_cache",
     "write_indexed_gzip",
     "index_gzip",
     "is_embedded_indexed_gzip",

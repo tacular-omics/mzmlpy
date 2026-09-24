@@ -11,7 +11,7 @@ Three benchmark groups:
    ``.mzML`` file (supply with ``--plain``; not committed — see README).
 
 3. **Gzip handling** — the same large file gzipped (supply with ``--gz``), comparing
-   mzmlpy's ``extract`` / ``indexed`` / ``stream`` modes against the competitors.
+   mzmlpy's ``auto`` / ``indexed`` / ``stream`` modes against the competitors.
 
 Competitors are optional. Install them alongside mzmlpy, e.g.:
 
@@ -41,13 +41,10 @@ DEFAULT_CORPUS = REPO_ROOT / "tests" / "data"
 def purge_mzmlpy_caches(gz: Path) -> None:
     """Remove *all* mzmlpy on-disk caches so a 'cold start' is genuinely cold.
 
-    ``clear_cache()`` only clears the tmp extract directory; the ``indexed`` mode also writes
-    ``.gzidx`` / ``.mzidx`` seek/offset indices (and their ``.src`` signature sidecars) next to the
-    ``.gz`` file, which would otherwise make a re-run's "cold" startup actually warm.
+    The ``indexed`` mode (and ``auto`` with rapidgzip) writes ``.gzidx`` / ``.mzidx`` seek/offset
+    indices (and their ``.src`` signature sidecars) next to the ``.gz`` file, which would otherwise
+    make a re-run's "cold" startup actually warm.
     """
-    from mzmlpy import clear_cache
-
-    clear_cache()
     p = str(gz)
     sidecars = [p + "idx", p.removesuffix(".gz") + "idx"]  # X.mzML.gzidx, X.mzMLidx
     for base in list(sidecars):
@@ -57,6 +54,7 @@ def purge_mzmlpy_caches(gz: Path) -> None:
             os.remove(sidecar)
         except FileNotFoundError:
             pass
+
 
 # The re-encoded corpus: same spectra, different binary encodings. Reference sum is
 # the lossless zlib value; numpress-slof is lossy and only expected to match closely.
@@ -110,14 +108,14 @@ def _random_order(n: int) -> list[int]:
     return [i for i in (n - 1, 0, n // 2, n - 3, 5, (3 * n) // 4, 1, n // 3) if 0 <= i < n]
 
 
-def mzmlpy_decode(path: str, gzip_mode: str = "extract", in_memory: bool = True) -> tuple[int, float]:
+def mzmlpy_decode(path: str, gzip_mode: str = "auto", in_memory: bool = True) -> tuple[int, float]:
     from mzmlpy import Mzml
 
     with Mzml(path, gzip_mode=gzip_mode, in_memory=in_memory) as r:
         return _summ((s.mz, s.intensity) for s in r.spectra)
 
 
-def mzmlpy_index(path: str, gzip_mode: str = "extract", in_memory: bool = True) -> int:
+def mzmlpy_index(path: str, gzip_mode: str = "auto", in_memory: bool = True) -> int:
     from mzmlpy import Mzml
 
     with Mzml(path, gzip_mode=gzip_mode, in_memory=in_memory) as r:
@@ -132,7 +130,7 @@ def mzmlpy_peek_count(path: str) -> int | None:
     return peek_spectrum_count(path)
 
 
-def mzmlpy_random(path: str, gzip_mode: str = "extract", in_memory: bool = True) -> int:
+def mzmlpy_random(path: str, gzip_mode: str = "auto", in_memory: bool = True) -> int:
     from mzmlpy import Mzml
 
     with Mzml(path, gzip_mode=gzip_mode, in_memory=in_memory) as r:
@@ -306,14 +304,15 @@ def group_throughput(plain: Path, libs: set[str], repeats: int) -> None:
 def group_gzip(gz: Path, libs: set[str], repeats: int) -> None:
     size_mb = gz.stat().st_size / 1048576
 
-    # The three modes differ on *startup* (extract decompresses; indexed builds a seek index)
+    # The three modes differ on *startup* (auto without rapidgzip decompresses into memory; indexed
+    # builds a seek index)
     # and *random access* (stream must rescan from the top), not on full sequential decode.
     # These differences only appear with in_memory=False: the default in_memory=True buffers the
     # whole file in RAM after open, so all three modes then behave identically. We benchmark the
     # memory-constrained case, which is the only one where the mode choice actually matters.
     mode_rows = []
-    for mode in ("extract", "indexed", "stream"):
-        purge_mzmlpy_caches(gz)  # genuinely cold: also removes gzidx/mzidx sidecars, not just tmp
+    for mode in ("auto", "indexed", "stream"):
+        purge_mzmlpy_caches(gz)  # genuinely cold: removes the gzidx/mzidx sidecars
         startup, _ = best_of(lambda m=mode: mzmlpy_index(str(gz), gzip_mode=m, in_memory=False), repeats=1)
         rnd, _ = best_of(lambda m=mode: mzmlpy_random(str(gz), gzip_mode=m, in_memory=False), repeats=1)
         dec, out = best_of(lambda m=mode: mzmlpy_decode(str(gz), gzip_mode=m, in_memory=False), repeats=1)
