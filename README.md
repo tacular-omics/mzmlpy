@@ -19,7 +19,8 @@ full decode just to look at a spectrum's metadata.
 
 - **Lazy by design** — metadata is parsed up front; binary m/z and intensity arrays are
   only decoded when you actually touch them.
-- **Fast** — 5–9x faster than pymzml on complex files in our benchmarks (see below).
+- **Fast random access** — opens and indexes a 48 MB Orbitrap file in about 0.05 s
+  (pyteomics: about 1 s); full decoding is on par with pyteomics and pymzml (see below).
 - **Type-safe** — dataclass-based models with full type annotations, not loosely-typed
   XML trees.
 - **Handles gzip well** — reads `.mzML.gz` directly, with a self-indexed gzip format for

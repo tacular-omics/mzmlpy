@@ -13,7 +13,8 @@ mobility and other binary arrays are decoded only when you ask for them.
 
 Spectra and chromatograms can be iterated, indexed, sliced, looked up by native ID, or filtered
 on metadata without decoding peaks. zlib, MS-Numpress and Zstandard arrays are supported, and
-mzmlpy is [5-9x faster than pymzml](benchmarks.md) on complex files. An optional
+mzmlpy opens and indexes files [about 20x faster than pyteomics](benchmarks.md), with full
+decoding on par with pyteomics and pymzml. An optional
 [MCP server](mcp.md) lets AI clients inspect local mzML files.
 
 ```bash
