@@ -14,6 +14,8 @@ All notable changes to this project are documented here. The format is based on
   "no compression" no longer masks a real codec; other conflicting pairs warn and use the first term.
 - A one-value MS-Numpress linear array (12 bytes) decodes instead of raising "not enough bytes to read second
   value" from pynumpress 0.1.5.
+- `scripts/release_version.py sync --set X.Y.Z` now also sets CITATION.cff `date-released` to today (adding the
+  field if missing), so a release no longer ships a stale citation date.
 
 ### Added
 
