@@ -352,6 +352,17 @@ class FileInterface:
         for mzml_element in self._iter_xml_elements("spectrum"):
             yield Spectrum(self._expand_param_group_refs(mzml_element.element))
 
+    def iter_spectrum_heads(self) -> Iterator[bytes | None] | None:
+        """Each spectrum's bytes before its binary arrays, in index order, or None if unsupported.
+
+        Only indexed, ASCII-compatible files whose index lists every spectrum support this. An
+        item is None where a record's head could not be cut out; read that record in full.
+        """
+        backend = self.file_handler
+        if not (isinstance(backend, AbstractRandomAccessMzml) and backend.can_iterate_indexed("spectrum")):
+            return None
+        return backend.iter_spectrum_heads()
+
     def iter_chromatograms(self) -> Iterator[Chromatogram]:
         """Iterate over all chromatograms in the file."""
         for mzml_element in self._iter_xml_elements("chromatogram"):

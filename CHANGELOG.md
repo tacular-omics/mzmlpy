@@ -47,12 +47,14 @@ Breaking API cleanup. Renamed names have no aliases. See the
 - `Mzml(..., in_memory=False)` is the default; pass `in_memory=True` to load the whole file as before.
 - `IsolationWindow.target_mz` -> `isolation_mz`. `Chromatogram.time` (array in its recorded unit) -> `rt`
   (float64 seconds, converted from the recorded unit, warning once when the unit is missing).
-- `Spectrum.charge` is the first precursor's charge (`int | None`); the per-point array is `charge_array`.
+- `Spectrum.charge` is removed (it was the per-point array, now `charge_array`); the precursor charge is `Spectrum.precursor_charge` (`int | None`). Old `spec.charge` code raises `AttributeError`.
 - Filter ranges end in `_range`: `spectra.filter(retention_time=...)` and `SpectrumFilter(retention_time=...)` ->
   `rt_range=...`, `precursor_mz=(lo, hi)` -> `precursor_mz_range`, `faims_voltage` -> `faims_voltage_range`.
   `SpectrumFilter` is keyword-only.
-- `spectra.filter` with a retention-time criterion binary-searches on a random-access reader and stops after the
-  window. This assumes spectra are stored in retention-time order; for other files use `SpectrumFilter.matches`.
+- `spectra.filter` with a retention-time criterion on a random-access reader reads every spectrum's scan times
+  once (only the bytes before the binary arrays), caches them, and then reads in full only the spectra inside the
+  window. It is correct for files in any order. On a 36,000-spectrum file a 60 s window takes 1.4 s on the first
+  query and 0.6 s after, against 8.2 s for 0.9's full scan.
 - Errors: bad data and bad arguments raise `MzmlError` (a `ValueError`) or a subclass: `MzmlParseError`
   (malformed XML, wrapping `ParseError` as `__cause__`), `MzmlOffsetIndexError`, `MzmlDecodeError`. A missing id
   raises `MzmlRecordNotFoundError`, which is also a `KeyError`. `lookup.get_by_index()` raises `TypeError` for a
@@ -74,7 +76,7 @@ Breaking API cleanup. Renamed names have no aliases. See the
   `CompressionTypeAccession`, `DIAAcquisitionAccession`, `SpectrumCombinationAccession`) are exported from `mzmlpy`.
 - `ScanWindow.mz_range`, `IsolationWindow.isolation_mz_range` (`(target - lower offset, target + upper offset)`)
   and `IsolationWindow.isolation_width`.
-- `Spectrum.precursor_mz`, `charge`, `collision_energy` and `isolation_mz_range`, from the first precursor.
+- `Spectrum.precursor_mz`, `precursor_charge`, `collision_energy` and `isolation_mz_range`, from the first precursor.
 - Point queries in `spectra.filter`, following tdfpy: `rt=` with `rt_tolerance` (seconds, default 30) and
   `precursor_mz=` with `mz_tolerance` (default 20) and `mz_tolerance_type` (`"ppm"` or `"da"`). Passing a point
   and its range raises `MzmlError`.

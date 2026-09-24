@@ -1,4 +1,4 @@
-"""0.10 renames, point queries, retention-time bisection and indexed span parsing."""
+"""0.10 renames, point queries, the retention-time table and indexed span parsing."""
 
 import warnings
 from pathlib import Path
@@ -30,10 +30,16 @@ def spectrum_xml(index: int, rt: float | None, *, ms_level: int = 1, extra: str 
 
 
 def write_indexed(
-    path: Path, spectra: list[str], *, omit: frozenset[str] = frozenset(), encoding: str = "utf-8"
+    path: Path,
+    spectra: list[str],
+    *,
+    omit: frozenset[str] = frozenset(),
+    encoding: str = "utf-8",
+    before_run: str = "",
 ) -> Path:
     """Write an indexedmzML whose index lists every spectrum id except those in ``omit``."""
-    head = f'<?xml version="1.0" encoding="{encoding}"?>\n<indexedmzML xmlns="{NS}"><mzML xmlns="{NS}"><run id="r">'
+    head = f'<?xml version="1.0" encoding="{encoding}"?>\n<indexedmzML xmlns="{NS}"><mzML xmlns="{NS}">'
+    head += f'{before_run}<run id="r">'
     head += f'<spectrumList count="{len(spectra)}">'
     body = head.encode(encoding)
     offsets: list[tuple[str, int]] = []
@@ -74,7 +80,7 @@ def test_spectrum_precursor_shortcuts() -> None:
     assert window.isolation_width == 2.0
     assert window.isolation_mz_range == (498.5, 500.5)
     assert spectrum.precursor_mz == 500.25
-    assert spectrum.charge == 3
+    assert spectrum.precursor_charge == 3
     assert spectrum.collision_energy == 27.0
     assert spectrum.isolation_mz_range == (498.5, 500.5)
     assert spectrum.precursors is spectrum.precursors  # cached
@@ -90,7 +96,12 @@ def test_spectrum_precursor_shortcuts() -> None:
 )
 def test_spectrum_precursor_shortcuts_are_none_when_absent(xml: str) -> None:
     spectrum = Spectrum(ET.fromstring(xml))
-    assert (spectrum.precursor_mz, spectrum.charge, spectrum.collision_energy, spectrum.isolation_mz_range) == (
+    assert (
+        spectrum.precursor_mz,
+        spectrum.precursor_charge,
+        spectrum.collision_energy,
+        spectrum.isolation_mz_range,
+    ) == (
         None,
         None,
         None,
@@ -151,13 +162,13 @@ def test_point_queries_follow_tdfpy(tmp_path: Path) -> None:
         reader.spectra.filter(rt=(1.0, 2.0))  # ty: ignore[invalid-argument-type]
 
 
-# ---------------------------------------------------------------- retention-time bisection
+# ---------------------------------------------------------------- retention-time table
 TIMES = [float(t) for t in range(0, 200, 2)]
 
 
 @pytest.mark.parametrize("window", [(None, 10.0), (51.0, 60.0), (100.0, None), (500.0, 600.0), (0.0, 0.0), (7.0, 7.5)])
 @pytest.mark.parametrize("in_memory", [False, True])
-def test_rt_bisect_matches_a_linear_scan(tmp_path: Path, window, in_memory: bool) -> None:
+def test_rt_filter_matches_a_linear_scan(tmp_path: Path, window, in_memory: bool) -> None:
     path = ordered_run(tmp_path, TIMES)
     with Mzml(path, in_memory=in_memory) as reader:
         expected = [s.id for s in reader.spectra if s.rt is not None and _inside(s.rt, window)]
@@ -169,19 +180,188 @@ def _inside(value: float, window: tuple[float | None, float | None]) -> bool:
     return (lower is None or value >= lower) and (upper is None or value <= upper)
 
 
-def test_rt_bisect_skips_spectra_without_times(tmp_path: Path) -> None:
+def test_rt_filter_skips_spectra_without_times(tmp_path: Path) -> None:
     times: list[float | None] = [t if i % 3 else None for i, t in enumerate(TIMES)]
     path = ordered_run(tmp_path, times)
     with Mzml(path) as reader:
         assert [s.rt for s in reader.spectra.filter(rt_range=(40.0, 50.0))] == [40.0, 44.0, 46.0, 50.0]
 
 
-def test_rt_bisect_falls_back_to_a_scan_when_times_are_sparse(tmp_path: Path) -> None:
+def test_rt_filter_finds_a_lone_time_among_many_missing(tmp_path: Path) -> None:
     times: list[float | None] = [None] * 150
     times[140] = 5.0
     path = ordered_run(tmp_path, times)
     with Mzml(path) as reader:
         assert [s.id for s in reader.spectra.filter(rt_range=(1.0, 9.0))] == ["scan=140"]
+
+
+OUT_OF_ORDER = [30.0, 2.0, 100.0, 4.0, 4.0, 60.0, 0.0, 58.0, 7.5, 190.0, 1.0, 59.0, 31.0, 3.0]
+
+
+@pytest.mark.parametrize("window", [(None, 10.0), (3.0, 31.0), (58.0, 60.0), (100.0, None), (4.0, 4.0)])
+@pytest.mark.parametrize("in_memory", [False, True])
+def test_rt_filter_on_a_file_out_of_rt_order_matches_a_linear_scan(tmp_path: Path, window, in_memory: bool) -> None:
+    """Merged or re-sorted files are not in retention-time order; the filter must not assume it."""
+    path = ordered_run(tmp_path, [*OUT_OF_ORDER, *reversed(TIMES)])
+    with Mzml(path, in_memory=in_memory) as reader:
+        expected = [s.id for s in reader.spectra if s.rt is not None and _inside(s.rt, window)]
+        assert expected  # otherwise the window tests nothing
+        assert [s.id for s in reader.spectra.filter(rt_range=window)] == expected
+        assert [s.id for s in reader.spectra.filter(rt_range=window, ms_level=1)] == expected
+
+
+def test_rt_table_is_built_once_and_reused(tmp_path: Path) -> None:
+    path = ordered_run(tmp_path, OUT_OF_ORDER)
+    with Mzml(path) as reader:
+        assert reader.spectra._rt_table is None
+        assert [s.rt for s in reader.spectra.filter(rt_range=(0.0, 2.0))] == [2.0, 0.0, 1.0]
+        table = reader.spectra._rt_table
+        assert table == [(t,) for t in OUT_OF_ORDER]
+        assert [s.rt for s in reader.spectra.filter(rt=60.0, rt_tolerance=1.0)] == [60.0, 59.0]
+        assert reader.spectra._rt_table is table
+
+
+def test_rt_filter_scans_every_spectrum_when_the_index_is_incomplete(tmp_path: Path) -> None:
+    spectra = [spectrum_xml(i, t) for i, t in enumerate(OUT_OF_ORDER)]
+    spectra[5] = spectra[5].replace('id="scan=5"', 'id="scan=4"')
+    path = tmp_path / "dup.mzML"
+    path.write_text(f'<mzML xmlns="{NS}"><run><spectrumList count="14">{"".join(spectra)}</spectrumList></run></mzML>')
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        with Mzml(path) as reader:
+            expected = [s.rt for s in reader.spectra if s.rt is not None and _inside(s.rt, (0.0, 5.0))]
+            assert (
+                [s.rt for s in reader.spectra.filter(rt_range=(0.0, 5.0))] == expected == [2.0, 4.0, 4.0, 0.0, 1.0, 3.0]
+            )
+            assert reader.spectra._rt_table is None
+
+
+def _scan(cv: str, window: str = "") -> str:
+    return f"<scan>{cv}{window}</scan>"
+
+
+RT_CV = '<cvParam cvRef="MS" accession="MS:1000016" name="scan start time" value="{v}" unitAccession="{u}"/>'
+SECONDS = "UO:0000010"
+WINDOW = '<scanWindowList count="1"><scanWindow>{}</scanWindow></scanWindowList>'
+# name -> (scanList inner XML, XML after the scan list, whether the byte reader answers without a parse)
+HEAD_CASES: dict[str, tuple[str, str, bool]] = {
+    "seconds": (_scan(RT_CV.format(v=12.5, u=SECONDS)), "", True),
+    "minutes": (_scan(RT_CV.format(v=1.5, u="UO:0000031")), "", True),
+    "milliseconds": (_scan(RT_CV.format(v=1500, u="UO:0000028")), "", True),
+    "hours": (_scan(RT_CV.format(v=0.01, u="UO:0000032")), "", True),
+    "two scans": (_scan(RT_CV.format(v=1.0, u=SECONDS)) + _scan(RT_CV.format(v=2.0, u=SECONDS)), "", True),
+    "scan without a time": (_scan("") + _scan(RT_CV.format(v=3.0, u=SECONDS)), "", True),
+    "not finite": (_scan(RT_CV.format(v="nan", u=SECONDS)), "", True),
+    "no scan list": ("", "", True),
+    "time before its scan window": (_scan(RT_CV.format(v=1.0, u=SECONDS), WINDOW.format("")), "", True),
+    "scan with attributes": (
+        f'<scan instrumentConfigurationRef="IC1">{RT_CV.format(v=9.0, u=SECONDS)}</scan>',
+        "",
+        True,
+    ),
+    "unit name only": (
+        _scan('<cvParam cvRef="MS" accession="MS:1000016" name="scan start time" value="2" unitName="minute"/>'),
+        "",
+        False,
+    ),
+    "no unit": (_scan('<cvParam cvRef="MS" accession="MS:1000016" name="scan start time" value="4"/>'), "", False),
+    "single quotes": (
+        _scan(
+            "<cvParam cvRef='MS' accession='MS:1000016' name='scan start time' value='5' unitAccession='UO:0000010'/>"
+        ),
+        "",
+        False,
+    ),
+    "two times in one scan": (_scan(RT_CV.format(v=1.0, u=SECONDS) + RT_CV.format(v=2.0, u=SECONDS)), "", False),
+    "time in a scan window": (
+        _scan(RT_CV.format(v=1.0, u=SECONDS), WINDOW.format(RT_CV.format(v=8.0, u=SECONDS))),
+        "",
+        False,
+    ),
+    "time only in a scan window": (_scan("", WINDOW.format(RT_CV.format(v=8.0, u=SECONDS))), "", False),
+    "time after the scan list": (
+        _scan(""),
+        f'<precursorList count="1"><precursor><activation>{RT_CV.format(v=6.0, u=SECONDS)}</activation>'
+        "</precursor></precursorList>",
+        False,
+    ),
+    "name with another accession": (
+        _scan(
+            '<cvParam cvRef="MS" accession="MS:0000000" name="scan start time" value="7" unitAccession="UO:0000010"/>'
+        ),
+        "",
+        False,
+    ),
+    "user param named like the term": (_scan('<userParam name="scan start time" value="3"/>'), "", False),
+    "param group": ('<scan><referenceableParamGroupRef ref="g"/></scan>', "", False),
+    "entity in the head": (_scan(RT_CV.format(v=1.0, u=SECONDS) + '<userParam name="a&amp;b"/>'), "", False),
+}
+PARAM_GROUPS = (
+    '<referenceableParamGroupList count="1"><referenceableParamGroup id="g">'
+    + RT_CV.format(v=11.0, u=SECONDS)
+    + "</referenceableParamGroup></referenceableParamGroupList>"
+)
+
+
+@pytest.mark.parametrize("case", list(HEAD_CASES))
+def test_rt_table_agrees_with_parsed_scans(tmp_path: Path, case: str) -> None:
+    """The byte reader either gives exactly the parsed scan times or defers to a full parse."""
+    from mzmlpy.lookup import _head_scan_rts, _scan_rts
+
+    inner, after, fast = HEAD_CASES[case]
+    scan_list = f'<scanList count="1">{inner}</scanList>' if inner else ""
+    path = write_indexed(
+        tmp_path / "h.mzML",
+        [spectrum_xml(0, 1.0), spectrum_xml(1, None, extra=scan_list + after)],
+        before_run=PARAM_GROUPS if case == "param group" else "",
+    )
+    with Mzml(path) as reader, warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        heads = list(reader._file_object.iter_spectrum_heads() or [])
+        assert len(heads) == 2 and heads[1] is not None
+        assert (_head_scan_rts(heads[1]) is not None) is fast
+        expected = [tuple(_scan_rts(s)) for s in reader.spectra]
+        assert reader.spectra._scan_rt_table(2) == expected
+
+
+def test_rt_table_reports_a_bad_time_like_a_linear_scan(tmp_path: Path) -> None:
+    bad = f'<scanList count="1">{_scan(RT_CV.format(v="soon", u=SECONDS))}</scanList>'
+    path = write_indexed(tmp_path / "bad.mzML", [spectrum_xml(0, 1.0), spectrum_xml(1, None, extra=bad)])
+    with Mzml(path) as reader, pytest.raises(MzmlError, match="soon"):
+        list(reader.spectra.filter(rt_range=(0.0, 5.0)))
+
+
+def test_spectrum_heads_are_cut_only_when_exact() -> None:
+    from mzmlpy.file_classes.standardMzml import _spectrum_head
+
+    assert _spectrum_head(b'  <spectrum id="a" index="0"><binaryDataArrayList/>', "a") == b'<spectrum id="a" index="0">'
+    assert _spectrum_head(b'<ms:spectrum\nid="a&amp;b"><ms:binaryDataArrayList/>', "a&b") is not None
+    assert _spectrum_head(b'<spectrum xid="a"><binaryDataArrayList/>', "a") is None  # a different attribute
+    assert _spectrum_head(b'<spectrum id="b"><binaryDataArrayList/>', "a") is None  # a different record
+    assert _spectrum_head(b'<chromatogram id="a"><binaryDataArrayList/>', "a") is None
+    assert _spectrum_head(b'<spectrum id="a">' + b" " * 100, "a") is None  # no arrays within the read
+    assert _spectrum_head(b"garbage", "a") is None
+
+
+def test_rt_table_handles_namespace_prefixed_records(tmp_path: Path) -> None:
+    from mzmlpy.lookup import _head_scan_rts
+
+    head = (
+        b'<ms:spectrum id="a"><ms:scanList count="1"><ms:scan>'
+        b'<ms:cvParam cvRef="MS" accession="MS:1000016" name="scan start time" value="2" unitAccession="UO:0000031"/>'
+        b"</ms:scan></ms:scanList>"
+    )
+    assert _head_scan_rts(head) == (120.0,)
+
+
+def test_spectrum_charge_is_gone(tmp_path: Path) -> None:
+    """0.9's per-point ``Spectrum.charge`` must fail loudly, not turn into the precursor charge."""
+    path = ordered_run(tmp_path, [1.0])
+    with Mzml(path) as reader:
+        spectrum = reader.spectra[0]
+        with pytest.raises(AttributeError):
+            spectrum.charge  # noqa: B018  # ty: ignore[unresolved-attribute]
+        assert spectrum.precursor_charge is None
 
 
 def test_stream_reader_filters_by_rt_without_random_access(tmp_path: Path) -> None:

@@ -921,8 +921,12 @@ class _PrecursorListMixin(_DataTreeWrapperProtocol):
         return ion.mz if ion is not None else None
 
     @property
-    def charge(self) -> int | None:
-        """Charge state of the first selected ion of the first precursor, or None."""
+    def precursor_charge(self) -> int | None:
+        """Charge state of the first selected ion of the first precursor, or None.
+
+        Named ``precursor_charge`` (not ``charge``) so 0.9 code that read ``Spectrum.charge`` as the
+        per-point array fails loudly; that array is now :attr:`charge_array`.
+        """
         ion = self._first_selected_ion()
         return ion.charge if ion is not None else None
 
@@ -1064,7 +1068,7 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
         """Return the per-point charge array (MS:1000516), or None if no charge binary array is present.
 
         Named ``charge_array`` because ``charge`` means a single precursor charge state elsewhere
-        (:attr:`SelectedIon.charge`).
+        (:attr:`SelectedIon.charge`, :attr:`precursor_charge`).
         """
         binary_array = self.get_binary_array(BinaryDataArrayAccession.CHARGE)
         if binary_array is not None:

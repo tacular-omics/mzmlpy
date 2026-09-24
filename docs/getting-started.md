@@ -353,11 +353,12 @@ For mobility selection, use `ook0_range=(lower, upper)` (1/K0, V·s/cm²) or
 all. `faims_voltage_range=(lower, upper)` accepts signed volts. These criteria inspect scan
 metadata and do not process per-peak mobility arrays.
 
-With a random-access reader (every access strategy except `stream`), a retention-time
-criterion binary-searches the file and stops after the window, so it reads only the spectra
-near it. This assumes spectra are stored in retention-time order, as instrument files are.
-For a file that is not, iterate `reader.spectra` and test each spectrum with
-`SpectrumFilter(...).matches(spectrum)`. Other criteria are a sequential scan. Keep the reader
+With a random-access reader (every access strategy except `stream`), the first
+retention-time criterion reads the scan times of every spectrum once, from the bytes before
+each record's binary arrays, and caches them on `reader.spectra`. That query and every later
+one then read in full only the spectra inside the window. Record order does not matter, so
+merged or re-sorted files give the same result as a full scan. Other criteria are a
+sequential scan. Keep the reader
 open while consuming the returned iterator; each call returns a new, independent iterator.
 
 ## Command-line inspection

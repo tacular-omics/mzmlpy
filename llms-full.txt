@@ -159,7 +159,7 @@ All properties are lazy and return `None` (or `()` for sequences) when the term 
 | `filter_string` | `str \| None` | instrument filter string (e.g. Thermo) |
 | `ook0` | `float \| None` | scan-level 1/K0 (MS:1002815) of the first scan |
 | `precursor_mz` | `float \| None` | first precursor's first selected-ion m/z |
-| `charge` | `int \| None` | first precursor's first selected-ion charge (the per-point array is `charge_array`) |
+| `precursor_charge` | `int \| None` | first precursor's first selected-ion charge (the per-point array is `charge_array`; there is no `Spectrum.charge`) |
 | `collision_energy` | `float \| None` | first precursor's activation collision energy, as recorded |
 | `isolation_mz_range` | `tuple[float, float] \| None` | first precursor's isolated m/z range |
 | `has_im` | `bool` | ion mobility present (array or scan term) |
@@ -325,9 +325,9 @@ same predicate as a frozen, keyword-only dataclass; `SpectrumFilter(...).matches
 - `precursor_mz_range` matches isolation-window overlap, falling back to selected-ion m/z.
 - `ook0_range` (1/K0) and `drift_time_range` match the scan value; `(None, None)` selects spectra
   that record it. `faims_voltage_range` is signed volts.
-- On a random-access reader, a retention-time criterion binary-searches and stops after the
-  window; this assumes spectra are in retention-time order. For other files use
-  `SpectrumFilter.matches` on `reader.spectra`.
+- On a random-access reader, the first retention-time criterion reads every spectrum's scan
+  times once (only the bytes before its binary arrays) and caches them; each query then reads
+  in full only the spectra inside the window. Record order does not matter.
 - Missing metadata never matches. Filtering never decodes binary arrays.
 
 ## Validation

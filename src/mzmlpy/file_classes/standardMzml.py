@@ -12,7 +12,7 @@ from re import Pattern
 from typing import TYPE_CHECKING, BinaryIO, TextIO, cast
 from xml.etree.ElementTree import Element, ParseError, fromstring
 from xml.parsers import expat
-from xml.sax.saxutils import quoteattr
+from xml.sax.saxutils import escape, quoteattr
 
 if TYPE_CHECKING:
     from _typeshed import WriteableBuffer
@@ -28,6 +28,26 @@ logger = logging.getLogger(__name__)
 
 # Encodings whose bytes can be spliced after an ASCII wrapper tag (codecs.lookup names).
 _ASCII_COMPATIBLE = frozenset({"utf-8", "ascii", "iso8859-1", "cp1252"})
+# Bytes read per spectrum when only its metadata (everything before the binary arrays) is needed.
+_HEAD_READ = 16384
+
+
+def _spectrum_head(data: bytes, identifier: str) -> bytes | None:
+    """The bytes of one spectrum record before its binary arrays, or None if they cannot be cut."""
+    data = data.lstrip(b" \t\r\n")
+    marker = data.find(b"binaryDataArrayList")
+    tag_end = data.find(b">")
+    if not data.startswith(b"<") or marker < 1 or tag_end < 0:
+        return None
+    start_tag = data[: tag_end + 1]
+    name = start_tag[1:].split(None, 1)[0].rstrip(b"/>")
+    if name != b"spectrum" and not name.endswith(b":spectrum"):
+        return None
+    escaped = (escape(identifier, {'"': "&quot;"}) if any(c in identifier for c in '&<>"') else identifier).encode()
+    position = start_tag.find(b'id="' + escaped + b'"')
+    if position < 1 or start_tag[position - 1 : position] not in (b" ", b"\t", b"\r", b"\n"):
+        return None
+    return data[: data.rfind(b"<", 0, marker)]
 
 
 class _MemoryViewReader(io.RawIOBase):
@@ -223,6 +243,24 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
                 yield element
                 if element is None:
                     return
+        finally:
+            handle.close()
+
+    def iter_spectrum_heads(self) -> Iterator[bytes | None]:
+        """Yield, for every indexed spectrum in index order, its bytes before the binary arrays.
+
+        Each head runs from the ``<spectrum`` start tag to ``<binaryDataArrayList``, so only a
+        few kilobytes are read per record and nothing is parsed. Yields None for a record whose
+        head is not found within the first ``_HEAD_READ`` bytes or whose start tag does not carry
+        the indexed id; the caller reads that record in full.
+        """
+        handle = self.get_binary_file_handler()
+        try:
+            for identifier, offset in self.spectrum_offsets.items():
+                start, end = self.record_span(offset)
+                handle.seek(start)
+                size = _HEAD_READ if end is None else min(end - start, _HEAD_READ)
+                yield _spectrum_head(handle.read(size), identifier)
         finally:
             handle.close()
 

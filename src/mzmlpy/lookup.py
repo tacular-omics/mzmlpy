@@ -1,18 +1,86 @@
 import math
 import re
 from abc import ABC, abstractmethod
+from bisect import bisect_right
 from collections.abc import Iterator
 from functools import cached_property
 from typing import Literal, overload
 
+from .constants import SpectrumMSAccession, TimeUnitAccession
 from .errors import MzmlError
 from .file_interface import AccessStrategy, FileInterface
-from .filtering import SpectrumFilter, check_point, mz_tolerance_range, tolerance_range
-from .spectra import Chromatogram, Spectrum
+from .filtering import SpectrumFilter, _within, check_point, mz_tolerance_range, tolerance_range
+from .spectra import _SECONDS_PER_UNIT, Chromatogram, Spectrum
 
-# How far a retention-time probe walks past spectra without a scan time before giving up.
-_RT_SEARCH_WALK = 64
-_NO_RT_NEARBY = object()
+_SCAN_START = re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?scan[\s>/]")
+_CV_PARAM = re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?cvParam\s[^>]*>")
+_SCAN_NAME_END = frozenset((b" ", b"\t", b"\r", b"\n", b">", b"/"))
+_ATTRIBUTE = re.compile(rb'([\w:.-]+)\s*=\s*"([^"]*)"')
+_RT_TERMS = (SpectrumMSAccession.SCAN_START_TIME.encode(), b"scan start time")
+_RT_FACTORS = {unit.value.encode(): _SECONDS_PER_UNIT[unit] for unit in TimeUnitAccession}
+
+
+def _head_scan_rts(head: bytes) -> tuple[float, ...] | None:
+    """Scan times in seconds from a spectrum's bytes before its binary arrays, like
+    :func:`_scan_rts`, or None when only a full parse can answer exactly.
+
+    Only the plain case is read here: each ``scan`` holds at most one scan start time cvParam,
+    as a direct child, written with double-quoted attributes, a numeric value and a time unit
+    accession, and no referenceable param group is referenced. Anything else (and every warning
+    or error case of :attr:`Scan.rt`) returns None so the caller parses the record.
+    """
+    if b"referenceableParamGroupRef" in head:
+        return None
+    mentions = [*_find_all(head, _RT_TERMS[0]), *_find_all(head, _RT_TERMS[1])]
+    if not mentions:
+        return ()
+    if b"&" in head:
+        return None
+    mentions.sort()
+    if b":scan" in head:
+        scan_starts = [match.start() for match in _SCAN_START.finditer(head)]
+    else:
+        scan_starts = [i for i in _find_all(head, b"<scan") if head[i + 5 : i + 6] in _SCAN_NAME_END]
+    times: list[float] = []
+    owners: set[int] = set()
+    tag_end = -1
+    for position in mentions:
+        if position < tag_end:
+            continue  # accession and name of the tag just read
+        tag_start = head.rfind(b"<", 0, position)
+        tag_end = head.find(b">", position)
+        owner = bisect_right(scan_starts, position) - 1
+        if tag_start < 0 or tag_end < 0 or owner < 0 or owner in owners:
+            return None
+        owners.add(owner)
+        tag = head[tag_start : tag_end + 1]
+        scan_start = scan_starts[owner]
+        if (
+            _CV_PARAM.fullmatch(tag) is None
+            # A direct child of the scan: not past its end tag, not inside its scan windows.
+            or head.find(b"scan>", head.find(b">", scan_start) + 1, tag_start) >= 0
+            or head.find(b"scanWindowList", scan_start, tag_start) >= 0
+        ):
+            return None
+        attributes = dict(_ATTRIBUTE.findall(tag))
+        factor = _RT_FACTORS.get(attributes.get(b"unitAccession", b""))
+        if attributes.get(b"accession") != _RT_TERMS[0] or factor is None:
+            return None
+        try:
+            value = float(attributes[b"value"])
+        except (KeyError, ValueError):
+            return None
+        value = value if factor == 1.0 else value * factor
+        if math.isfinite(value):
+            times.append(value)
+    return tuple(times)
+
+
+def _find_all(data: bytes, term: bytes) -> Iterator[int]:
+    position = data.find(term)
+    while position >= 0:
+        yield position
+        position = data.find(term, position + len(term))
 
 
 def _scan_rts(spectrum: Spectrum) -> list[float]:
@@ -167,6 +235,9 @@ class BaseLookup[T: (Spectrum, Chromatogram)](ABC):
 class SpectrumLookup(BaseLookup[Spectrum]):
     """Lookup interface for spectra."""
 
+    # Scan times per spectrum index, built by the first retention-time filter.
+    _rt_table: list[tuple[float, ...]] | None = None
+
     def filter(
         self,
         *,
@@ -193,11 +264,10 @@ class SpectrumLookup(BaseLookup[Spectrum]):
         :class:`SpectrumFilter` for how each criterion matches. Keep the reader open while
         iterating.
 
-        With a random-access reader (every access strategy except ``stream``), a retention-time
-        criterion binary-searches the file and stops after the window, so it reads only the
-        spectra near it. This assumes spectra are stored in retention-time order, as instrument
-        files are. For a file that is not (e.g. merged runs), iterate ``reader.spectra`` and test
-        each spectrum with :meth:`SpectrumFilter.matches`.
+        With a random-access reader (every access strategy except ``stream``), the first
+        retention-time query reads the scan times of every spectrum once, from the metadata
+        before each record's binary arrays, and caches them. It and later queries then read in
+        full only the spectra inside the window. Record order does not matter.
 
         Raises:
             MzmlError: A criterion is invalid, or both a point and its range were given.
@@ -236,41 +306,41 @@ class SpectrumLookup(BaseLookup[Spectrum]):
     def _filter_rt_window(
         self, predicate: SpectrumFilter, bounds: tuple[float | None, float | None], count: int
     ) -> Iterator[Spectrum]:
-        """Binary-search the first spectrum that can reach ``bounds``, then scan until past it."""
-        lower, upper = bounds
-        start = 0
-        if lower is not None:
-            left, right = 0, count
-            while left < right:
-                middle = (left + right) // 2
-                latest = self._latest_rt_from(middle, count)
-                if latest is _NO_RT_NEARBY:
-                    # Retention times are too sparse to search; select with a full scan instead.
-                    yield from (spectrum for spectrum in self if predicate.matches(spectrum))
-                    return
-                if not isinstance(latest, float) or latest >= lower:
-                    right = middle
-                else:
-                    left = middle + 1
-            start = left
-        for index in range(start, count):
-            spectrum = self.get_by_index(index)
-            times = _scan_rts(spectrum)
-            if upper is not None and times and min(times) > upper:
-                return
-            if predicate.matches(spectrum):
-                yield spectrum
+        """Read only spectra with a scan time inside ``bounds``, using the cached scan-time table.
 
-    def _latest_rt_from(self, index: int, count: int) -> float | None | object:
-        """Latest scan time of the first spectrum at or after ``index`` that has one.
-
-        None means no later spectrum has a time. ``_NO_RT_NEARBY`` means none was found within
-        a short walk.
+        Correct for any record order: the table holds every spectrum's scan times.
         """
-        for position in range(index, min(count, index + _RT_SEARCH_WALK)):
-            if times := _scan_rts(self.get_by_index(position)):
-                return max(times)
-        return None if index + _RT_SEARCH_WALK >= count else _NO_RT_NEARBY
+        table = self._scan_rt_table(count)
+        if table is None:
+            yield from (spectrum for spectrum in self if predicate.matches(spectrum))
+            return
+        for index, times in enumerate(table):
+            if any(_within(value, bounds) for value in times):
+                spectrum = self.get_by_index(index)
+                if predicate.matches(spectrum):
+                    yield spectrum
+
+    def _scan_rt_table(self, count: int) -> list[tuple[float, ...]] | None:
+        """Scan times of every spectrum by index, read once and cached.
+
+        Each spectrum's scan times come from the bytes before its binary arrays
+        (:func:`_head_scan_rts`); a record those bytes cannot answer for exactly is parsed in
+        full. None when the file cannot supply records by index (filters then scan every one).
+        """
+        if self._rt_table is None:
+            heads = self._file_object.iter_spectrum_heads()
+            if heads is None:
+                return None
+            table: list[tuple[float, ...]] = []
+            for index, head in enumerate(heads):
+                times = _head_scan_rts(head) if head is not None else None
+                if times is None:
+                    times = tuple(_scan_rts(self.get_by_index(index)))
+                table.append(times)
+            if len(table) != count:
+                return None
+            self._rt_table = table
+        return self._rt_table
 
     def _get_by_index_impl(self, index: int) -> Spectrum:
         return self._file_object.get_spectrum_by_index(index)

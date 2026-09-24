@@ -175,8 +175,10 @@ Full signatures and examples: `llms-full.txt`.
 - **Not thread-safe.** A reader shares one file handle; use one `Mzml` per thread.
 - **`gzip_mode` only matters with `in_memory=False`** (the default since 0.10). `in_memory=True`
   buffers the whole (decompressed) file, so `reader.access_strategy` is `memory` for every mode.
-- **`spectra.filter` with an rt criterion bisects** on random-access readers and stops after the
-  window; it assumes spectra are in retention-time order. Indexed iteration parses each record's
+- **`spectra.filter` with an rt criterion uses a cached scan-time table** on random-access readers
+  (`SpectrumLookup._scan_rt_table`), built once from each record's bytes before its binary arrays
+  (`iter_spectrum_heads` + `lookup._head_scan_rts`, which defers anything unusual to a full parse).
+  It never assumes rt order. Indexed iteration parses each record's
   byte span (`iter_indexed`) and falls back to the streaming parser at the first anomaly.
 - **`gzip_mode="indexed"` writes sidecars next to the source** (`X.mzML.gzidx`, `X.mzMLidx` and
   their `.src` signature files), so the source directory must be writable. Running the tests
