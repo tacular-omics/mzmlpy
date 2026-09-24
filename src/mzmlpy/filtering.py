@@ -2,7 +2,10 @@
 
 import math
 from dataclasses import dataclass
-from typing import Literal
+from numbers import Real
+from typing import Literal, TypeGuard
+
+import numpy as np
 
 from .errors import MzmlError
 from .spectra import Spectrum
@@ -14,6 +17,8 @@ def _check_range(name: str, bounds: tuple[float | None, float | None] | None, *,
     if len(bounds) != 2:
         raise MzmlError(f"{name} must contain a lower and an upper bound")
     lower, upper = bounds
+    if any(value is not None and not _is_number(value) for value in bounds):
+        raise MzmlError(f"{name} bounds must be numbers or None")
     if any(value is not None and (not math.isfinite(value) or (not signed and value < 0)) for value in bounds):
         raise MzmlError(f"{name} bounds must be finite, nonnegative unless signed, or None")
     if lower is not None and upper is not None and lower > upper:
@@ -30,8 +35,13 @@ def _within(value: float | None, bounds: tuple[float | None, float | None]) -> b
     )
 
 
+def _is_number(value: object) -> TypeGuard[float]:
+    """A real number other than a bool, including numpy scalars (``numbers.Real``)."""
+    return isinstance(value, Real) and not isinstance(value, bool | np.bool_)
+
+
 def _nonnegative(name: str, value: float) -> None:
-    if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(value) or value < 0:
+    if not _is_number(value) or not math.isfinite(value) or value < 0:
         raise MzmlError(f"{name} must be a finite nonnegative number")
 
 
@@ -41,14 +51,17 @@ def check_point(name: str, value: object) -> None:
         return
     if isinstance(value, tuple | list):
         raise MzmlError(f"{name} is a single value; pass bounds as {name}_range=(lower, upper)")
-    if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(value) or value < 0:
+    if not _is_number(value) or not math.isfinite(value) or value < 0:
         raise MzmlError(f"{name} must be a finite nonnegative number")
 
 
 def tolerance_range(value: float | None, tolerance: float, name: str) -> tuple[float, float] | None:
     """``(value - tolerance, value + tolerance)`` for a point query, clamped at 0, or None when ``value`` is None."""
     _nonnegative(name, tolerance)
-    return None if value is None else (max(0.0, value - tolerance), value + tolerance)
+    if value is None:
+        return None
+    value, tolerance = float(value), float(tolerance)
+    return (max(0.0, value - tolerance), value + tolerance)
 
 
 def mz_tolerance_range(
@@ -60,6 +73,7 @@ def mz_tolerance_range(
     _nonnegative("mz_tolerance", tolerance)
     if mz is None:
         return None
+    mz, tolerance = float(mz), float(tolerance)
     width = mz * tolerance / 1e6 if tolerance_type == "ppm" else tolerance
     return (max(0.0, mz - width), mz + width)
 

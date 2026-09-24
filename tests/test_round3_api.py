@@ -216,7 +216,7 @@ def test_rt_table_is_built_once_and_reused(tmp_path: Path) -> None:
         assert reader.spectra._rt_table is None
         assert [s.rt for s in reader.spectra.filter(rt_range=(0.0, 2.0))] == [2.0, 0.0, 1.0]
         table = reader.spectra._rt_table
-        assert table == [(t,) for t in OUT_OF_ORDER]
+        assert table is not None and list(table) == [(t,) for t in OUT_OF_ORDER]
         assert [s.rt for s in reader.spectra.filter(rt=60.0, rt_tolerance=1.0)] == [60.0, 59.0]
         assert reader.spectra._rt_table is table
 
@@ -321,7 +321,7 @@ def test_rt_table_agrees_with_parsed_scans(tmp_path: Path, case: str) -> None:
         assert len(heads) == 2 and heads[1] is not None
         assert (_head_scan_rts(heads[1]) is not None) is fast
         expected = [tuple(_scan_rts(s)) for s in reader.spectra]
-        assert reader.spectra._scan_rt_table(2) == expected
+        assert list(reader.spectra._scan_rt_table(2) or []) == expected
 
 
 def test_rt_table_reports_a_bad_time_like_a_linear_scan(tmp_path: Path) -> None:
@@ -450,3 +450,144 @@ def test_mcp_mobility_bounds_map_to_the_named_quantity(tmp_path: Path) -> None:
             tools.find_spectra("im.mzML", mobility_type="k0")  # ty: ignore[invalid-argument-type]
     finally:
         tools.close()
+
+
+# ---------------------------------------------------------------- review round 3 fixes
+ARRAY_TEXT = "binaryDataArrayList"
+
+
+@pytest.mark.parametrize("where", ["user param value", "spectrum id", "both"])
+def test_rt_filter_ignores_the_array_list_name_outside_its_tag(tmp_path: Path, where: str) -> None:
+    """The head ends at the ``<binaryDataArrayList`` element, not at that text in a value."""
+    spectra = [spectrum_xml(i, t) for i, t in enumerate(OUT_OF_ORDER)]
+    param = f'<userParam name="note" value="has {ARRAY_TEXT} inside"/>'
+    for i in (1, 6, 10):
+        if where in ("user param value", "both"):
+            spectra[i] = spectra[i].replace("</scanList>", "</scanList>" + param)
+        if where in ("spectrum id", "both"):
+            spectra[i] = spectra[i].replace(f'id="scan={i}"', f'id="scan={i} {ARRAY_TEXT}"')
+    path = write_indexed(tmp_path / "text.mzML", spectra)
+    with Mzml(path) as reader:
+        for window in [(None, 10.0), (0.0, 2.0), (1.0, 1.0)]:
+            expected = [s.id for s in reader.spectra if s.rt is not None and _inside(s.rt, window)]
+            assert expected
+            assert [s.id for s in reader.spectra.filter(rt_range=window)] == expected
+        assert reader.spectra._rt_table is not None  # the fast path answered
+
+
+def test_spectrum_head_cuts_at_the_array_list_element() -> None:
+    from mzmlpy.file_classes.standardMzml import _spectrum_head
+
+    data = b'<spectrum id="a"><userParam value="binaryDataArrayList"/><binaryDataArrayList count="0"/>'
+    assert _spectrum_head(data, "a") == b'<spectrum id="a"><userParam value="binaryDataArrayList"/>'
+    assert _spectrum_head(b'<spectrum id="a"><binaryDataArrayListX/>', "a") is None  # a different element
+
+
+def test_point_queries_accept_numpy_scalars(tmp_path: Path) -> None:
+    extra = (
+        '<precursorList count="1"><precursor><selectedIonList count="1"><selectedIon>'
+        '<cvParam accession="MS:1000744" value="500.0"/></selectedIon></selectedIonList></precursor></precursorList>'
+    )
+    path = write_indexed(tmp_path / "p.mzML", [spectrum_xml(0, 10.0), spectrum_xml(1, 50.0, ms_level=2, extra=extra)])
+    with Mzml(path) as reader:
+        spectra = reader.spectra
+        assert [s.id for s in spectra.filter(rt=np.float32(40.0), rt_tolerance=np.float32(15.0))] == ["scan=1"]
+        assert [s.id for s in spectra.filter(rt=np.int64(10))] == ["scan=0"]
+        assert [s.id for s in spectra.filter(precursor_mz=np.float64(500.009), mz_tolerance=np.int32(20))] == ["scan=1"]
+        assert [s.id for s in spectra.filter(rt_range=(np.float32(40.0), np.float64(60.0)))] == ["scan=1"]
+        for bad in (True, np.bool_(True), "10"):
+            with pytest.raises(MzmlError):
+                spectra.filter(rt=bad)  # ty: ignore[invalid-argument-type]
+        with pytest.raises(MzmlError):
+            spectra.filter(rt_range=(True, 5.0))  # ty: ignore[invalid-argument-type]
+
+
+def test_filtering_a_stream_reader_does_not_count_spectra(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import gzip
+
+    from mzmlpy.lookup import SpectrumLookup
+
+    source = ordered_run(tmp_path, TIMES)
+    gz = tmp_path / "run.mzML.gz"
+    gz.write_bytes(gzip.compress(source.read_bytes()))
+
+    def counted(self: SpectrumLookup) -> int:
+        raise AssertionError("the filter counted every spectrum before its first result")
+
+    with Mzml(gz, gzip_mode="stream") as reader:
+        monkeypatch.setattr(SpectrumLookup, "count", property(counted))
+        assert next(reader.spectra.filter(ms_level=1)).id == "scan=0"
+        assert next(reader.spectra.filter(rt_range=(10.0, 14.0))).rt == 10.0
+
+
+@pytest.mark.parametrize("gzip_mode", [None, "stream", "indexed"])
+def test_reading_after_close_raises(tmp_path: Path, gzip_mode: str | None) -> None:
+    import gzip
+
+    path = ordered_run(tmp_path, [1.0, 2.0, 3.0])
+    if gzip_mode is not None:
+        gz = tmp_path / "run.mzML.gz"
+        gz.write_bytes(gzip.compress(path.read_bytes()))
+        path = gz
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        reader = Mzml(path, gzip_mode=gzip_mode or "auto")
+        live = iter(reader.spectra)
+        assert next(live).rt == 1.0
+        assert reader.spectra[1].rt == 2.0
+        reader.close()
+        with pytest.raises(MzmlError, match="closed"):
+            next(live)
+        with pytest.raises(MzmlError, match="closed"):
+            reader.spectra[0]  # noqa: B018
+        with pytest.raises(MzmlError, match="closed"):
+            list(reader.spectra)
+        with pytest.raises(MzmlError, match="closed"):
+            list(reader.spectra.filter(rt_range=(0.0, 5.0)))
+        reader.close()  # closing twice is fine
+
+
+def test_gzip_decompressed_copy_is_removed_on_close(tmp_path: Path) -> None:
+    import gc
+    import gzip
+
+    source = ordered_run(tmp_path, [1.0, 2.0])
+    gz = tmp_path / "run.mzML.gz"
+    gz.write_bytes(gzip.compress(source.read_bytes()))
+
+    with Mzml(gz, gzip_mode="extract") as reader:
+        copy = reader._file_object.temporary_copy  # noqa: SLF001
+        assert copy is not None and Path(copy).exists()
+        assert reader.spectra[1].rt == 2.0
+    assert not Path(copy).exists()
+
+    reader = Mzml(gz)  # auto picks a private copy too
+    copy = reader._file_object.temporary_copy  # noqa: SLF001
+    assert copy is not None and Path(copy).exists()
+    del reader
+    gc.collect()
+    assert not Path(copy).exists()  # removed when the reader is collected without close()
+
+    with Mzml(gz, gzip_mode="extract", extract_dir=tmp_path / "keep") as reader:
+        assert reader._file_object.temporary_copy is None  # noqa: SLF001
+    assert list((tmp_path / "keep").glob("*.mzML"))  # an explicit extract_dir is a kept cache
+
+
+def test_an_unclosed_stream_iterator_does_not_abort_the_interpreter(tmp_path: Path) -> None:
+    import gzip
+    import subprocess
+    import sys
+
+    source = ordered_run(tmp_path, TIMES)
+    gz = tmp_path / "run.mzML.gz"
+    gz.write_bytes(gzip.compress(source.read_bytes()))
+    script = (
+        "import warnings; warnings.simplefilter('ignore')\n"
+        "from mzmlpy import Mzml\n"
+        f"reader = Mzml({str(gz)!r}, gzip_mode='stream')\n"
+        "live = iter(reader.spectra)\n"
+        "print(next(live).id)\n"
+    )
+    result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=120)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "scan=0"

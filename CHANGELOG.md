@@ -45,13 +45,20 @@ Breaking API cleanup. Renamed names have no aliases. See the
   for a non-str. A negative index past the start names the valid range.
 - A well-formed XML file whose root is not `<mzML>` or `<indexedmzML>` raises `MzmlParseError` on open.
 - `Mzml(..., in_memory=False)` is the default; pass `in_memory=True` to load the whole file as before.
+  For a `.mzML.gz` this means `Mzml("x.mzML.gz")` now decompresses to a private temporary file under
+  `<tmpdir>/mzmlpy/` (it needs disk space about the size of the decompressed file) instead of into memory. The
+  copy is deleted on `close()`, when the reader is garbage collected, or at interpreter exit. Pass `extract_dir=`
+  to keep a reusable copy there instead (the old default cache in `<tmpdir>/mzmlpy/` is no longer reused), or
+  `in_memory=True` for the old behaviour. `clear_cache()` removes copies left behind by a crashed process.
+- Reading through a closed reader, including an iterator started before `close()`, raises `MzmlError` instead of
+  silently reopening the file.
 - `IsolationWindow.target_mz` -> `isolation_mz`. `Chromatogram.time` (array in its recorded unit) -> `rt`
   (float64 seconds, converted from the recorded unit, warning once when the unit is missing).
 - `Spectrum.charge` is removed (it was the per-point array, now `charge_array`); the precursor charge is `Spectrum.precursor_charge` (`int | None`). Old `spec.charge` code raises `AttributeError`.
 - Filter ranges end in `_range`: `spectra.filter(retention_time=...)` and `SpectrumFilter(retention_time=...)` ->
   `rt_range=...`, `precursor_mz=(lo, hi)` -> `precursor_mz_range`, `faims_voltage` -> `faims_voltage_range`.
   `SpectrumFilter` is keyword-only.
-- `spectra.filter` with a retention-time criterion on a random-access reader reads every spectrum's scan times
+- `spectra.filter` with a retention-time criterion on an indexed reader (not `stream` or `embedded`) reads every spectrum's scan times
   once (only the bytes before the binary arrays), caches them, and then reads in full only the spectra inside the
   window. It is correct for files in any order. On a 36,000-spectrum file a 60 s window takes 1.4 s on the first
   query and 0.6 s after, against 8.2 s for 0.9's full scan.
@@ -68,6 +75,8 @@ Breaking API cleanup. Renamed names have no aliases. See the
   `decode_to_numpy`, `BINARY_DECODE_DTYPES` gained a leading underscore. Every public module declares `__all__`.
 - `validate()` issue locations inside a spectrum or chromatogram name the record, e.g.
   `spectrum[scan=1]/precursor`.
+- MCP: `get_chromatogram` reports `coordinate_dtype` `float64`, since chromatogram times are now always converted
+  to seconds. Tool names, parameters and JSON keys are unchanged.
 
 ### Added
 
@@ -79,18 +88,22 @@ Breaking API cleanup. Renamed names have no aliases. See the
 - `Spectrum.precursor_mz`, `precursor_charge`, `collision_energy` and `isolation_mz_range`, from the first precursor.
 - Point queries in `spectra.filter`, following tdfpy: `rt=` with `rt_tolerance` (seconds, default 30) and
   `precursor_mz=` with `mz_tolerance` (default 20) and `mz_tolerance_type` (`"ppm"` or `"da"`). Passing a point
-  and its range raises `MzmlError`.
+  and its range raises `MzmlError`. Points, tolerances and range bounds accept any real number, numpy scalars
+  included (not `bool`).
 - `SpectrumFilter(ook0_range=..., drift_time_range=...)`.
+- `Spectrum.ook0`; docs pages "Migrating to 0.10" and "Errors".
 
 ### Performance
 
 - Indexed files are iterated by parsing each record's byte span in one call, with a streaming fallback at the
   first span that is not exactly the indexed record. Random access parses the exact span from a handle kept open
   for the reader's lifetime. Accession lookups, `binary_arrays`, `scans` and `precursors` are cached.
-- `Spectrum.ook0`; docs pages "Migrating to 0.10" and "Errors".
+- `spectra.filter` on a `stream` reader no longer reads the whole file to count spectra before its first result.
 
 ### Fixed
 
+- The process no longer aborts at exit (`terminate called`, code 134) when a reader over a `.mzML.gz` read
+  through rapidgzip, or an iterator over it, is still open: open readers and iterators are closed at exit.
 - `rt` returns `None` for a scan start time with no value, and reads a value with no unit as seconds (with a
   warning), instead of raising `AttributeError`.
 

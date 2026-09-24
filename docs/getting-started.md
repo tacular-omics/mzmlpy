@@ -41,9 +41,14 @@ Both `.mzML` and `.mzML.gz` files are supported. The reader lazily parses the fi
 
 When working with `.mzML.gz` files, the `gzip_mode` parameter controls how the compressed file is accessed:
 
-`gzip_mode="auto"` is the default. With `in_memory=False`, it selects an embedded index, a current
-extracted cache, or complete rapidgzip sidecars in that order. If none exists, it creates an
-extracted cache. Inspect `reader.access_strategy` to see the concrete route.
+`gzip_mode="auto"` is the default. With `in_memory=False` (the default), it selects an embedded
+index, a current extracted cache in `extract_dir` (when given), or complete rapidgzip sidecars in
+that order. If none exists, it extracts. Inspect `reader.access_strategy` to see the concrete route.
+
+Without `extract_dir`, extraction writes a private temporary copy under `<tmpdir>/mzmlpy/`, which
+needs free disk space about the size of the decompressed file. It is deleted on `close()`, when
+the reader is garbage collected, or when the interpreter exits. With `extract_dir=...` the copy is
+a cache that is kept and reused by later readers while the source file is unchanged.
 
 For fast random access without cache files, create a self-indexed gzip file once:
 
@@ -57,7 +62,7 @@ with TemporaryDirectory() as directory:
     output = Path(directory) / "input.indexed.mzML.gz"
     write_indexed_gzip("tests/data/example.mzML", output)
 
-    with Mzml(output, in_memory=False) as reader:
+    with Mzml(output) as reader:
         spectrum = reader.spectra[0]
 ```
 
@@ -83,7 +88,7 @@ For best performance with `.mzML.gz` files, use `"extract"` or `"indexed"`:
 from mzmlpy import Mzml
 
 # Indexed mode — no extraction, seekable (requires rapidgzip)
-with Mzml("tests/data/example.mzML.gz", gzip_mode="indexed", in_memory=False) as reader:
+with Mzml("tests/data/example.mzML.gz", gzip_mode="indexed") as reader:
     print(f"Spectra: {len(reader.spectra)}")
     spec = reader.spectra[0]
     print(spec.id)
@@ -304,7 +309,7 @@ and int32 data. Code that needs float64 for calculations can convert explicitly:
 import numpy as np
 from mzmlpy import Mzml
 
-with Mzml("tests/data/example.mzML", in_memory=False) as reader:
+with Mzml("tests/data/example.mzML") as reader:
     spectrum = reader.spectra[0]
     intensity = spectrum.intensity.astype(np.float64)
 ```
@@ -353,8 +358,8 @@ For mobility selection, use `ook0_range=(lower, upper)` (1/K0, V·s/cm²) or
 all. `faims_voltage_range=(lower, upper)` accepts signed volts. These criteria inspect scan
 metadata and do not process per-peak mobility arrays.
 
-With a random-access reader (every access strategy except `stream`), the first
-retention-time criterion reads the scan times of every spectrum once, from the bytes before
+With an indexed reader (access strategy `plain`, `extracted`, `rapidgzip` or `memory`; not
+`stream` or `embedded`, which scan every spectrum), the first retention-time criterion reads the scan times of every spectrum once, from the bytes before
 each record's binary arrays, and caches them on `reader.spectra`. That query and every later
 one then read in full only the spectra inside the window. Record order does not matter, so
 merged or re-sorted files give the same result as a full scan. Other criteria are a

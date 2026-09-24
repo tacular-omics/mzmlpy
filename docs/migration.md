@@ -48,8 +48,10 @@ exception hierarchy. Renamed names have no aliases: the old name raises `Attribu
 | `lookup.get_by_index("3")` | `lookup.get_by_index(3)` | a non-int raises `TypeError` |
 | `spectra[1.0]`, `spectra.get_by_id(1)` | `spectra[1]`, `spectra.get_by_id("scan=1")` | other key types raise `TypeError` |
 | `Mzml(path)` loads the whole file (`in_memory=True` default) | `Mzml(path)` reads from disk (`in_memory=False` default) | pass `in_memory=True` for the old behaviour |
+| `Mzml("x.mzML.gz")` decompresses into memory | decompresses to a private temporary file under `<tmpdir>/mzmlpy/`, deleted on `close()` (or when the reader is garbage collected or the interpreter exits) | needs free disk space about the size of the decompressed file; `in_memory=True` keeps it in memory; `extract_dir=` keeps a reusable copy there instead; a `.mzML.gz` with a rapidgzip index next to it is read in place |
+| reading through a closed reader silently reopened the file | raises `MzmlError` | also for an iterator started before `close()` |
 | `spectra.filter(retention_time=(lo, hi))`, `SpectrumFilter(retention_time=...)` | `rt_range=(lo, hi)` | seconds |
-| (no point query) | `spectra.filter(rt=600.0, rt_tolerance=30.0)` | tdfpy convention; `rt=(lo, hi)` raises `MzmlError` pointing at `rt_range` |
+| (no point query) | `spectra.filter(rt=600.0, rt_tolerance=30.0)` | tdfpy convention; any real number, numpy scalars included; `rt=(lo, hi)` raises `MzmlError` pointing at `rt_range` |
 | `filter(precursor_mz=(lo, hi))`, `SpectrumFilter(precursor_mz=...)` | `precursor_mz_range=(lo, hi)` | |
 | (no point query) | `spectra.filter(precursor_mz=500.25, mz_tolerance=20, mz_tolerance_type="ppm")` | `"da"` for Dalton tolerance |
 | `mobility_type="inverse_reduced", ion_mobility=(lo, hi)` | `ook0_range=(lo, hi)` | `(None, None)` selects spectra that record 1/K0 |
@@ -57,8 +59,9 @@ exception hierarchy. Renamed names have no aliases: the old name raises `Attribu
 | `faims_voltage=(lo, hi)` | `faims_voltage_range=(lo, hi)` | signed volts |
 | `SpectrumFilter(2, ...)` (positional) | `SpectrumFilter(ms_level=2, ...)` | keyword-only |
 
-`spectra.filter` with a retention-time criterion is faster on a reader with random access
-(every access strategy except `stream`): the first query caches every spectrum's scan times,
+`spectra.filter` with a retention-time criterion is faster on an indexed reader (access
+strategy `plain`, `extracted`, `rapidgzip` or `memory`; `stream` and `embedded` scan every
+spectrum): the first query caches every spectrum's scan times,
 read without the binary arrays, and each query then reads only the spectra inside the window.
 Results are the same as before, in file order, for files in any retention-time order.
 

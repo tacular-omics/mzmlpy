@@ -1,6 +1,7 @@
 import codecs
 import io
 import logging
+import re
 import warnings
 from abc import ABC, abstractmethod
 from bisect import bisect_right
@@ -30,15 +31,20 @@ logger = logging.getLogger(__name__)
 _ASCII_COMPATIBLE = frozenset({"utf-8", "ascii", "iso8859-1", "cp1252"})
 # Bytes read per spectrum when only its metadata (everything before the binary arrays) is needed.
 _HEAD_READ = 16384
+_ARRAY_LIST_TAG = re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?binaryDataArrayList[\s>/]")
 
 
 def _spectrum_head(data: bytes, identifier: str) -> bytes | None:
     """The bytes of one spectrum record before its binary arrays, or None if they cannot be cut."""
     data = data.lstrip(b" \t\r\n")
-    marker = data.find(b"binaryDataArrayList")
+    # The element, not the text: "binaryDataArrayList" may also appear in an attribute value.
+    arrays = _ARRAY_LIST_TAG.search(data)
     tag_end = data.find(b">")
-    if not data.startswith(b"<") or marker < 1 or tag_end < 0:
+    if not data.startswith(b"<") or arrays is None or tag_end < 0:
         return None
+    head = data[: arrays.start()]
+    if b"<!--" in head or b"<![CDATA[" in head:
+        return None  # markup inside a comment or CDATA section could look like the arrays
     start_tag = data[: tag_end + 1]
     name = start_tag[1:].split(None, 1)[0].rstrip(b"/>")
     if name != b"spectrum" and not name.endswith(b":spectrum"):
@@ -47,7 +53,7 @@ def _spectrum_head(data: bytes, identifier: str) -> bytes | None:
     position = start_tag.find(b'id="' + escaped + b'"')
     if position < 1 or start_tag[position - 1 : position] not in (b" ", b"\t", b"\r", b"\n"):
         return None
-    return data[: data.rfind(b"<", 0, marker)]
+    return head
 
 
 class _MemoryViewReader(io.RawIOBase):

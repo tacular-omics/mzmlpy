@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Interface for different mzML file formats."""
 
+import atexit
 import gzip
 import hashlib
 import logging
@@ -8,6 +9,7 @@ import os
 import shutil
 import tempfile
 import warnings
+import weakref
 from collections.abc import Iterator
 from enum import StrEnum
 from functools import cached_property
@@ -15,7 +17,7 @@ from io import BytesIO
 from itertools import islice
 from pathlib import Path
 from re import Pattern
-from typing import BinaryIO, Literal, overload
+from typing import Any, BinaryIO, Literal, NoReturn, cast, overload
 from xml.etree import ElementTree as ET
 
 from ._xml import iter_records
@@ -85,6 +87,79 @@ def _convert_mzml_element_to_object(
         raise MzmlError(f"Unknown element_type: {mzml_element.element_type}")
 
 
+class _ClosedBackend:
+    """Stands in for the backend after close(): every use raises instead of reopening the file."""
+
+    def close(self) -> None:
+        """Closing again is a no-op."""
+
+    def __getattr__(self, name: str) -> NoReturn:
+        raise MzmlError("This mzML reader is closed; open a new Mzml to read the file again.")
+
+
+class _TrackedIterator[T]:
+    """An iterator its reader can stop: after close() the next item raises MzmlError.
+
+    Closing the wrapped generator runs its ``finally`` blocks, which close the file handle it
+    holds. Without this a suspended iterator keeps a rapidgzip handle, whose worker threads
+    abort the interpreter at exit (``terminate called``) when the handle is finalized too late.
+    """
+
+    __slots__ = ("__weakref__", "_closed", "_generator")
+
+    def __init__(self, generator: Iterator[T]) -> None:
+        self._generator = generator
+        self._closed = False
+        _LIVE_ITERATORS.add(self)
+
+    def __iter__(self) -> "_TrackedIterator[T]":
+        return self
+
+    def __next__(self) -> T:
+        if self._closed:
+            raise MzmlError("This mzML reader is closed; open a new Mzml to read the file again.")
+        return next(self._generator)
+
+    def close(self) -> None:
+        self._closed = True
+        close = getattr(self._generator, "close", None)
+        if close is not None:
+            try:
+                close()
+            except ValueError:  # closed from inside its own iteration; it finishes on return
+                pass
+
+
+_LIVE_ITERATORS: "weakref.WeakSet[_TrackedIterator[Any]]" = weakref.WeakSet()
+_LIVE_READERS: "weakref.WeakSet[FileInterface]" = weakref.WeakSet()
+
+
+@atexit.register
+def _close_at_exit() -> None:
+    """Close handles of readers and iterators still open at exit, before interpreter teardown.
+
+    rapidgzip aborts the process when one of its handles is finalized after its worker threads
+    see the interpreter shutting down, so unclosed readers must be closed while it still runs.
+    """
+    for iterator in list(_LIVE_ITERATORS):
+        iterator.close()
+    for reader in list(_LIVE_READERS):
+        try:
+            reader.close()
+        except Exception as error:  # never let one reader stop the others being closed
+            logger.debug("Closing an mzML reader at exit failed: %s", error)
+
+
+def _remove_file(path: str) -> None:
+    """Delete ``path`` if it still exists (finalizer for a private decompressed copy)."""
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+    except OSError as error:  # e.g. still open on Windows; clear_cache() removes it later
+        logger.debug("Could not remove temporary copy %s: %s", path, error)
+
+
 class FileInterface:
     """Interface to different mzML formats."""
 
@@ -107,12 +182,38 @@ class FileInterface:
         self.gzip_mode: Literal["auto", "extract", "indexed", "stream"] = gzip_mode
         self.in_memory: bool = in_memory
         self._extract_dir: str | None = extract_dir
+        # A private decompressed copy (gzip input, no ``extract_dir``) is deleted on close(),
+        # when the reader is garbage collected, or at interpreter exit, whichever comes first.
+        self._temporary_copy: weakref.finalize | None = None
+        self._temporary_path: str | None = None
+        self._iterators: weakref.WeakSet[_TrackedIterator[Any]] = weakref.WeakSet()
         self.access_strategy: AccessStrategy
         self.file_handler: MzmlInterface = self._open(path)
+        _LIVE_READERS.add(self)
 
     def close(self) -> None:
-        """Close the internal file handler."""
-        self.file_handler.close()
+        """Close the internal file handler and delete a private decompressed copy, if any."""
+        try:
+            for iterator in list(self._iterators):
+                iterator.close()
+            self.file_handler.close()
+        finally:
+            self.file_handler = _ClosedBackend()  # ty: ignore[invalid-assignment]
+            if self._temporary_copy is not None:
+                self._temporary_copy()
+
+    def _track[T](self, generator: Iterator[T]) -> Iterator[T]:
+        """Register an iterator that holds a file handle so close() can release it."""
+        iterator = _TrackedIterator(generator)
+        self._iterators.add(iterator)
+        return iterator
+
+    @property
+    def temporary_copy(self) -> str | None:
+        """Path of the private decompressed copy this reader deletes on close, if it made one."""
+        if self._temporary_copy is None or not self._temporary_copy.alive:
+            return None
+        return self._temporary_path
 
     def _open(self, path_or_file: str | Path | BinaryIO) -> MzmlInterface:
         """Open appropriate file handler based on file type and format."""
@@ -177,8 +278,8 @@ class FileInterface:
                     self.access_strategy = AccessStrategy.EMBEDDED
                     return embedded
             if self.gzip_mode == "auto":
-                extracted_path = self._get_extract_path(path)
-                if cache_is_current(extracted_path, path):
+                extracted_path = self._get_extract_path(path) if self._extract_dir is not None else None
+                if extracted_path is not None and cache_is_current(extracted_path, path):
                     self.access_strategy = AccessStrategy.EXTRACTED
                     return self._open_extracted(path, extracted_path)
                 if has_cached_indexes(path):
@@ -215,7 +316,14 @@ class FileInterface:
         )
 
     def _open_extracted(self, gz_path: str, extracted_path: str | None = None) -> StandardMzml:
-        """Open a current extracted cache, creating it atomically when needed."""
+        """Open a decompressed copy of ``gz_path``.
+
+        With ``extract_dir`` the copy is a cache: it is kept after close and reused by later
+        readers while the source is unchanged. Without it the copy is private to this reader,
+        written under ``<tmpdir>/mzmlpy/`` and deleted on close.
+        """
+        if self._extract_dir is None:
+            return self._open_private_copy(gz_path)
         target = extracted_path or self._get_extract_path(gz_path)
         if cache_is_current(target, gz_path):
             logger.debug("Using cached extraction: %s", target)
@@ -234,6 +342,28 @@ class FileInterface:
             self.build_index_from_scratch,
             index_regex=self.index_regex,
         )
+
+    def _open_private_copy(self, gz_path: str) -> StandardMzml:
+        """Decompress ``gz_path`` into a fresh temporary file that close() deletes."""
+        cache_dir = os.path.join(tempfile.gettempdir(), "mzmlpy")
+        os.makedirs(cache_dir, exist_ok=True)
+        fd, target = tempfile.mkstemp(prefix=Path(gz_path).stem + "_", suffix=".mzML", dir=cache_dir)
+        finalizer = weakref.finalize(self, _remove_file, target)
+        try:
+            with os.fdopen(fd, "wb") as output, gzip_open_binary(gz_path) as source:
+                shutil.copyfileobj(source, output, length=1024 * 1024)
+            handler = StandardMzml(
+                target,
+                self.encoding,
+                self.build_index_from_scratch,
+                index_regex=self.index_regex,
+            )
+        except BaseException:
+            finalizer()
+            raise
+        self._temporary_copy = finalizer
+        self._temporary_path = target
+        return handler
 
     def _get_extract_path(self, gz_path: str) -> str:
         """Use a source-specific, revision-specific filename in either cache directory."""
@@ -321,6 +451,13 @@ class FileInterface:
     def _iter_xml_elements(
         self, tag_suffix: Literal["spectrum", "chromatogram"]
     ) -> Iterator[SpectrumElement] | Iterator[ChromatogramElement]:
+        """Iterate the records of one kind; close() stops the iterator and releases its handle."""
+        iterator = self._track(self._iter_xml_elements_untracked(tag_suffix))
+        return cast("Iterator[SpectrumElement] | Iterator[ChromatogramElement]", iterator)
+
+    def _iter_xml_elements_untracked(
+        self, tag_suffix: Literal["spectrum", "chromatogram"]
+    ) -> Iterator[SpectrumElement] | Iterator[ChromatogramElement]:
         """Iterate with a private handle and bounded memory for either record kind.
 
         Indexed backends parse each record's byte span in one C-level call. At the first span
@@ -352,6 +489,12 @@ class FileInterface:
         for mzml_element in self._iter_xml_elements("spectrum"):
             yield Spectrum(self._expand_param_group_refs(mzml_element.element))
 
+    def can_read_spectrum_heads(self) -> bool:
+        """Whether :meth:`iter_spectrum_heads` is supported: an indexed, ASCII-compatible file
+        whose index lists every spectrum (plain, extracted, rapidgzip and in-memory readers)."""
+        backend = self.file_handler
+        return isinstance(backend, AbstractRandomAccessMzml) and backend.can_iterate_indexed("spectrum")
+
     def iter_spectrum_heads(self) -> Iterator[bytes | None] | None:
         """Each spectrum's bytes before its binary arrays, in index order, or None if unsupported.
 
@@ -359,9 +502,9 @@ class FileInterface:
         item is None where a record's head could not be cut out; read that record in full.
         """
         backend = self.file_handler
-        if not (isinstance(backend, AbstractRandomAccessMzml) and backend.can_iterate_indexed("spectrum")):
+        if not (self.can_read_spectrum_heads() and isinstance(backend, AbstractRandomAccessMzml)):
             return None
-        return backend.iter_spectrum_heads()
+        return self._track(backend.iter_spectrum_heads())
 
     def iter_chromatograms(self) -> Iterator[Chromatogram]:
         """Iterate over all chromatograms in the file."""

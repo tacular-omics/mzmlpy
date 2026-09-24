@@ -1,6 +1,7 @@
 import math
 import re
 from abc import ABC, abstractmethod
+from array import array
 from bisect import bisect_right
 from collections.abc import Iterator
 from functools import cached_property
@@ -8,7 +9,7 @@ from typing import Literal, overload
 
 from .constants import SpectrumMSAccession, TimeUnitAccession
 from .errors import MzmlError
-from .file_interface import AccessStrategy, FileInterface
+from .file_interface import FileInterface
 from .filtering import SpectrumFilter, _within, check_point, mz_tolerance_range, tolerance_range
 from .spectra import _SECONDS_PER_UNIT, Chromatogram, Spectrum
 
@@ -86,6 +87,45 @@ def _find_all(data: bytes, term: bytes) -> Iterator[int]:
 def _scan_rts(spectrum: Spectrum) -> list[float]:
     """Finite scan start times of every scan in ``spectrum``, in seconds."""
     return [value for scan in spectrum.scans if (value := scan.rt) is not None and math.isfinite(value)]
+
+
+class _RtTable:
+    """Scan times of every spectrum by index, in about 8 bytes per spectrum.
+
+    Almost every spectrum has exactly one scan time, kept in a float array. A spectrum with none
+    or several is marked NaN there (stored times are always finite) and its times kept in a dict.
+    """
+
+    __slots__ = ("_first", "_other")
+
+    def __init__(self) -> None:
+        self._first: array[float] = array("d")
+        self._other: dict[int, tuple[float, ...]] = {}
+
+    def append(self, times: tuple[float, ...]) -> None:
+        if len(times) == 1:
+            self._first.append(times[0])
+        else:
+            self._other[len(self._first)] = times
+            self._first.append(math.nan)
+
+    def __len__(self) -> int:
+        return len(self._first)
+
+    def __iter__(self) -> Iterator[tuple[float, ...]]:
+        for index, value in enumerate(self._first):
+            yield (value,) if value == value else self._other[index]
+
+    def indices_within(self, bounds: tuple[float | None, float | None]) -> Iterator[int]:
+        """Indices of spectra with at least one scan time inside ``bounds``."""
+        lower, upper = bounds
+        other = self._other
+        for index, value in enumerate(self._first):
+            if value != value:  # NaN: none or several times
+                if any(_within(time, bounds) for time in other[index]):
+                    yield index
+            elif (lower is None or value >= lower) and (upper is None or value <= upper):
+                yield index
 
 
 class BaseLookup[T: (Spectrum, Chromatogram)](ABC):
@@ -236,7 +276,7 @@ class SpectrumLookup(BaseLookup[Spectrum]):
     """Lookup interface for spectra."""
 
     # Scan times per spectrum index, built by the first retention-time filter.
-    _rt_table: list[tuple[float, ...]] | None = None
+    _rt_table: _RtTable | None = None
 
     def filter(
         self,
@@ -264,10 +304,11 @@ class SpectrumLookup(BaseLookup[Spectrum]):
         :class:`SpectrumFilter` for how each criterion matches. Keep the reader open while
         iterating.
 
-        With a random-access reader (every access strategy except ``stream``), the first
-        retention-time query reads the scan times of every spectrum once, from the metadata
-        before each record's binary arrays, and caches them. It and later queries then read in
-        full only the spectra inside the window. Record order does not matter.
+        With an indexed reader (access strategy ``plain``, ``extracted``, ``rapidgzip`` or
+        ``memory``; ``stream`` and ``embedded`` scan every spectrum), the first retention-time
+        query reads the scan times of every spectrum once, from the metadata before each
+        record's binary arrays, and caches them. It and later queries then read in full only the
+        spectra inside the window. Record order does not matter.
 
         Raises:
             MzmlError: A criterion is invalid, or both a point and its range were given.
@@ -294,13 +335,12 @@ class SpectrumLookup(BaseLookup[Spectrum]):
             drift_time_range=drift_time_range,
             faims_voltage_range=faims_voltage_range,
         )
-        count = self.count
-        if (
-            predicate.rt_range is not None
-            and count is not None
-            and getattr(self._file_object, "access_strategy", AccessStrategy.STREAM) != AccessStrategy.STREAM
-        ):
-            return self._filter_rt_window(predicate, predicate.rt_range, count)
+        # Only a retention-time query on a reader that can read spectrum heads needs the count;
+        # on a stream reader counting would read the whole file before the first result.
+        if predicate.rt_range is not None and self._file_object.can_read_spectrum_heads():
+            count = self.count
+            if count is not None:
+                return self._filter_rt_window(predicate, predicate.rt_range, count)
         return (spectrum for spectrum in self if predicate.matches(spectrum))
 
     def _filter_rt_window(
@@ -314,13 +354,12 @@ class SpectrumLookup(BaseLookup[Spectrum]):
         if table is None:
             yield from (spectrum for spectrum in self if predicate.matches(spectrum))
             return
-        for index, times in enumerate(table):
-            if any(_within(value, bounds) for value in times):
-                spectrum = self.get_by_index(index)
-                if predicate.matches(spectrum):
-                    yield spectrum
+        for index in table.indices_within(bounds):
+            spectrum = self.get_by_index(index)
+            if predicate.matches(spectrum):
+                yield spectrum
 
-    def _scan_rt_table(self, count: int) -> list[tuple[float, ...]] | None:
+    def _scan_rt_table(self, count: int) -> _RtTable | None:
         """Scan times of every spectrum by index, read once and cached.
 
         Each spectrum's scan times come from the bytes before its binary arrays
@@ -331,7 +370,7 @@ class SpectrumLookup(BaseLookup[Spectrum]):
             heads = self._file_object.iter_spectrum_heads()
             if heads is None:
                 return None
-            table: list[tuple[float, ...]] = []
+            table = _RtTable()
             for index, head in enumerate(heads):
                 times = _head_scan_rts(head) if head is not None else None
                 if times is None:

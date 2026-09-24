@@ -137,21 +137,25 @@ def test_clear_cache_runs_without_error() -> None:
     clear_cache()  # must not raise even if nothing has been cached yet
 
 
-def test_clear_cache_removes_default_gz_extraction() -> None:
-    """Extracting with the default (no extract_dir) cache location, then clearing it, must
-    remove the extracted file from the default temp cache directory."""
+def test_clear_cache_removes_leftover_default_extractions() -> None:
+    """A reader's private decompressed copy is deleted on close; clear_cache() removes any left
+    behind (e.g. by a crashed process) from the default temp cache directory."""
     import tempfile
 
     reader = Mzml("tests/data/example.mzML.gz", gzip_mode="extract", in_memory=False)
-    cached_path = Path(reader._file_object.file_handler.path)
-    reader.close()
-
+    copy = reader._file_object.temporary_copy
+    assert copy is not None
+    cached_path = Path(copy)
     assert str(cached_path).startswith(str(Path(tempfile.gettempdir()) / "mzmlpy"))
-    assert cached_path.exists()
+    leftover = cached_path.with_name("leftover_from_a_crash.mzML")
+    leftover.write_bytes(cached_path.read_bytes())
+    reader.close()
+    assert not cached_path.exists()
+    assert leftover.exists()
 
     clear_cache()
 
-    assert not cached_path.exists()
+    assert not leftover.exists()
 
 
 # --------------------------------------------------------------------------------------------
