@@ -119,5 +119,11 @@ reader vocabulary:
 | `ion_mobility_drift_time` | `drift_time` | each entry of a spectrum's `scans` |
 | `retention_times_seconds` (spectrum-level list) | `rt` (seconds) | each entry of a spectrum's `scans` |
 | `target_mz`, `lower_offset_mz`, `upper_offset_mz` | `isolation_mz`, `lower_offset`, `upper_offset` | `summarize_run` `isolation_windows` |
+| `retention_time_min_seconds`, `retention_time_max_seconds`, `retention_time_span_seconds` | `rt_min`, `rt_max`, `rt_span` (seconds) | `summarize_run` statistics |
+| `missing_retention_time` | `missing_rt` | `summarize_run` statistics |
+| full metadata record per row (`structure`, `attributes`, `terms`, `user_params`, `scans`, `precursors`, `products`, `arrays`) | compact row; full record with `include_structure=True` | `find_spectra` rows |
+
+Unknown tool arguments are now rejected with an error naming them. In 0.9 they were ignored, so
+a misspelled or renamed filter returned unfiltered results.
 
 `get_chromatogram` reports `coordinate_dtype` `float64`, since times are now always converted to seconds.

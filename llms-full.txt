@@ -433,6 +433,11 @@ Client configuration:
   sidecars are created. Times are seconds. Results carry `file`, `revision`, `data`; continue
   paging with `next_index`, unchanged filters and `expected_revision`.
 - Integers outside `[-(2**53-1), 2**53-1]` are sent as exact decimal strings.
+- `find_spectra` rows are compact: `position`, `id`, `index`, `ms_level`, `polarity`, `spectrum_type`,
+  `default_array_length`, `rt`, `precursor_mz`, `precursor_charge`, `isolation_mz_range`, `ook0` (first scan and
+  first precursor). `include_structure=True` adds the full metadata record; `get_spectrum`/`get_spectra` give it
+  for chosen IDs. `summarize_run` reports `rt_min`, `rt_max`, `rt_span` (seconds) and `missing_rt`.
+- Unknown tool arguments are rejected with an error that names them.
 - No spectrum processing or plotting (that belongs to spxtacular / visualization clients).
 - Full reference: https://tacular-omics.github.io/mzmlpy/mcp/
 
@@ -656,6 +661,11 @@ reports `coordinate_dtype` `float64`.
 | `ion_mobility_drift_time` | `drift_time` | each entry of a spectrum's `scans` |
 | `retention_times_seconds` (spectrum-level list) | `rt` (seconds) | each entry of a spectrum's `scans` |
 | `target_mz`, `lower_offset_mz`, `upper_offset_mz` | `isolation_mz`, `lower_offset`, `upper_offset` | `summarize_run` `isolation_windows` |
+| `retention_time_min_seconds`, `retention_time_max_seconds`, `retention_time_span_seconds` | `rt_min`, `rt_max`, `rt_span` (seconds) | `summarize_run` statistics |
+| `missing_retention_time` | `missing_rt` | `summarize_run` statistics |
+| full metadata record per row | compact row; full record with `include_structure=True` | `find_spectra` rows |
+
+Unknown MCP tool arguments are rejected with an error naming them (0.9 ignored them).
 
 ## Changelog highlights
 

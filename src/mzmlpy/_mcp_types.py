@@ -22,8 +22,33 @@ class SpectrumData(TypedDict):
     peaks: NotRequired[dict[str, Any] | None]
 
 
+class SpectrumSummary(TypedDict):
+    """One find_spectra row. Keys match Spectrum attributes; detail keys need include_structure."""
+
+    position: int
+    id: str
+    index: int | None
+    ms_level: int | None
+    polarity: str | None
+    spectrum_type: str | None
+    default_array_length: int | None
+    rt: float | None
+    precursor_mz: float | None
+    precursor_charge: int | None
+    isolation_mz_range: list[float] | None
+    ook0: float | None
+    attributes: NotRequired[dict[str, str]]
+    structure: NotRequired[dict[str, Any]]
+    terms: NotRequired[list[dict[str, Any]]]
+    user_params: NotRequired[list[dict[str, Any]]]
+    scans: NotRequired[list[dict[str, Any]]]
+    precursors: NotRequired[list[dict[str, Any]]]
+    products: NotRequired[list[dict[str, Any]]]
+    arrays: NotRequired[list[dict[str, Any]]]
+
+
 class SpectrumPage(TypedDict):
-    spectra: list[SpectrumData]
+    spectra: list[SpectrumSummary]
     scanned: int
     next_index: int | None
     exhausted: bool
@@ -110,11 +135,11 @@ class SummaryData(TypedDict):
     array_types: dict[str, int]
     compressions: dict[str, int]
     empty_spectra_declared: int
-    missing_retention_time: int
+    missing_rt: int
     spectra_with_multiple_scans: int
-    retention_time_min_seconds: float | None
-    retention_time_max_seconds: float | None
-    retention_time_span_seconds: float | None
+    rt_min: float | None
+    rt_max: float | None
+    rt_span: float | None
     first_scan_time_regressions: int
     largest_adjacent_first_scan_gap_seconds: float | None
     declared_array_length_min: int | None

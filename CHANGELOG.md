@@ -72,8 +72,17 @@ Breaking API cleanup. Renamed names have no aliases. See the
   `isolation_windows`, `target_mz` -> `isolation_mz`, `lower_offset_mz` -> `lower_offset`, `upper_offset_mz` ->
   `upper_offset`. `find_spectra` parameters: `retention_time_min_seconds` / `retention_time_max_seconds` ->
   `rt_min` / `rt_max` (seconds), `mobility_type="inverse_reduced"` -> `"ook0"`, `ion_mobility_min` /
-  `ion_mobility_max` -> `mobility_min` / `mobility_max`. Tool names and `summarize_run` statistic keys are
-  unchanged.
+  `ion_mobility_max` -> `mobility_min` / `mobility_max`. `summarize_run` statistics:
+  `retention_time_min_seconds` / `retention_time_max_seconds` / `retention_time_span_seconds` -> `rt_min` /
+  `rt_max` / `rt_span` (seconds), `missing_retention_time` -> `missing_rt`. Tool names are unchanged.
+- MCP `find_spectra` returns compact rows by default: `position`, `id`, `index`, `ms_level`, `polarity`,
+  `spectrum_type`, `default_array_length`, `rt`, `precursor_mz`, `precursor_charge`, `isolation_mz_range` and
+  `ook0` (first scan / first precursor, named as on `Spectrum`). The full metadata record (XML `structure`,
+  `attributes`, `terms`, `user_params`, `scans`, `precursors`, `products`, `arrays`) now needs
+  `include_structure=True`; a default page of 20 dropped from about 150 KB to a few KB. Use `get_spectrum` /
+  `get_spectra` for detail on selected IDs.
+- MCP tools reject unknown arguments (for example `find_spectra(mz_range=...)`) with an error naming the argument,
+  instead of silently ignoring them and returning unfiltered results.
 - `IsolationWindow.target_mz` -> `isolation_mz`. `Chromatogram.time` (array in its recorded unit) -> `rt`
   (float64 seconds, converted from the recorded unit, warning once when the unit is missing).
 - `Spectrum.charge` is removed (it was the per-point array, now `charge_array`); the precursor charge is `Spectrum.precursor_charge` (`int | None`). Old `spec.charge` code raises `AttributeError`.
@@ -98,7 +107,7 @@ Breaking API cleanup. Renamed names have no aliases. See the
 - `validate()` issue locations inside a spectrum or chromatogram name the record, e.g.
   `spectrum[scan=1]/precursor`.
 - MCP: `get_chromatogram` reports `coordinate_dtype` `float64`, since chromatogram times are now always converted
-  to seconds. Tool names, parameters and JSON keys are unchanged.
+  to seconds.
 
 ### Added
 
