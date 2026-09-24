@@ -12,6 +12,7 @@ from collections.abc import Iterator
 from enum import StrEnum
 from functools import cached_property
 from io import BytesIO
+from itertools import islice
 from pathlib import Path
 from re import Pattern
 from typing import BinaryIO, Literal, overload
@@ -22,6 +23,7 @@ from .constants import ChromatogramTypeAccession
 from .embedded_indexed_gzip import is_embedded_indexed_gzip
 from .errors import MzmlError, _parse_errors
 from .file_classes import (
+    AbstractRandomAccessMzml,
     BytesMzml,
     ChromatogramElement,
     EmbeddedIndexedGzip,
@@ -319,9 +321,27 @@ class FileInterface:
     def _iter_xml_elements(
         self, tag_suffix: Literal["spectrum", "chromatogram"]
     ) -> Iterator[SpectrumElement] | Iterator[ChromatogramElement]:
-        """Iterate with a private handle and bounded memory for either record kind."""
+        """Iterate with a private handle and bounded memory for either record kind.
+
+        Indexed backends parse each record's byte span in one C-level call. At the first span
+        that is not exactly the indexed record, iteration continues with the streaming parser
+        from the same position, which also reports any error in context.
+        """
+        skip = 0
+        backend = self.file_handler
+        if isinstance(backend, AbstractRandomAccessMzml) and backend.can_iterate_indexed(tag_suffix):
+            for indexed in backend.iter_indexed(tag_suffix):
+                if indexed is None:
+                    break
+                skip += 1
+                if tag_suffix == "spectrum":
+                    yield MzmlXMLElement(element=indexed, element_type="spectrum")
+                else:
+                    yield MzmlXMLElement(element=indexed, element_type="chromatogram")
+            else:
+                return
         with _parse_errors(), self.file_handler.get_file_handler(self.encoding) as handle:
-            for element in iter_records(handle, tag_suffix):
+            for element in islice(iter_records(handle, tag_suffix), skip, None):
                 if tag_suffix == "spectrum":
                     yield MzmlXMLElement(element=element, element_type="spectrum")
                 else:

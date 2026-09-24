@@ -224,7 +224,7 @@ from mzmlpy import Mzml
 with Mzml("tests/data/example.mzML") as reader:
     tic = reader.chromatograms["tic"]
 
-    time = tic.time  # np.ndarray | None
+    rt = tic.rt  # np.ndarray | None, float64 seconds whatever unit the file records
     intensity = tic.intensity  # np.ndarray | None
 
     # Precursor and product info (SRM chromatograms)
@@ -322,34 +322,43 @@ For arrays without a declared numeric type, the existing warning and float64 fal
 ## Lazy filtering
 
 `reader.spectra.filter(...)` selects spectra from metadata without decoding their binary
-arrays. All supplied criteria must match. Bounds are inclusive, and `None` leaves an
-endpoint open. Retention times are expressed in seconds, with source units normalized.
+arrays. All supplied criteria must match. `*_range` bounds are inclusive, and `None` leaves
+an endpoint open. Retention times are expressed in seconds, with source units normalized.
 
 ```python
 from mzmlpy import Mzml
 
-with Mzml("tests/data/example.mzML", in_memory=False) as reader:
-    selected = reader.spectra.filter(ms_level=2, rt=(0, None))
+with Mzml("tests/data/example.mzML") as reader:
+    selected = reader.spectra.filter(ms_level=2, rt_range=(0, None))
     for spectrum in selected:
         print(spectrum.id, spectrum.ms_level)
+    # Point queries, as in tdfpy: within 30 s, and within 20 ppm.
+    near = list(reader.spectra.filter(rt=5.0, rt_tolerance=30.0))
+    same_precursor = list(reader.spectra.filter(precursor_mz=445.34, mz_tolerance=20, mz_tolerance_type="ppm"))
 ```
 
-Available criteria are `ms_level`, `rt=(lower_seconds, upper_seconds)`,
-`polarity="positive"` or `"negative"`, `precursor_mz=(lower_mz, upper_mz)`,
-`spectrum_type="centroid"` or `"profile"`, and scan-level mobility or FAIMS selection.
+Available criteria are `ms_level`, `rt_range=(lower_seconds, upper_seconds)` or `rt=` with
+`rt_tolerance`, `polarity="positive"` or `"negative"`,
+`precursor_mz_range=(lower_mz, upper_mz)` or `precursor_mz=` with `mz_tolerance` and
+`mz_tolerance_type` (`"ppm"` or `"da"`), `spectrum_type="centroid"` or `"profile"`, and
+scan-level mobility or FAIMS selection. Pass a point or its range, not both.
 Retention time matches any scan. Precursor m/z matches overlap with any reported isolation
 window. Selected-ion m/z values are used when a precursor has no usable isolation window.
 Missing metadata does not match a requested criterion. Invalid numeric metadata raises its
 normal contextual error. `SpectrumFilter` provides the same reusable predicate through
 its `matches(spectrum)` method.
 
-For mobility selection, use `mobility_type="inverse_reduced"` or `"drift_time"` and
-optionally `ion_mobility=(lower, upper)`. Bounds use the recorded scan quantity and require
-an explicit mobility type. `faims_voltage=(lower, upper)` accepts signed volts. These
-criteria inspect scan metadata and do not process per-peak mobility arrays.
+For mobility selection, use `ook0_range=(lower, upper)` (1/K0, V·s/cm²) or
+`drift_time_range=(lower, upper)`; `(None, None)` selects spectra that record the quantity at
+all. `faims_voltage_range=(lower, upper)` accepts signed volts. These criteria inspect scan
+metadata and do not process per-peak mobility arrays.
 
-Filtering is a sequential scan. Keep the reader open while consuming the returned iterator.
-It does not build a retention-time index, and each call returns a new, independent iterator.
+With a random-access reader (every access strategy except `stream`), a retention-time
+criterion binary-searches the file and stops after the window, so it reads only the spectra
+near it. This assumes spectra are stored in retention-time order, as instrument files are.
+For a file that is not, iterate `reader.spectra` and test each spectrum with
+`SpectrumFilter(...).matches(spectrum)`. Other criteria are a sequential scan. Keep the reader
+open while consuming the returned iterator; each call returns a new, independent iterator.
 
 ## Command-line inspection
 
@@ -366,8 +375,9 @@ operational error. Inspection reads metadata and counts without decoding arrays.
 
 ## Memory and extracted caches
 
-`in_memory=True` remains the reader default. Use `in_memory=False` for large files and to
-activate gzip access strategies. Extraction copies decompressed chunks directly to disk.
+`in_memory=False` is the reader default since 0.10: records are read from disk on demand.
+Pass `in_memory=True` to load the whole (decompressed) file once, which suits many random
+reads of a small file. `gzip_mode` only applies with `in_memory=False`. Extraction copies decompressed chunks directly to disk.
 Sequential iteration detaches completed spectra and chromatograms, including records that
 are skipped while finding the requested kind. Keeping returned spectra in a list still
 retains their XML in your own code.

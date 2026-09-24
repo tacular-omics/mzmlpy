@@ -42,12 +42,12 @@ def reader() -> Mzml:
 
 def test_filter_combines_metadata_and_normalizes_time_units() -> None:
     with reader() as source:
-        assert [s.id for s in source.spectra.filter(ms_level=2, rt=(120, 180), polarity="positive")] == ["scan=2"]
-        assert [s.id for s in source.spectra.filter(rt=(None, 60))] == ["scan=0"]
-        assert [s.id for s in source.spectra.filter(rt=(180, None))] == ["scan=2"]
+        assert [s.id for s in source.spectra.filter(ms_level=2, rt_range=(120, 180), polarity="positive")] == ["scan=2"]
+        assert [s.id for s in source.spectra.filter(rt_range=(None, 60))] == ["scan=0"]
+        assert [s.id for s in source.spectra.filter(rt_range=(180, None))] == ["scan=2"]
         assert len(list(source.spectra.filter())) == 4
-        assert len(list(source.spectra.filter(precursor_mz=(503, 505)))) == 3
-        assert list(source.spectra.filter(precursor_mz=(504, 505))) == []
+        assert len(list(source.spectra.filter(precursor_mz_range=(503, 505)))) == 3
+        assert list(source.spectra.filter(precursor_mz_range=(504, 505))) == []
 
 
 def test_filter_is_lazy_and_independent_of_other_iterators() -> None:
@@ -69,10 +69,18 @@ def test_filter_is_lazy_and_independent_of_other_iterators() -> None:
         {"ms_level": 0},
         {"ms_level": True},
         {"polarity": "unknown"},
-        {"rt": (2, 1)},
-        {"rt": (-1, 1)},
-        {"precursor_mz": (0, float("inf"))},
-        {"precursor_mz": (float("nan"), None)},
+        {"rt_range": (2, 1)},
+        {"rt_range": (-1, 1)},
+        {"precursor_mz_range": (0, float("inf"))},
+        {"precursor_mz_range": (float("nan"), None)},
+        {"rt": (1, 2)},
+        {"rt": float("nan")},
+        {"precursor_mz": -1.0},
+        {"rt": 1.0, "rt_range": (0, 2)},
+        {"precursor_mz": 500.0, "precursor_mz_range": (0, 600)},
+        {"rt": 1.0, "rt_tolerance": -1},
+        {"precursor_mz": 500.0, "mz_tolerance_type": "mda"},
+        {"precursor_mz": 500.0, "mz_tolerance": float("inf")},
     ],
 )
 def test_invalid_filter_fails_before_iteration(kwargs) -> None:
@@ -92,6 +100,6 @@ def test_selected_ion_fallback_and_missing_metadata() -> None:
             "</selectedIon></selectedIonList></precursor></precursorList></spectrum>"
         )
     )
-    assert SpectrumFilter(precursor_mz=(600, 600)).matches(spectrum)
+    assert SpectrumFilter(precursor_mz_range=(600, 600)).matches(spectrum)
     assert not SpectrumFilter(ms_level=1).matches(spectrum)
-    assert not SpectrumFilter(rt=(None, None)).matches(spectrum)
+    assert not SpectrumFilter(rt_range=(None, None)).matches(spectrum)

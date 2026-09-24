@@ -1,14 +1,18 @@
+import codecs
 import io
 import logging
 import warnings
 from abc import ABC, abstractmethod
+from bisect import bisect_right
 from collections import OrderedDict
+from collections.abc import Iterator
 from functools import cached_property
 from io import BytesIO, TextIOWrapper
 from re import Pattern
 from typing import TYPE_CHECKING, BinaryIO, TextIO, cast
-from xml.etree.ElementTree import Element, ParseError
+from xml.etree.ElementTree import Element, ParseError, fromstring
 from xml.parsers import expat
+from xml.sax.saxutils import quoteattr
 
 if TYPE_CHECKING:
     from _typeshed import WriteableBuffer
@@ -21,6 +25,9 @@ from .interface import MzmlInterface
 from .xml_tuple import ChromatogramElement, MzmlXMLElement, SpectrumElement
 
 logger = logging.getLogger(__name__)
+
+# Encodings whose bytes can be spliced after an ASCII wrapper tag (codecs.lookup names).
+_ASCII_COMPATIBLE = frozenset({"utf-8", "ascii", "iso8859-1", "cp1252"})
 
 
 class _MemoryViewReader(io.RawIOBase):
@@ -85,6 +92,12 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
         self.chromatogram_offsets: OrderedDict[str, int] = OrderedDict()
         self._spectrum_keys: list[str] = []  # For fast O(1) index access
         self._chromatogram_keys: list[str] = []  # For fast O(1) index access
+        # Byte offset where the record section ends (the indexList), when the file declares one.
+        self._data_end: int | None = None
+        # One binary handle kept open for random access, opened on first use.
+        self._record_handle: BinaryIO | None = None
+        # Record kinds whose index may miss records (ids missing or repeated, counts off).
+        self._incomplete_kinds: set[str] = set()
 
         self.file_handler: TextIO = self.get_file_handler(encoding)
         # Close the handle if index building fails, so a failed construction does not leak it
@@ -130,7 +143,103 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
             handle.seek(0)
             return read_header(handle)
 
+    @cached_property
+    def _record_starts(self) -> list[int]:
+        """Sorted start offsets of every indexed record, spectra and chromatograms together."""
+        return sorted([*self.spectrum_offsets.values(), *self.chromatogram_offsets.values()])
+
+    def record_span(self, offset: int) -> tuple[int, int | None]:
+        """Byte span ``(start, end)`` holding the record at ``offset``; ``end`` None means end of file.
+
+        The span runs to the next indexed record, so it may also hold closing list tags or
+        records missing from the index. :meth:`parse_span` rejects those.
+        """
+        starts = self._record_starts
+        position = bisect_right(starts, offset)
+        end = starts[position] if position < len(starts) else self._data_end
+        return offset, end if end is not None and end > offset else None
+
+    @cached_property
+    def _span_prefix(self) -> bytes | None:
+        """XML declaration and wrapper start tag that restore the namespaces in scope at records."""
+        try:
+            name = codecs.lookup(self.encoding).name
+        except LookupError:
+            return None
+        if name not in _ASCII_COMPATIBLE:
+            return None
+        try:
+            namespaces, _ = self._header
+        except (ParseError, MzmlParseError):
+            return None  # The streaming parser reports the error in context.
+        declarations = " ".join(
+            f"xmlns{':' + prefix if prefix else ''}={quoteattr(uri)}" for prefix, uri in namespaces.items()
+        )
+        return f'<?xml version="1.0" encoding="{name}"?><wrapper {declarations}>'.encode(name)
+
+    def parse_span(self, data: bytes, kind: str, identifier: str | None = None) -> Element | None:
+        """Parse one record from the bytes of its span with a single C-level parse.
+
+        Returns None when the span is not exactly one ``kind`` record (with ``identifier``, if
+        given): an unusual encoding, a truncated record, a self-closing record, or a record the
+        index missed. Callers then use the streaming parser, which reports errors in context.
+        """
+        prefix = self._span_prefix
+        if prefix is None:
+            return None
+        close = data.rfind(kind.encode() + b">")
+        if close < 1 or data[close - 1 : close] not in (b"/", b":"):
+            return None
+        try:
+            root = fromstring(prefix + data[: close + len(kind) + 1] + b"</wrapper>")
+        except ParseError:
+            return None
+        if len(root) != 1:
+            return None
+        element = root[0]
+        if get_tag(element) != kind or (identifier is not None and element.get("id") != identifier):
+            return None
+        return element
+
+    def can_iterate_indexed(self, kind: str) -> bool:
+        """Whether :meth:`iter_indexed` can serve ``kind``: an ASCII-compatible file whose index
+        lists every record of that kind."""
+        return self._span_prefix is not None and kind not in self._incomplete_kinds
+
+    def iter_indexed(self, kind: str) -> Iterator[Element | None]:
+        """Yield ``kind`` records in file order by parsing each indexed span.
+
+        Yields None once and stops at the first span that is not exactly the indexed record, so
+        the caller can continue with the streaming parser from that position.
+        """
+        offsets = self.spectrum_offsets if kind == "spectrum" else self.chromatogram_offsets
+        handle = self.get_binary_file_handler()
+        try:
+            for identifier, offset in offsets.items():
+                start, end = self.record_span(offset)
+                handle.seek(start)
+                data = handle.read(end - start) if end is not None else handle.read()
+                element = self.parse_span(data, kind, identifier)
+                yield element
+                if element is None:
+                    return
+        finally:
+            handle.close()
+
     def _read_record(self, offset: int, kind: str, identifier: str) -> Element:
+        if self._span_prefix is not None:
+            if self._record_handle is None:
+                self._record_handle = self.get_binary_file_handler()
+            handle = self._record_handle
+            start, end = self.record_span(offset)
+            handle.seek(start)
+            data = handle.read(end - start) if end is not None else handle.read()
+            element = self.parse_span(data, kind, identifier)
+            if element is not None:
+                return element
+        return self._read_record_streaming(offset, kind, identifier)
+
+    def _read_record_streaming(self, offset: int, kind: str, identifier: str) -> Element:
         namespaces, _ = self._header
         with self.get_binary_file_handler() as handle:
             handle.seek(offset)
@@ -215,7 +324,9 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
         seeker = self.get_binary_file_handler()
 
         try:
-            if from_scratch or not (index_offset := self._find_index_offset(seeker)):
+            index_offset = None if from_scratch else self._find_index_offset(seeker)
+            self._data_end = index_offset or None
+            if not index_offset:
                 self._build_index_from_scratch(seeker)
                 return
 
@@ -224,6 +335,7 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
                 self._finalize_index()
             except Exception as e:
                 logger.warning(f"Error reading index: {e}. Building from scratch.")
+                self._data_end = None
                 seeker.seek(0)
                 self._build_index_from_scratch(seeker)
 
@@ -294,6 +406,7 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
         self.chromatogram_offsets = OrderedDict(sorted(self.chromatogram_offsets.items(), key=lambda item: item[1]))
         self._spectrum_keys = list(self.spectrum_offsets)
         self._chromatogram_keys = list(self.chromatogram_offsets)
+        self.__dict__.pop("_record_starts", None)
 
     def _validate_unique_offsets(self) -> None:
         """Ensure no offsets are shared between or within spectrum/chromatogram indices."""
@@ -325,9 +438,11 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
             elif tag in {"spectrum", "chromatogram"}:
                 identifier = attributes.get("id")
                 if identifier is None:
+                    self._incomplete_kinds.add(tag)
                     return
                 offsets = self.spectrum_offsets if tag == "spectrum" else self.chromatogram_offsets
                 if identifier in offsets:
+                    self._incomplete_kinds.add(tag)
                     warnings.warn(
                         f"Duplicate {tag} id {identifier!r} while building index from scratch. "
                         "Keeping the last occurrence.",
@@ -348,6 +463,7 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
         finally:
             parser.StartElementHandler = None
         found = {"spectrum": len(self.spectrum_offsets), "chromatogram": len(self.chromatogram_offsets)}
+        self._incomplete_kinds.update(kind for kind, count in expected.items() if found[kind] != count)
         if any(found[kind] != count for kind, count in expected.items()):
             warnings.warn(
                 f"Found {found['spectrum']} spectra and {found['chromatogram']} chromatograms. "
@@ -361,7 +477,10 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
         return self.file_handler.read(size)
 
     def close(self) -> None:
-        """Close file handler."""
+        """Close file handlers."""
+        if self._record_handle is not None:
+            self._record_handle.close()
+            self._record_handle = None
         self.file_handler.close()
 
     @cached_property

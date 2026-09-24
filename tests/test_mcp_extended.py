@@ -290,11 +290,11 @@ def test_mobility_and_spectrum_type_filters_keep_quantities_distinct() -> None:
       <scanList><scan><cvParam accession="MS:1002815" value="1.1"/>
       <cvParam accession="MS:1001581" value="-45"/></scan></scanList></spectrum>""")
     )
-    assert SpectrumFilter(spectrum_type="centroid", faims_voltage=(-50, -40)).matches(spectrum)
+    assert SpectrumFilter(spectrum_type="centroid", faims_voltage_range=(-50, -40)).matches(spectrum)
     assert not SpectrumFilter(spectrum_type="profile").matches(spectrum)
-    assert not SpectrumFilter(mobility_type="drift_time", ion_mobility=(1, 2)).matches(spectrum)
-    with pytest.raises(ValueError, match="explicit"):
-        SpectrumFilter(ion_mobility=(1, 2))
+    assert SpectrumFilter(ook0_range=(1, 2)).matches(spectrum)
+    assert not SpectrumFilter(drift_time_range=(1, 2)).matches(spectrum)
+    assert not SpectrumFilter(drift_time_range=(None, None)).matches(spectrum)
 
 
 @pytest.mark.parametrize(

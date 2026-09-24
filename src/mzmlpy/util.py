@@ -31,6 +31,10 @@ def expand_param_group_refs(
     """
     if not templates:
         return element
+    ns = element.tag[: element.tag.index("}") + 1] if "}" in element.tag else ""
+    if next(element.iter(f"{ns}referenceableParamGroupRef"), None) is None:
+        # Most records carry no refs; skip the Python-level walk over every descendant.
+        return element
 
     targets = [
         (child, [ref.get("ref") for ref in child if get_tag(ref) == "referenceableParamGroupRef"])

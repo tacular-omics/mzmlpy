@@ -72,7 +72,7 @@ print(report.valid, report.issues)
 
 # Filter by metadata without decoding any arrays
 with Mzml("data.mzML", in_memory=False) as reader:
-    for spectrum in reader.spectra.filter(ms_level=2, rt=(60, 180)):
+    for spectrum in reader.spectra.filter(ms_level=2, rt_range=(60, 180)):
         print(spectrum.id)
 ```
 

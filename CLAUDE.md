@@ -173,8 +173,11 @@ Full signatures and examples: `llms-full.txt`.
 
 - **Decoding is not cached.** `spectrum.mz` decodes again on every access; store it in a variable.
 - **Not thread-safe.** A reader shares one file handle; use one `Mzml` per thread.
-- **`gzip_mode` only matters with `in_memory=False`.** The default `in_memory=True` buffers the
-  whole (decompressed) file, so `reader.access_strategy` is `memory` for every mode.
+- **`gzip_mode` only matters with `in_memory=False`** (the default since 0.10). `in_memory=True`
+  buffers the whole (decompressed) file, so `reader.access_strategy` is `memory` for every mode.
+- **`spectra.filter` with an rt criterion bisects** on random-access readers and stops after the
+  window; it assumes spectra are in retention-time order. Indexed iteration parses each record's
+  byte span (`iter_indexed`) and falls back to the streaming parser at the first anomaly.
 - **`gzip_mode="indexed"` writes sidecars next to the source** (`X.mzML.gzidx`, `X.mzMLidx` and
   their `.src` signature files), so the source directory must be writable. Running the tests
   would create these next to `tests/data/` files, so `tests/test_docs.py` runs the doc examples

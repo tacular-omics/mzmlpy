@@ -34,7 +34,7 @@ def test_bruker_im_empty_spectra():
     # This timsTOF PASEF MS2 spectrum has ion mobility as a scan-level cvParam (MS:1002815),
     # so has_im is True even though there is no ion-mobility binary array.
     assert s.has_im is True
-    assert s.ion_mobility == 1.595546371847
+    assert s.ook0 == 1.595546371847
 
 
 def test_bruker_im_scan_metadata():
@@ -108,7 +108,7 @@ def test_bruker_combined_im_precursors():
     # Isolation window
     iso = precursor.isolation_window
     assert iso is not None
-    assert iso.target_mz == pytest.approx(577.050745983777, rel=1e-6)
+    assert iso.isolation_mz == pytest.approx(577.050745983777, rel=1e-6)
     assert iso.lower_offset == 1.0
     assert iso.upper_offset == 1.0
 

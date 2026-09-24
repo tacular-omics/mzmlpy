@@ -18,6 +18,8 @@ Breaking API cleanup. Renamed names have no aliases. See the
 - `Spectrum.lower_mz` / `upper_mz` and `Scan.lower_mz` / `upper_mz` (use `mz_range`); `ScanWindow.lower_mz` /
   `upper_mz` stay.
 - `Mzml.iter`, the lookups' public `file_object` attribute.
+- `Spectrum.ion_mobility` (1/K0 with a silent drift-time fallback): use `ook0` or `scans[0].drift_time`.
+- `SpectrumFilter(mobility_type=..., ion_mobility=...)`: use `ook0_range` or `drift_time_range`.
 - Unused constants: `PeakType`, `NoiseMode`, `DataType`, `TimeUnit`, `XMLAttribute`, `EncodingFormat`,
   `XMLNamespace`, `PROTON_MASS`, `ISOTOPE_AVERAGE_DIFFERENCE`, `ISOLATION_WINDOW_TARGET_MZ`. `XMLElement` is merged
   into `MzMLElement`.
@@ -42,8 +44,15 @@ Breaking API cleanup. Renamed names have no aliases. See the
 - A lookup key that is not an int, str or slice raises `TypeError` (`spectra[1.0]`); `x in spectra` is `False`
   for a non-str. A negative index past the start names the valid range.
 - A well-formed XML file whose root is not `<mzML>` or `<indexedmzML>` raises `MzmlParseError` on open.
-- `spectra.filter(retention_time=...)` and `SpectrumFilter(retention_time=...)` -> `rt=...`. `SpectrumFilter` is
-  keyword-only.
+- `Mzml(..., in_memory=False)` is the default; pass `in_memory=True` to load the whole file as before.
+- `IsolationWindow.target_mz` -> `isolation_mz`. `Chromatogram.time` (array in its recorded unit) -> `rt`
+  (float64 seconds, converted from the recorded unit, warning once when the unit is missing).
+- `Spectrum.charge` is the first precursor's charge (`int | None`); the per-point array is `charge_array`.
+- Filter ranges end in `_range`: `spectra.filter(retention_time=...)` and `SpectrumFilter(retention_time=...)` ->
+  `rt_range=...`, `precursor_mz=(lo, hi)` -> `precursor_mz_range`, `faims_voltage` -> `faims_voltage_range`.
+  `SpectrumFilter` is keyword-only.
+- `spectra.filter` with a retention-time criterion binary-searches on a random-access reader and stops after the
+  window. This assumes spectra are stored in retention-time order; for other files use `SpectrumFilter.matches`.
 - Errors: bad data and bad arguments raise `MzmlError` (a `ValueError`) or a subclass: `MzmlParseError`
   (malformed XML, wrapping `ParseError` as `__cause__`), `MzmlOffsetIndexError`, `MzmlDecodeError`. A missing id
   raises `MzmlRecordNotFoundError`, which is also a `KeyError`. `lookup.get_by_index()` raises `TypeError` for a
@@ -63,7 +72,19 @@ Breaking API cleanup. Renamed names have no aliases. See the
 - The error classes and the accession enums used in return types (`BinaryDataArrayAccession`,
   `BinaryDataTypeAccession`, `ChromatogramTypeAccession`, `CollisionDissociationTypeAccession`,
   `CompressionTypeAccession`, `DIAAcquisitionAccession`, `SpectrumCombinationAccession`) are exported from `mzmlpy`.
-- `ScanWindow.mz_range` and `IsolationWindow.mz_range` (`(target - lower offset, target + upper offset)`).
+- `ScanWindow.mz_range`, `IsolationWindow.isolation_mz_range` (`(target - lower offset, target + upper offset)`)
+  and `IsolationWindow.isolation_width`.
+- `Spectrum.precursor_mz`, `charge`, `collision_energy` and `isolation_mz_range`, from the first precursor.
+- Point queries in `spectra.filter`, following tdfpy: `rt=` with `rt_tolerance` (seconds, default 30) and
+  `precursor_mz=` with `mz_tolerance` (default 20) and `mz_tolerance_type` (`"ppm"` or `"da"`). Passing a point
+  and its range raises `MzmlError`.
+- `SpectrumFilter(ook0_range=..., drift_time_range=...)`.
+
+### Performance
+
+- Indexed files are iterated by parsing each record's byte span in one call, with a streaming fallback at the
+  first span that is not exactly the indexed record. Random access parses the exact span from a handle kept open
+  for the reader's lifetime. Accession lookups, `binary_arrays`, `scans` and `precursors` are cached.
 - `Spectrum.ook0`; docs pages "Migrating to 0.10" and "Errors".
 
 ### Fixed

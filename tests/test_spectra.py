@@ -77,7 +77,7 @@ def test_spectra(filename):
     assert precursor.spectrum_ref == "scan=19"
 
     # Isolation Window
-    assert precursor.isolation_window.target_mz == 445.3
+    assert precursor.isolation_window.isolation_mz == 445.3
     assert precursor.isolation_window.lower_offset == 0.5
     assert precursor.isolation_window.upper_offset == 0.5
 

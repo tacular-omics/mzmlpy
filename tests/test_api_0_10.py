@@ -153,7 +153,7 @@ def test_selected_ion_and_activation_vocabulary() -> None:
         assert precursor.activation.collision_energy == 35.0
         assert precursor.activation.activation_energy is None
         assert precursor.isolation_window is not None
-        assert precursor.isolation_window.mz_range == pytest.approx((444.8, 445.8))
+        assert precursor.isolation_window.isolation_mz_range == pytest.approx((444.8, 445.8))
 
 
 def test_mobility_vocabulary_on_bruker() -> None:
@@ -183,7 +183,7 @@ def test_rt_is_none_without_a_value_or_unit(tmp_path: Path) -> None:
 def test_spectrum_filter_is_keyword_only() -> None:
     with pytest.raises(TypeError):
         SpectrumFilter(1)  # ty: ignore[too-many-positional-arguments]
-    assert SpectrumFilter(rt=(0.0, 1.0)).rt == (0.0, 1.0)
+    assert SpectrumFilter(rt_range=(0.0, 1.0)).rt_range == (0.0, 1.0)
 
 
 @given(
@@ -209,13 +209,15 @@ def test_rt_is_seconds_for_any_unit_and_drives_the_filter(value: float, unit: st
             assert rt == pytest.approx(value * factor, rel=1e-9, abs=1e-6)
             assert spectrum.scans[0].rt == rt
             lower, upper = window
-            selected = [s.id for s in reader.spectra.filter(rt=(lower, upper))]
+            selected = [s.id for s in reader.spectra.filter(rt_range=(lower, upper))]
             assert selected == (["scan=1"] if lower <= rt <= upper else [])
 
 
 # ---------------------------------------------------------------- removed names
 REMOVED_ATTRIBUTES = {
-    "Spectrum": ["TIC", "scan_start_time", "lower_mz", "upper_mz", "charge"],
+    "Spectrum": ["TIC", "scan_start_time", "lower_mz", "upper_mz", "ion_mobility"],
+    "IsolationWindow": ["target_mz", "mz_range"],
+    "Chromatogram": ["time"],
     "Scan": ["scan_start_time", "lower_mz", "upper_mz", "inverse_reduced_ion_mobility", "ion_mobility_drift_time"],
     "SelectedIon": ["selected_ion_mz", "peak_intensity", "charge_state", "ir_im", "im_drift_time"],
     "Activation": ["ce", "supplemental_ce"],
@@ -365,11 +367,13 @@ _UPPER = '<cvParam cvRef="MS" accession="MS:1000829" name="isolation window uppe
         (_TARGET + _LOWER, None),
     ],
 )
-def test_isolation_window_mz_range(tmp_path: Path, isolation: str, expected: tuple[float, float] | None) -> None:
+def test_isolation_window_isolation_mz_range(
+    tmp_path: Path, isolation: str, expected: tuple[float, float] | None
+) -> None:
     with Mzml(_spectrum_file(tmp_path, _precursor(isolation=isolation))) as reader:
         window = reader.spectra[0].precursors[0].isolation_window
         assert window is not None
-        assert window.mz_range == expected
+        assert window.isolation_mz_range == expected
 
 
 def _cv(accession: str, name: str, value: str, unit: str = "") -> str:

@@ -118,7 +118,7 @@ def test_ion_mobility_faims_ccs_and_products(tmp_path):
         assert ion.ccs == 350.0
         products = r.spectra[0].products
         assert len(products) == 1
-        assert products[0].isolation_window.target_mz == 250.0
+        assert products[0].isolation_window.isolation_mz == 250.0
 
 
 # ------------------------------------------------------------------ decoder encode round-trips
@@ -169,11 +169,11 @@ def test_spectrum_summary_and_filter_accessors():
 
 def test_scan_level_ion_mobility_bruker():
     """timsTOF PASEF MS2 stores ion mobility as a scan cvParam (MS:1002815), not a binary array.
-    has_im and ion_mobility must reflect it (has_im previously returned False for such spectra)."""
+    has_im and ook0 must reflect it (has_im previously returned False for such spectra)."""
     with Mzml("tests/data/bruker_ms2_im.mzML") as r:
         s = r.spectra[0]
         assert s.has_im is True
-        assert s.ion_mobility == 1.595546371847
+        assert s.ook0 == 1.595546371847
         assert s.scans[0].ook0 == 1.595546371847
         assert s.scans[0].drift_time is None
 

@@ -35,6 +35,7 @@ from .constants import (
 )
 from .decoder import MSDecoder
 from .elems.dtree_wrapper import _DataTreeWrapper, _DataTreeWrapperProtocol, _ParamGroup
+from .elems.params import CvParam
 from .errors import MzmlDecodeError, MzmlError
 
 
@@ -105,6 +106,12 @@ _NUMPRESS_COMBINATIONS: dict[tuple[CompressionTypeAccession, CompressionTypeAcce
 }
 
 
+# Accession string -> enum member, so hot paths use one dict lookup instead of an enum call in a try.
+_COMPRESSION_BY_ACCESSION: dict[str, CompressionTypeAccession] = {term.value: term for term in CompressionTypeAccession}
+_DATA_TYPE_BY_ACCESSION: dict[str, BinaryDataTypeAccession] = {term.value: term for term in BinaryDataTypeAccession}
+_ARRAY_TYPE_BY_ACCESSION: dict[str, BinaryDataArrayAccession] = {term.value: term for term in BinaryDataArrayAccession}
+
+
 def _parse_native_id(identifier: str) -> dict[str, int | str]:
     """Parse a native spectrum/chromatogram id into its space-separated ``key=value`` components.
 
@@ -150,10 +157,9 @@ class BinaryDataArray(_ParamGroup):
         """
         found: list[CompressionTypeAccession] = []
         for param in self.cv_params:
-            with contextlib.suppress(ValueError):
-                term = CompressionTypeAccession(param.accession)
-                if term not in found:
-                    found.append(term)
+            term = _COMPRESSION_BY_ACCESSION.get(param.accession)
+            if term is not None and term not in found:
+                found.append(term)
         if len(found) <= 1:
             return found[0] if found else None
 
@@ -177,17 +183,15 @@ class BinaryDataArray(_ParamGroup):
     @cached_property
     def encoding(self) -> BinaryDataTypeAccession | None:
         """Return the binary data type accession (e.g. 32-bit or 64-bit float/int), or None if absent."""
-        for bdaa in BinaryDataTypeAccession:
-            if bdaa in self.accessions:
-                return bdaa
-        return None
+        # Enum declaration order decides between conflicting terms, as before.
+        found = {term for param in self.cv_params if (term := _DATA_TYPE_BY_ACCESSION.get(param.accession))}
+        return next((term for term in BinaryDataTypeAccession if term in found), None) if found else None
 
     @cached_property
     def binary_array_type(self) -> BinaryDataArrayAccession | None:
         """Return the semantic array type accession (e.g. m/z, intensity, ion mobility), or None if absent."""
-        for bdaa in BinaryDataArrayAccession:
-            if bdaa in self.accessions:
-                return bdaa
+        found = {term for param in self.cv_params if (term := _ARRAY_TYPE_BY_ACCESSION.get(param.accession))}
+        return next((term for term in BinaryDataArrayAccession if term in found), None) if found else None
 
     def _decode(self) -> np.ndarray:
 
@@ -293,25 +297,33 @@ _SECONDS_PER_UNIT: dict[str, float] = {
 _warned_time_units: set[tuple[str, str | None]] = set()
 
 
-def _time(group: _ParamGroup, accession: str, quantity: str, unit: Literal["second", "millisecond"]) -> float | None:
-    """Read a time-valued cvParam and return it in ``unit``.
+def _unit_factor(cv: CvParam, quantity: str, unit: Literal["second", "millisecond"], stacklevel: int = 4) -> float:
+    """Return the factor converting ``cv``'s time unit to ``unit``.
 
     A missing or non-time unit is taken to be ``unit`` and warns once per (quantity, unit) pair.
     """
-    cv = group.get_cv_param(accession)
-    value = group.cv_float(accession)
-    if cv is None or value is None:
-        return None
-    recorded = " ".join(part for part in (cv.unit_accession, cv.unit_name) if part) or None
     factor = _SECONDS_PER_UNIT.get(cv.unit_accession or "") or _SECONDS_PER_UNIT.get((cv.unit_name or "").lower())
     if factor is None:
+        recorded = " ".join(part for part in (cv.unit_accession, cv.unit_name) if part) or None
         key = (quantity, recorded)
         if key not in _warned_time_units:
             _warned_time_units.add(key)
             what = "has no unit" if recorded is None else f"has non-time unit {recorded!r}"
-            warnings.warn(f"The {quantity} ({accession}) {what}; assuming {unit}s.", UserWarning, stacklevel=3)
-        return value
-    return value * factor / _SECONDS_PER_UNIT[unit]
+            warnings.warn(
+                f"The {quantity} ({cv.accession}) {what}; assuming {unit}s.", UserWarning, stacklevel=stacklevel
+            )
+        return 1.0
+    return factor / _SECONDS_PER_UNIT[unit]
+
+
+def _time(group: _ParamGroup, accession: str, quantity: str, unit: Literal["second", "millisecond"]) -> float | None:
+    """Read a time-valued cvParam and return it in ``unit`` (see :func:`_unit_factor`)."""
+    cv = group.get_cv_param(accession)
+    value = group.cv_float(accession)
+    if cv is None or value is None:
+        return None
+    factor = _unit_factor(cv, quantity, unit)
+    return value if factor == 1.0 else value * factor
 
 
 @dataclass(frozen=True)
@@ -356,24 +368,30 @@ class _BinaryDataArrayMixin(_DataTreeWrapperProtocol):
             return _BinaryDataArrayList(binary_array_list_element)
         return None
 
-    @property
+    @cached_property
     def binary_arrays(self) -> tuple[BinaryDataArray, ...]:
         """The binary data arrays, in document order."""
-        if self._binary_array_list is not None:
-            return self._binary_array_list.binary_arrays
+        if (array_list := self._binary_array_list) is not None:
+            return array_list.binary_arrays
         return ()
+
+    @cached_property
+    def _binary_array_map(self) -> dict[str, BinaryDataArray]:
+        """Accession or name -> the first array carrying it, built once per record."""
+        mapping: dict[str, BinaryDataArray] = {}
+        for binary_array in self.binary_arrays:
+            for param in binary_array.cv_params:
+                mapping.setdefault(param.accession, binary_array)
+                mapping.setdefault(param.name, binary_array)
+        return mapping
 
     def get_binary_array(self, id: str) -> BinaryDataArray | None:
         """Get a BinaryDataConverter object for the binary data array with the specified id."""
-        if self._binary_array_list is not None:
-            return self._binary_array_list.get_binary_array(id)
-        return None
+        return self._binary_array_map.get(id)
 
     def has_binary_array(self, id: str) -> bool:
         """Check if a binary data array with the specified id exists."""
-        if self._binary_array_list is not None:
-            return self._binary_array_list.has_binary_array(id)
-        return False
+        return id in self._binary_array_map
 
 
 @dataclass(frozen=True)
@@ -578,11 +596,11 @@ class _ScanListMixin(_DataTreeWrapperProtocol):
                     return "mean"
         return None
 
-    @property
+    @cached_property
     def scans(self) -> tuple[Scan, ...]:
-        """Get a list of Scan objects for the scan list of this spectrum, or None if no scan list is present."""
-        if self._has_scan_list and self._scan_list is not None:
-            return self._scan_list.scans
+        """The Scan objects of this spectrum's scan list, or an empty tuple if it has none."""
+        if (scan_list := self._scan_list) is not None:
+            return scan_list.scans
         return ()
 
     @property
@@ -601,8 +619,6 @@ class _ScanListMixin(_DataTreeWrapperProtocol):
         ``<scanList count="0">``). Warns only when there is genuinely more than one scan — not
         for zero scans.
         """
-        if self._scan_list is None:
-            return None
         scans = self.scans
         if not scans:
             return None
@@ -633,22 +649,10 @@ class _ScanListMixin(_DataTreeWrapperProtocol):
         return scan.ion_injection_time if scan is not None else None
 
     @property
-    def ion_mobility(self) -> float | None:
-        """Scan-level ion mobility for this spectrum: inverse reduced ion mobility (preferred) or
-        drift time. Common for Bruker timsTOF PASEF MS2, where mobility is a scan cvParam rather
-        than a binary array. Returns None if the spectrum has no single scan or no mobility term.
-        """
-        scan = self._first_scan("ion mobility")
-        if scan is None:
-            return None
-        ook0 = scan.ook0
-        return ook0 if ook0 is not None else scan.drift_time
-
-    @property
     def ook0(self) -> float | None:
         """Inverse reduced ion mobility 1/K0 (Vs/cm²) from this spectrum's first scan, or None.
 
-        Unlike :attr:`ion_mobility`, this never falls back to drift time.
+        This never falls back to drift time. Use ``spectrum.scans[0].drift_time`` for drift-tube data.
         """
         scan = self._first_scan("1/K0")
         return scan.ook0 if scan is not None else None
@@ -664,12 +668,13 @@ class _ScanListMixin(_DataTreeWrapperProtocol):
 class IsolationWindow(_ParamGroup):
     """Represents an isolation window element from a precursor or product.
 
-    Provides access to the target m/z, lower offset, and upper offset values.
+    Provides the isolation target m/z, the lower and upper offsets, the window width and the
+    isolated m/z range. The names match tdfpy's ``DiaWindow`` and ``Precursor``.
     """
 
     @property
-    def target_mz(self) -> float | None:
-        """Get isolation window target m/z for this precursor."""
+    def isolation_mz(self) -> float | None:
+        """Isolation window target m/z (MS:1000827), or None."""
         return self.cv_float(IsolationWindowAccession.TARGET_MZ)
 
     @property
@@ -683,9 +688,17 @@ class IsolationWindow(_ParamGroup):
         return self.cv_float(IsolationWindowAccession.UPPER_OFFSET)
 
     @property
-    def mz_range(self) -> tuple[float, float] | None:
-        """``(target_mz - lower_offset, target_mz + upper_offset)``, or None if any of the three is missing."""
-        target, lower, upper = self.target_mz, self.lower_offset, self.upper_offset
+    def isolation_width(self) -> float | None:
+        """Full window width, ``lower_offset + upper_offset``, or None if either offset is missing."""
+        lower, upper = self.lower_offset, self.upper_offset
+        if lower is None or upper is None:
+            return None
+        return lower + upper
+
+    @property
+    def isolation_mz_range(self) -> tuple[float, float] | None:
+        """``(isolation_mz - lower_offset, isolation_mz + upper_offset)``, or None if any of the three is missing."""
+        target, lower, upper = self.isolation_mz, self.lower_offset, self.upper_offset
         if target is None or lower is None or upper is None:
             return None
         return (target - lower, target + upper)
@@ -876,7 +889,7 @@ class _PrecursorListMixin(_DataTreeWrapperProtocol):
         """Check if this spectrum has a precursor list."""
         return self.element.find(f"./{self.ns}{MzMLElement.PRECURSOR_LIST}") is not None
 
-    @property
+    @cached_property
     def precursors(self) -> tuple[Precursor, ...]:
         """Get a list of Precursor objects for the precursor list of this spectrum, or None ."""
         precursor_list_element = self.element.find(f"./{self.ns}{MzMLElement.PRECURSOR_LIST}")
@@ -885,6 +898,49 @@ class _PrecursorListMixin(_DataTreeWrapperProtocol):
                 Precursor(elem) for elem in precursor_list_element.findall(f"./{self.ns}{MzMLElement.PRECURSOR}")
             )
         return ()
+
+    def _first_precursor(self) -> Precursor | None:
+        precursors = self.precursors
+        return precursors[0] if precursors else None
+
+    def _first_selected_ion(self) -> "SelectedIon | None":
+        precursor = self._first_precursor()
+        if precursor is None:
+            return None
+        ions = precursor.selected_ions
+        return ions[0] if ions else None
+
+    @property
+    def precursor_mz(self) -> float | None:
+        """m/z of the first selected ion of the first precursor, or None.
+
+        Matches tdfpy's ``Precursor.precursor_mz``. For DIA spectra, which usually report only an
+        isolation window, use :attr:`isolation_mz_range`.
+        """
+        ion = self._first_selected_ion()
+        return ion.mz if ion is not None else None
+
+    @property
+    def charge(self) -> int | None:
+        """Charge state of the first selected ion of the first precursor, or None."""
+        ion = self._first_selected_ion()
+        return ion.charge if ion is not None else None
+
+    @property
+    def collision_energy(self) -> float | None:
+        """Collision energy of the first precursor's activation, as recorded (see
+        :attr:`Activation.collision_energy`), or None."""
+        precursor = self._first_precursor()
+        activation = precursor.activation if precursor is not None else None
+        return activation.collision_energy if activation is not None else None
+
+    @property
+    def isolation_mz_range(self) -> tuple[float, float] | None:
+        """Isolated m/z range of the first precursor's isolation window (see
+        :attr:`IsolationWindow.isolation_mz_range`), or None."""
+        precursor = self._first_precursor()
+        window = precursor.isolation_window if precursor is not None else None
+        return window.isolation_mz_range if window is not None else None
 
 
 @dataclass(frozen=True, repr=False)
@@ -1090,7 +1146,7 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
 class Chromatogram(_ParamGroup, _BinaryDataArrayMixin):
     """An mzML `chromatogram` element.
 
-    Exposes `time` and `intensity` binary arrays, optional `precursor` and `product` structures,
+    Exposes `rt` (seconds) and `intensity` binary arrays, optional `precursor` and `product` structures,
     and a `chromatogram_type` property (e.g. `"tic"`, `"basepeak"`, `"srm"`).
     """
 
@@ -1128,12 +1184,21 @@ class Chromatogram(_ParamGroup, _BinaryDataArrayMixin):
         return self.get_attribute("sourceFileRef")
 
     @property
-    def time(self) -> np.ndarray | None:
-        """Get time array as a numpy array, or None if not present."""
+    def rt(self) -> np.ndarray | None:
+        """Time array (MS:1000595) in seconds as a new float64 array, or None if not present.
+
+        Values recorded in milliseconds, minutes or hours are converted to seconds. A time array
+        with no unit, or a unit that is not a time unit, is taken as seconds and warns once per unit.
+        """
         binary_array = self.get_binary_array(BinaryDataArrayAccession.TIME)
-        if binary_array is not None:
-            return binary_array._decode()
-        return None
+        if binary_array is None:
+            return None
+        values = binary_array._decode().astype(np.float64)
+        cv = binary_array.get_cv_param(BinaryDataArrayAccession.TIME)
+        factor = 1.0 if cv is None else _unit_factor(cv, "chromatogram time array", "second", stacklevel=3)
+        if factor != 1.0:
+            values *= factor
+        return values
 
     @property
     def intensity(self) -> np.ndarray | None:

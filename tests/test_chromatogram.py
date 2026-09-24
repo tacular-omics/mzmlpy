@@ -15,9 +15,9 @@ def test_chromatogram_reading(filename):
     assert tic.chromatogram_type == "tic"
 
     # Check binary data
-    assert tic.time is not None
+    assert tic.rt is not None
     assert tic.intensity is not None
-    assert len(tic.time) == 15
+    assert len(tic.rt) == 15
     assert len(tic.intensity) == 15
 
     # Test SIC

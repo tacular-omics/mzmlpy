@@ -118,9 +118,10 @@ def test_write_indexed_gzip_rejects_unsplittable_input(tmp_path: Path, body: str
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     [
-        ({"rt": (1.0,)}, "lower and an upper bound"),
+        ({"rt_range": (1.0,)}, "lower and an upper bound"),
         ({"spectrum_type": "raw"}, "centroid or profile"),
-        ({"mobility_type": "k0"}, "inverse_reduced or drift_time"),
+        ({"ook0_range": (-1.0, None)}, "ook0_range"),
+        ({"faims_voltage_range": (float("nan"), None)}, "faims_voltage_range"),
     ],
 )
 def test_spectrum_filter_rejects_bad_arguments(kwargs: dict, message: str) -> None:

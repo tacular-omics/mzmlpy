@@ -54,7 +54,7 @@ Mzml(
     *,                                    # everything else is keyword-only
     build_index_from_scratch: bool = False,  # ignore the file's <indexList> and rebuild offsets
     gzip_mode: Literal["auto", "extract", "indexed", "stream"] = "auto",
-    in_memory: bool = True,               # load the whole (decompressed) file into memory
+    in_memory: bool = False,              # True loads the whole (decompressed) file into memory
     extract_dir: str | Path | None = None,   # where gzip_mode="extract" writes; default <tmpdir>/mzmlpy/
     spectrum_id_regex: str | None = None,    # secondary lookup key for spectra (first capture group)
     chromatogram_id_regex: str | None = None,
@@ -97,8 +97,8 @@ only when accessed.
 
 | value | when |
 |---|---|
-| `memory` | `in_memory=True` (the default), any input; also `BytesIO` input |
-| `plain` | uncompressed file with `in_memory=False` |
+| `memory` | `in_memory=True`, any input; also `BytesIO` input |
+| `plain` | uncompressed file with `in_memory=False` (the default) |
 | `embedded` | self-indexed gzip written by `write_indexed_gzip`, `in_memory=False` |
 | `extracted` | `.gz` decompressed to a cache file (`gzip_mode="extract"`, or `"auto"` fallback) |
 | `rapidgzip` | `gzip_mode="indexed"` (needs the `rapidgzip` extra) |
@@ -121,8 +121,9 @@ Methods (both lookups):
 - `get_by_id(identifier: str) -> T`: same as `lookup["id"]`.
 - `get_by_slice(slice_obj: slice) -> list[T]`
 - `count -> int | None`: declared record count.
-- `SpectrumLookup.filter(*, ms_level=None, rt=None, polarity=None, precursor_mz=None,
-  spectrum_type=None, mobility_type=None, ion_mobility=None, faims_voltage=None) -> Iterator[Spectrum]`:
+- `SpectrumLookup.filter(*, ms_level=None, rt=None, rt_range=None, rt_tolerance=30.0, polarity=None,
+  precursor_mz=None, precursor_mz_range=None, mz_tolerance=20.0, mz_tolerance_type="ppm",
+  spectrum_type=None, ook0_range=None, drift_time_range=None, faims_voltage_range=None) -> Iterator[Spectrum]`:
   lazy metadata selection (see Filtering).
 
 ### Look up by scan number with `id_regex`
@@ -157,7 +158,10 @@ All properties are lazy and return `None` (or `()` for sequences) when the term 
 | `mz_range` | `tuple[float, float] \| None` | scan-window envelope (min lower, max upper) of the first scan |
 | `filter_string` | `str \| None` | instrument filter string (e.g. Thermo) |
 | `ook0` | `float \| None` | scan-level 1/K0 (MS:1002815) of the first scan |
-| `ion_mobility` | `float \| None` | scan-level 1/K0 (preferred) or drift time |
+| `precursor_mz` | `float \| None` | first precursor's first selected-ion m/z |
+| `charge` | `int \| None` | first precursor's first selected-ion charge (the per-point array is `charge_array`) |
+| `collision_energy` | `float \| None` | first precursor's activation collision energy, as recorded |
+| `isolation_mz_range` | `tuple[float, float] \| None` | first precursor's isolated m/z range |
 | `has_im` | `bool` | ion mobility present (array or scan term) |
 | `im_types` | `set[BinaryDataArrayAccession]` | ion-mobility array types present |
 | `total_ion_current` | `float \| None` | total ion current of this spectrum (MS:1000285) |
@@ -179,7 +183,8 @@ take an array accession or name (e.g. `"MS:1000514"` / `"m/z array"`).
 for prec in spectrum.precursors:
     win = prec.isolation_window           # IsolationWindow | None
     if win is not None:
-        win.target_mz, win.lower_offset, win.upper_offset   # float | None
+        win.isolation_mz, win.lower_offset, win.upper_offset   # float | None
+        win.isolation_width, win.isolation_mz_range           # lower+upper offset; (target-lower, target+upper)
     for ion in prec.selected_ions:        # tuple[SelectedIon, ...]
         ion.mz, ion.charge, ion.intensity
     act = prec.activation                 # Activation | None
@@ -198,7 +203,8 @@ for prod in spectrum.products:
   `drift_time`, `ccs`, `faims_voltage_start`, `faims_voltage_end`.
 - `Activation`: `activation_type`, `collision_energy`, `supplemental_collision_energy`, `activation_energy`, `collision_gas`,
   `collision_gas_pressure`.
-- `IsolationWindow`: `target_mz`, `lower_offset`, `upper_offset`, `mz_range`, `no_isolation` (MS:1003159).
+- `IsolationWindow`: `isolation_mz`, `lower_offset`, `upper_offset`, `isolation_width`, `isolation_mz_range`,
+  `no_isolation` (MS:1003159).
 - `Product`: `isolation_window`.
 - `Scan`: `rt` (float seconds), `ion_injection_time` (float ms), `filter_string`,
   `scan_windows: tuple[ScanWindow, ...]`, `is_single_windowed_scan`, `mz_range` (envelope of all windows),
@@ -213,7 +219,7 @@ for prod in spectrum.products:
 with Mzml("run.mzML") as reader:
     tic = reader.total_ion_chromatogram   # Chromatogram | None
     for chrom in reader.chromatograms:
-        t = chrom.time                    # np.ndarray | None (time array in its recorded unit)
+        t = chrom.rt                      # np.ndarray | None, float64 seconds (converted from the recorded unit)
         i = chrom.intensity
         chrom.chromatogram_type           # "tic", "sic", "srm", "basepeak", ... or None
     sic = reader.chromatograms["sic"]     # by id
@@ -302,19 +308,26 @@ with Mzml("run.mzML") as reader:
 
 ```python
 with Mzml("run.mzML") as reader:
-    for s in reader.spectra.filter(ms_level=2, rt=(60, 180), polarity="positive"):
+    for s in reader.spectra.filter(ms_level=2, rt_range=(60, 180), polarity="positive"):
         print(s.id)
+    near = reader.spectra.filter(rt=600.0, rt_tolerance=30.0)                 # point query, seconds
+    same = reader.spectra.filter(precursor_mz=500.25, mz_tolerance=10)         # ppm; mz_tolerance_type="da" for Da
 ```
 
-`SpectrumFilter(*, ms_level=None, rt=None, polarity=None, precursor_mz=None,
-spectrum_type=None, mobility_type=None, ion_mobility=None, faims_voltage=None)` is the same
-predicate as a frozen, keyword-only dataclass; `SpectrumFilter(...).matches(spectrum) -> bool`.
+`SpectrumFilter(*, ms_level=None, rt_range=None, polarity=None, precursor_mz_range=None,
+spectrum_type=None, ook0_range=None, drift_time_range=None, faims_voltage_range=None)` is the
+same predicate as a frozen, keyword-only dataclass; `SpectrumFilter(...).matches(spectrum) -> bool`.
 
-- Criteria combine with AND. Range criteria are `(low, high)` tuples, inclusive, either end may be `None`.
-- `rt` is in **seconds**, matched against any scan's start time.
-- `precursor_mz` matches isolation-window overlap, falling back to selected-ion m/z.
-- `ion_mobility` requires `mobility_type="inverse_reduced"` or `"drift_time"` and uses the
-  recorded scan value in its declared unit. `faims_voltage` is signed volts.
+- Criteria combine with AND. `*_range` criteria are `(low, high)` tuples, inclusive, either end may be `None`.
+- Point queries (`rt=`, `precursor_mz=`) take a tolerance, as in tdfpy; passing a point and its
+  range raises `MzmlError`.
+- `rt_range` is in **seconds**, matched against any scan's start time.
+- `precursor_mz_range` matches isolation-window overlap, falling back to selected-ion m/z.
+- `ook0_range` (1/K0) and `drift_time_range` match the scan value; `(None, None)` selects spectra
+  that record it. `faims_voltage_range` is signed volts.
+- On a random-access reader, a retention-time criterion binary-searches and stops after the
+  window; this assumes spectra are in retention-time order. For other files use
+  `SpectrumFilter.matches` on `reader.spectra`.
 - Missing metadata never matches. Filtering never decodes binary arrays.
 
 ## Validation
@@ -345,13 +358,14 @@ report.to_dict()      # JSON-serializable, includes "valid"
 ## Gzipped files (`.mzML.gz`)
 
 ```python
-Mzml("run.mzML.gz")                                          # default: decompress into memory
-Mzml("run.mzML.gz", gzip_mode="extract", in_memory=False)    # decompress to a cache file, then random access
-Mzml("run.mzML.gz", gzip_mode="indexed", in_memory=False)    # rapidgzip seekable access (needs extra)
-Mzml("run.mzML.gz", gzip_mode="stream", in_memory=False)     # lowest startup; random access rescans (slow, warns)
+Mzml("run.mzML.gz")                                          # default gzip_mode="auto" (see below)
+Mzml("run.mzML.gz", in_memory=True)                          # decompress into memory
+Mzml("run.mzML.gz", gzip_mode="extract")                     # decompress to a cache file, then random access
+Mzml("run.mzML.gz", gzip_mode="indexed")                     # rapidgzip seekable access (needs extra)
+Mzml("run.mzML.gz", gzip_mode="stream")                      # lowest startup; random access rescans (slow, warns)
 ```
 
-- `gzip_mode` only matters with `in_memory=False`. With the default `in_memory=True` the whole
+- `gzip_mode` only matters with `in_memory=False` (the default). With `in_memory=True` the whole
   decompressed file is buffered and every mode behaves the same.
 - `"auto"` uses, in order: an embedded index (self-indexed gzip), a current extracted cache,
   complete rapidgzip sidecars; otherwise it extracts.
@@ -442,7 +456,7 @@ arr = spectrum.get_binary_array(BinaryDataArrayAccession.MZ)   # same as "MS:100
   type: `spectrum.mz.astype(np.float64)`. Integer arithmetic on int32 arrays can overflow.
 - `rt` is a float in seconds and `ion_injection_time` a float in milliseconds, both converted from
   the recorded unit. A missing or non-time unit is taken as seconds (ms for injection time) and
-  warns once per unit; a non-numeric value raises `MzmlError`. `chrom.time` is the raw array in its recorded unit.
+  warns once per unit; a non-numeric value raises `MzmlError`. `chrom.rt` is float64 seconds, converted the same way.
 
 ## Worked examples
 
@@ -481,7 +495,7 @@ timsTOF ion mobility:
 with Mzml("bruker.mzML") as reader:
     s = reader.spectra[0]
     if s.has_im:
-        print(s.ion_mobility, s.im_types)   # scan-level 1/K0 and per-point mobility arrays present
+        print(s.ook0, s.im_types)   # scan-level 1/K0 and per-point mobility arrays present
 ```
 
 Validate a batch of files:
@@ -505,7 +519,7 @@ for path in Path("data").glob("*.mzML*"):
 - **Warnings, not exceptions**, for ambiguous cases: a spectrum with several scans warns and
   returns the first scan's value for `rt`, `mz_range`, etc. Missing or assumed
   compression/data-type terms also warn.
-- **Retention time units**: `rt` and filter bounds are seconds; `Chromatogram.time` is the raw array in its recorded unit (check its unit CV term).
+- **Retention time units**: `rt`, filter bounds and `Chromatogram.rt` are seconds, converted from the recorded unit.
 - **`gzip_mode="stream"` is for one sequential pass.** Indexing into it rescans from the start.
 - **Use the context manager** (`with Mzml(...) as reader:`) or call `reader.close()`.
 - **Ids are strings.** `reader.spectra["19"]` only works with `spectrum_id_regex`; `reader.spectra[19]`

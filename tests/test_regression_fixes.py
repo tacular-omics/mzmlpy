@@ -112,16 +112,16 @@ def test_file_interface_rejects_unsupported_type_directly() -> None:
 # --------------------------------------------------------------------------------------------
 
 
-def test_gzip_mode_indexed_warns_when_in_memory_default() -> None:
-    """`in_memory=True` (the default) makes `gzip_mode='indexed'` a no-op; that must be flagged."""
+def test_gzip_mode_indexed_warns_when_in_memory() -> None:
+    """`in_memory=True` makes `gzip_mode='indexed'` a no-op; that must be flagged."""
     with pytest.warns(UserWarning, match="ignored because in_memory"):
-        reader = Mzml(EXAMPLE_GZ, gzip_mode="indexed")
+        reader = Mzml(EXAMPLE_GZ, gzip_mode="indexed", in_memory=True)
     reader.close()
 
 
-def test_gzip_mode_stream_warns_when_in_memory_default() -> None:
+def test_gzip_mode_stream_warns_when_in_memory() -> None:
     with pytest.warns(UserWarning, match="ignored because in_memory"):
-        reader = Mzml(EXAMPLE_GZ, gzip_mode="stream")
+        reader = Mzml(EXAMPLE_GZ, gzip_mode="stream", in_memory=True)
     reader.close()
 
 

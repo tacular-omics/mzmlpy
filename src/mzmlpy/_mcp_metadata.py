@@ -166,7 +166,7 @@ def inventory(reader: Mzml) -> dict[str, Any]:
         for precursor in spectrum.precursors:
             window = precursor.isolation_window
             if window is not None:
-                item = (window.target_mz, window.lower_offset, window.upper_offset)
+                item = (window.isolation_mz, window.lower_offset, window.upper_offset)
                 if any(value is not None and not math.isfinite(value) for value in item):
                     raise MzmlError("Nonfinite isolation window metadata")
                 if item not in windows:

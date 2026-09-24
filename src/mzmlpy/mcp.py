@@ -75,7 +75,7 @@ def _integer(name: str, value: int, minimum: int, maximum: int | None = None) ->
 
 def _range(lower: float | None, upper: float | None) -> tuple[float | None, float | None] | None:
     bounds = (lower, upper) if lower is not None or upper is not None else None
-    SpectrumFilter(rt=bounds)
+    SpectrumFilter(rt_range=bounds)
     return bounds
 
 
@@ -271,15 +271,22 @@ class MzmlTools:
         _integer("start_index", start_index, 0)
         _integer("limit", limit, 1, 100)
         _integer("scan_limit", scan_limit, 1, 100_000)
+        if mobility_type not in {None, "inverse_reduced", "drift_time"}:
+            raise MzmlError("mobility_type must be inverse_reduced or drift_time")
+        mobility = _range(ion_mobility_min, ion_mobility_max)
+        if mobility is not None and mobility_type is None:
+            raise MzmlError("ion_mobility bounds require an explicit mobility_type")
+        # A mobility_type without bounds selects spectra that record that quantity at all.
+        mobility = mobility or ((None, None) if mobility_type is not None else None)
         predicate = SpectrumFilter(
             ms_level=ms_level,
-            rt=_range(retention_time_min_seconds, retention_time_max_seconds),
+            rt_range=_range(retention_time_min_seconds, retention_time_max_seconds),
             polarity=polarity,
-            precursor_mz=_range(precursor_mz_min, precursor_mz_max),
+            precursor_mz_range=_range(precursor_mz_min, precursor_mz_max),
             spectrum_type=spectrum_type,
-            mobility_type=mobility_type,
-            ion_mobility=_range(ion_mobility_min, ion_mobility_max),
-            faims_voltage=(faims_voltage_min, faims_voltage_max)
+            ook0_range=mobility if mobility_type == "inverse_reduced" else None,
+            drift_time_range=mobility if mobility_type == "drift_time" else None,
+            faims_voltage_range=(faims_voltage_min, faims_voltage_max)
             if faims_voltage_min is not None or faims_voltage_max is not None
             else None,
         )
@@ -362,22 +369,19 @@ class MzmlTools:
             if chromatogram.id != chromatogram_id:
                 raise MzmlRecordNotFoundError(f"No chromatogram with exact native ID {chromatogram_id!r}")
             unit = _array_unit(chromatogram, BinaryDataArrayAccession.TIME)
-            factors = {
-                TimeUnitAccession.MILLISECOND: 0.001,
-                TimeUnitAccession.SECOND: 1.0,
-                TimeUnitAccession.MINUTE: 60.0,
-                TimeUnitAccession.HOUR: 3600.0,
+            known = {
+                TimeUnitAccession.MILLISECOND,
+                TimeUnitAccession.SECOND,
+                TimeUnitAccession.MINUTE,
+                TimeUnitAccession.HOUR,
             }
-            factor = factors.get(unit["accession"])
-            if factor is None and unit["accession"] is None:
-                factor = {"millisecond": 0.001, "second": 1.0, "minute": 60.0, "hour": 3600.0}.get(
-                    (unit["name"] or "").lower()
-                )
-            if factor is None:
+            if unit["accession"] not in known and not (
+                unit["accession"] is None
+                and (unit["name"] or "").lower() in {"millisecond", "second", "minute", "hour"}
+            ):
                 raise MzmlError("Chromatogram time array has missing or unsupported time units")
-            time = chromatogram.time
             points = _points(
-                time.astype(np.float64) * factor if time is not None and factor != 1 else time,
+                chromatogram.rt,
                 chromatogram.intensity,
                 start_index,
                 limit,

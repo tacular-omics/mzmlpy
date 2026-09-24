@@ -1,12 +1,23 @@
+import math
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from functools import cached_property
 from typing import Literal, overload
 
-from .file_interface import FileInterface
-from .filtering import SpectrumFilter
+from .errors import MzmlError
+from .file_interface import AccessStrategy, FileInterface
+from .filtering import SpectrumFilter, check_point, mz_tolerance_range, tolerance_range
 from .spectra import Chromatogram, Spectrum
+
+# How far a retention-time probe walks past spectra without a scan time before giving up.
+_RT_SEARCH_WALK = 64
+_NO_RT_NEARBY = object()
+
+
+def _scan_rts(spectrum: Spectrum) -> list[float]:
+    """Finite scan start times of every scan in ``spectrum``, in seconds."""
+    return [value for scan in spectrum.scans if (value := scan.rt) is not None and math.isfinite(value)]
 
 
 class BaseLookup[T: (Spectrum, Chromatogram)](ABC):
@@ -160,31 +171,106 @@ class SpectrumLookup(BaseLookup[Spectrum]):
         self,
         *,
         ms_level: int | None = None,
-        rt: tuple[float | None, float | None] | None = None,
+        rt: float | None = None,
+        rt_range: tuple[float | None, float | None] | None = None,
+        rt_tolerance: float = 30.0,
         polarity: Literal["positive", "negative"] | None = None,
-        precursor_mz: tuple[float | None, float | None] | None = None,
+        precursor_mz: float | None = None,
+        precursor_mz_range: tuple[float | None, float | None] | None = None,
+        mz_tolerance: float = 20.0,
+        mz_tolerance_type: Literal["ppm", "da"] = "ppm",
         spectrum_type: Literal["centroid", "profile"] | None = None,
-        mobility_type: Literal["inverse_reduced", "drift_time"] | None = None,
-        ion_mobility: tuple[float | None, float | None] | None = None,
-        faims_voltage: tuple[float | None, float | None] | None = None,
+        ook0_range: tuple[float | None, float | None] | None = None,
+        drift_time_range: tuple[float | None, float | None] | None = None,
+        faims_voltage_range: tuple[float | None, float | None] | None = None,
     ) -> Iterator[Spectrum]:
-        """Lazily select spectra by metadata, using inclusive time bounds in seconds.
+        """Lazily select spectra by metadata, without decoding binary arrays.
 
-        Criteria are combined with AND. Retention time matches any scan. Precursor m/z
-        matches overlapping isolation windows, with selected ions as a fallback. Missing
-        metadata does not match a requested criterion. Keep the reader open while iterating.
+        Criteria are combined with AND. Tuples are inclusive ``*_range`` bounds, either end None
+        for open. Point queries follow tdfpy's ``query``: ``rt`` matches within ``rt_tolerance``
+        seconds and ``precursor_mz`` within ``mz_tolerance`` ppm (or Da with
+        ``mz_tolerance_type="da"``). Pass a point or its range, not both. See
+        :class:`SpectrumFilter` for how each criterion matches. Keep the reader open while
+        iterating.
+
+        With a random-access reader (every access strategy except ``stream``), a retention-time
+        criterion binary-searches the file and stops after the window, so it reads only the
+        spectra near it. This assumes spectra are stored in retention-time order, as instrument
+        files are. For a file that is not (e.g. merged runs), iterate ``reader.spectra`` and test
+        each spectrum with :meth:`SpectrumFilter.matches`.
+
+        Raises:
+            MzmlError: A criterion is invalid, or both a point and its range were given.
         """
+        check_point("rt", rt)
+        check_point("precursor_mz", precursor_mz)
+        tolerance_range(None, rt_tolerance, "rt_tolerance")
+        mz_tolerance_range(None, mz_tolerance, mz_tolerance_type)
+        if rt is not None:
+            if rt_range is not None:
+                raise MzmlError("pass rt or rt_range, not both")
+            rt_range = tolerance_range(rt, rt_tolerance, "rt_tolerance")
+        if precursor_mz is not None:
+            if precursor_mz_range is not None:
+                raise MzmlError("pass precursor_mz or precursor_mz_range, not both")
+            precursor_mz_range = mz_tolerance_range(precursor_mz, mz_tolerance, mz_tolerance_type)
         predicate = SpectrumFilter(
             ms_level=ms_level,
-            rt=rt,
+            rt_range=rt_range,
             polarity=polarity,
-            precursor_mz=precursor_mz,
+            precursor_mz_range=precursor_mz_range,
             spectrum_type=spectrum_type,
-            mobility_type=mobility_type,
-            ion_mobility=ion_mobility,
-            faims_voltage=faims_voltage,
+            ook0_range=ook0_range,
+            drift_time_range=drift_time_range,
+            faims_voltage_range=faims_voltage_range,
         )
+        count = self.count
+        if (
+            predicate.rt_range is not None
+            and count is not None
+            and getattr(self._file_object, "access_strategy", AccessStrategy.STREAM) != AccessStrategy.STREAM
+        ):
+            return self._filter_rt_window(predicate, predicate.rt_range, count)
         return (spectrum for spectrum in self if predicate.matches(spectrum))
+
+    def _filter_rt_window(
+        self, predicate: SpectrumFilter, bounds: tuple[float | None, float | None], count: int
+    ) -> Iterator[Spectrum]:
+        """Binary-search the first spectrum that can reach ``bounds``, then scan until past it."""
+        lower, upper = bounds
+        start = 0
+        if lower is not None:
+            left, right = 0, count
+            while left < right:
+                middle = (left + right) // 2
+                latest = self._latest_rt_from(middle, count)
+                if latest is _NO_RT_NEARBY:
+                    # Retention times are too sparse to search; select with a full scan instead.
+                    yield from (spectrum for spectrum in self if predicate.matches(spectrum))
+                    return
+                if not isinstance(latest, float) or latest >= lower:
+                    right = middle
+                else:
+                    left = middle + 1
+            start = left
+        for index in range(start, count):
+            spectrum = self.get_by_index(index)
+            times = _scan_rts(spectrum)
+            if upper is not None and times and min(times) > upper:
+                return
+            if predicate.matches(spectrum):
+                yield spectrum
+
+    def _latest_rt_from(self, index: int, count: int) -> float | None | object:
+        """Latest scan time of the first spectrum at or after ``index`` that has one.
+
+        None means no later spectrum has a time. ``_NO_RT_NEARBY`` means none was found within
+        a short walk.
+        """
+        for position in range(index, min(count, index + _RT_SEARCH_WALK)):
+            if times := _scan_rts(self.get_by_index(position)):
+                return max(times)
+        return None if index + _RT_SEARCH_WALK >= count else _NO_RT_NEARBY
 
     def _get_by_index_impl(self, index: int) -> Spectrum:
         return self._file_object.get_spectrum_by_index(index)

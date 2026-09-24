@@ -145,8 +145,9 @@ class Mzml:
               ``pip install mzmlpy[rapidgzip]``.
             - ``"stream"``: Stream the file sequentially without building an index.
               Individual spectrum access re-scans the file from the beginning each time.
-        in_memory: Load the entire (decompressed) file into memory for faster access. Defaults to
-            ``True``; pass ``False`` for large files or to use ``gzip_mode``.
+        in_memory: Load the entire (decompressed) file into memory. Defaults to ``False``: plain
+            files are read from disk through their index and gzip files follow ``gzip_mode``.
+            Pass ``True`` to buffer a small file, or a gzip file you will read many times.
         extract_dir: Directory to store extracted ``.mzML`` files when using
             ``gzip_mode='extract'``. If ``None`` (default), a system temp directory
             is used (``<tmpdir>/mzmlpy/``). Set this to a custom path to manage
@@ -166,7 +167,7 @@ class Mzml:
         *,
         build_index_from_scratch: bool = False,
         gzip_mode: Literal["auto", "extract", "indexed", "stream"] = "auto",
-        in_memory: bool = True,
+        in_memory: bool = False,
         extract_dir: str | Path | None = None,
         spectrum_id_regex: str | None = None,
         chromatogram_id_regex: str | None = None,

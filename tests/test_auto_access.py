@@ -16,11 +16,13 @@ def _gzip_copy(tmp_path: Path) -> Path:
 
 
 def test_access_strategy_reports_memory_and_plain() -> None:
-    with Mzml(MZML_FILE) as memory_reader:
+    with Mzml(MZML_FILE, in_memory=True) as memory_reader:
         assert memory_reader.access_strategy is AccessStrategy.MEMORY
         assert memory_reader.access_strategy == "memory"
     with Mzml(MZML_FILE, in_memory=False) as plain_reader:
         assert plain_reader.access_strategy is AccessStrategy.PLAIN
+    with Mzml(MZML_FILE) as default_reader:  # in_memory=False is the default since 0.10
+        assert default_reader.access_strategy is AccessStrategy.PLAIN
 
 
 def test_explicit_gzip_strategies_are_observable(tmp_path: Path) -> None:
