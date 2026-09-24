@@ -6,6 +6,57 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+Breaking API cleanup. Renamed names have no aliases. See the
+[migration guide](https://tacular-omics.github.io/mzmlpy/migration/) for an old -> new table.
+
+### Removed
+
+- `Spectrum.TIC` (use `total_ion_current`), `Mzml.TIC` and `ChromatogramLookup.TIC` (use `total_ion_chromatogram`).
+- The stateful lookup cursor `SpectrumLookup.next()` / `reset()` (and on `ChromatogramLookup`); iterate instead.
+- `get_cvparm` / `has_cvparm` (use `get_cv_param` / `has_cv_param`).
+- `Spectrum.lower_mz` / `upper_mz` and `Scan.lower_mz` / `upper_mz` (use `mz_range`); `ScanWindow.lower_mz` /
+  `upper_mz` stay.
+- `Mzml.iter`, the lookups' public `file_object` attribute.
+- Unused constants: `PeakType`, `NoiseMode`, `DataType`, `TimeUnit`, `XMLAttribute`, `EncodingFormat`,
+  `XMLNamespace`, `PROTON_MASS`, `ISOTOPE_AVERAGE_DIFFERENCE`, `ISOLATION_WINDOW_TARGET_MZ`. `XMLElement` is merged
+  into `MzMLElement`.
+
+### Changed
+
+- Reader vocabulary shared with tdfpy and spxtacular: `scan_start_time` (`timedelta`) -> `rt` (float, seconds) on
+  `Spectrum` and `Scan`; `Scan.inverse_reduced_ion_mobility` -> `ook0`, `Scan.ion_mobility_drift_time` ->
+  `drift_time`; `SelectedIon.selected_ion_mz` -> `mz`, `peak_intensity` -> `intensity`, `charge_state` -> `charge`,
+  `ir_im` -> `ook0`, `im_drift_time` -> `drift_time`; `Activation.ce` -> `collision_energy`, `supplemental_ce` ->
+  `supplemental_collision_energy`; `Spectrum.charge` (per-point array) -> `charge_array`.
+- `Activation.collision_energy` reads only MS:1000045; it no longer falls back to the activation-energy term
+  (still available as `activation_energy`).
+- `spectra.filter(retention_time=...)` and `SpectrumFilter(retention_time=...)` -> `rt=...`. `SpectrumFilter` is
+  keyword-only.
+- Errors: bad data and bad arguments raise `MzmlError` (a `ValueError`) or a subclass: `MzmlParseError`
+  (malformed XML, wrapping `ParseError` as `__cause__`), `MzmlOffsetIndexError`, `MzmlDecodeError`. A missing id
+  raises `MzmlRecordNotFoundError`, which is also a `KeyError`. `lookup.get_by_index()` raises `TypeError` for a
+  non-int.
+- `cv_params`, `user_params` and `ref_params` are tuples; `accessions` and `names` are frozensets.
+  `serialize()` returns a copy. `Mzml.referenceable_param_groups`, `instrument_configurations`, `data_processes`
+  and `scan_settings` return a new dict on each call. `Mzml.obo_version` is read-only.
+- Constants: `SpectrumType` -> `SpectrumTypeAccession`, `CompressionTypeAccessions` -> `CompressionTypeAccession`,
+  `ChromatogramTypeAccession.EMMISION` -> `EMISSION`, `ION_MOBILITIES` is a frozenset.
+- Internal helpers are private: `MzMLContentBuilder`, `convert_mzml_element_to_object`, `fix_input`,
+  `decode_to_numpy`, `BINARY_DECODE_DTYPES` gained a leading underscore. Every public module declares `__all__`.
+- `validate()` issue locations inside a spectrum or chromatogram name the record, e.g.
+  `spectrum[scan=1]/precursor`.
+
+### Added
+
+- The error classes and the accession enums used in return types (`BinaryDataArrayAccession`,
+  `BinaryDataTypeAccession`, `ChromatogramTypeAccession`, `CollisionDissociationTypeAccession`,
+  `CompressionTypeAccession`, `DIAAcquisitionAccession`, `SpectrumCombinationAccession`) are exported from `mzmlpy`.
+- `Spectrum.ook0`; docs pages "Migrating to 0.10" and "Errors".
+
+### Fixed
+
+- `rt` returns `None` for a scan start time with no value or no unit instead of raising `AttributeError`.
+
 ## [0.9.3] (2026-09-23)
 
 ### Fixed
