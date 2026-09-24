@@ -50,7 +50,7 @@ exception hierarchy. Renamed names have no aliases: the old name raises `Attribu
 | `Mzml(path)` loads the whole file (`in_memory=True` default) | `Mzml(path)` reads from disk (`in_memory=False` default) | pass `in_memory=True` for the old behaviour |
 | `Mzml("x.mzML.gz")` decompresses into memory | uses the embedded index if the file has one, else rapidgzip if installed (reusing current sidecars from `gzip_mode="indexed"`, otherwise indexing in memory; `"auto"` never writes files), else decompresses into memory as before | for fast re-opens of a large `.gz`, run `write_indexed_gzip` on it once, or open it once with `gzip_mode="indexed"` |
 | `Mzml("x.mzML.gz", in_memory=False)` extracted the file to a temporary folder on disk | without rapidgzip and without an embedded index, decompresses into RAM (`access_strategy == "memory"`) and logs a one-time warning | run `write_indexed_gzip` once, or install `mzmlpy[rapidgzip]`, to keep large `.gz` files out of RAM |
-| `gzip_mode="extract"`, `Mzml(extract_dir=...)` | removed | use `write_indexed_gzip` once for fast random access to a .gz; `gzip_mode="extract"` raises `MzmlError`, `extract_dir=` raises `TypeError` |
+| `gzip_mode="extract"`, `Mzml(extract_dir=...)`, `AccessStrategy.EXTRACTED` | removed | use `write_indexed_gzip` once for fast random access to a .gz; `gzip_mode="extract"` raises `MzmlError`, `extract_dir=` raises `TypeError` |
 | `clear_cache()` | removed | mzmlpy no longer writes to the temp directory; delete an old `<tmpdir>/mzmlpy/` by hand |
 | reading through a closed reader silently reopened the file | raises `MzmlError` | also for an iterator started before `close()` |
 | `spectra.filter(retention_time=(lo, hi))`, `SpectrumFilter(retention_time=...)` | `rt_range=(lo, hi)` | seconds |
