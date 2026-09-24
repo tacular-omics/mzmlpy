@@ -68,7 +68,7 @@ Reader properties and methods:
 |---|---|---|
 | `spectra` | `SpectrumLookup` | index / id / slice / iterate / filter spectra |
 | `chromatograms` | `ChromatogramLookup` | same for chromatograms |
-| `TIC` | `Chromatogram \| None` | total ion chromatogram (by id `"TIC"` or CV term MS:1000235) |
+| `total_ion_chromatogram` | `Chromatogram \| None` | total ion chromatogram (by id `"TIC"` or CV term MS:1000235) |
 | `id` | `str` | mzML `id` attribute |
 | `version` | `str` | mzML version string, e.g. `"1.1.0"` |
 | `file_name` | `str` | file name |
@@ -82,11 +82,12 @@ Reader properties and methods:
 | `data_processes` | `dict[str, DataProcessing]` | keyed by id |
 | `scan_settings` | `dict[str, ScanSetting]` | keyed by id |
 | `referenceable_param_groups` | `dict[str, ReferenceableParamGroup]` | keyed by id |
+| `obo_version` | `str \| None` | PSI-MS CV version declared in `<cvList>` (read-only) |
 | `cvs` | `dict[str, CVElement]` | controlled vocabularies (`CVElement(id, full_name, version, uri)`) |
-| `validate(*, decode_binary=False, check_index=False)` | `ValidationReport` | validate through a fresh handle; does not move the lookup cursor |
+| `validate(*, decode_binary=False, check_index=False)` | `ValidationReport` | validate through a fresh handle; open iterators are unaffected |
 | `close()` | `None` | close the file (done by the context manager) |
 
-Header metadata is parsed when the reader opens. Spectra and chromatograms are read and parsed
+Every dict property returns a new dict on each call. Header metadata is parsed when the reader opens. Spectra and chromatograms are read and parsed
 only when accessed.
 
 ### `AccessStrategy` (StrEnum)
@@ -106,7 +107,7 @@ only when accessed.
 
 ```python
 reader.spectra[0]              # by 0-based index; negative indices count from the end
-reader.spectra["scan=19"]      # by native id (KeyError if absent)
+reader.spectra["scan=19"]      # by native id (MzmlRecordNotFoundError, a KeyError, if absent)
 reader.spectra[0:5]            # slice -> list[Spectrum]
 len(reader.spectra)            # count (0 for an empty file, does not raise)
 "scan=19" in reader.spectra    # membership by id
@@ -115,13 +116,12 @@ for s in reader.spectra: ...   # iterate in file order, memory-bounded
 
 Methods (both lookups):
 
-- `get_by_index(index: int | str) -> T`: same as `lookup[index]` for ints.
+- `get_by_index(index: int) -> T`: same as `lookup[index]`; a non-int raises `TypeError`.
 - `get_by_id(identifier: str) -> T`: same as `lookup["id"]`.
 - `get_by_slice(slice_obj: slice) -> list[T]`
 - `count -> int | None`: declared record count.
-- `next() -> T`: advance a persistent cursor; `reset()` rewinds it.
-- `ChromatogramLookup.TIC -> Chromatogram`: the TIC chromatogram.
-- `SpectrumLookup.filter(*, ms_level=None, retention_time=None, polarity=None, precursor_mz=None,
+- `ChromatogramLookup.total_ion_chromatogram -> Chromatogram | None`: the TIC chromatogram.
+- `SpectrumLookup.filter(*, ms_level=None, rt=None, polarity=None, precursor_mz=None,
   spectrum_type=None, mobility_type=None, ion_mobility=None, faims_voltage=None) -> Iterator[Spectrum]`:
   lazy metadata selection (see Filtering).
 
@@ -147,19 +147,20 @@ All properties are lazy and return `None` (or `[]` for lists) when the term is a
 | `default_array_length` | `int \| None` | number of points |
 | `mz` | `np.ndarray \| None` | decoded m/z array (decoded on every access) |
 | `intensity` | `np.ndarray \| None` | decoded intensity array |
-| `charge` | `np.ndarray \| None` | per-point charge array, if present |
+| `charge_array` | `np.ndarray \| None` | per-point charge array, if present |
 | `ms_level` | `int \| None` | 1, 2, ... |
 | `polarity` | `Literal["positive", "negative"] \| None` | |
 | `spectrum_type` | `Literal["centroid", "profile"] \| None` | |
 | `spectra_combination` | `Literal["no_combination", "median", "sum", "mean"] \| None` | scanList combination term |
-| `scan_start_time` | `timedelta \| None` | from the first scan (warns if there are several) |
+| `rt` | `float \| None` | retention time in seconds, from the first scan (warns if there are several) |
 | `ion_injection_time` | `timedelta \| None` | from the first scan (warns if there are several) |
-| `lower_mz` / `upper_mz` | `float \| None` | scan-window limits (single scan with single window) |
+| `mz_range` | `tuple[float, float] \| None` | scan-window envelope (min lower, max upper) of the first scan |
 | `filter_string` | `str \| None` | instrument filter string (e.g. Thermo) |
+| `ook0` | `float \| None` | scan-level 1/K0 (MS:1002815) of the first scan |
 | `ion_mobility` | `float \| None` | scan-level 1/K0 (preferred) or drift time |
 | `has_im` | `bool` | ion mobility present (array or scan term) |
 | `im_types` | `set[BinaryDataArrayAccession]` | ion-mobility array types present |
-| `TIC` | `float \| None` | total ion current of this spectrum |
+| `total_ion_current` | `float \| None` | total ion current of this spectrum (MS:1000285) |
 | `base_peak_mz` / `base_peak_intensity` | `float \| None` | MS:1000504 / MS:1000505 |
 | `lowest_observed_mz` / `highest_observed_mz` | `float \| None` | MS:1000528 / MS:1000527 |
 | `scans` | `list[Scan]` | scan list |
@@ -180,11 +181,11 @@ for prec in spectrum.precursors:
     if win is not None:
         win.target_mz, win.lower_offset, win.upper_offset   # float | None
     for ion in prec.selected_ions:        # list[SelectedIon]
-        ion.selected_ion_mz, ion.charge_state, ion.peak_intensity
+        ion.mz, ion.charge, ion.intensity
     act = prec.activation                 # Activation | None
     if act is not None:
         act.activation_type               # CollisionDissociationTypeAccession | None, e.g. CID MS:1000133
-        act.ce                            # collision energy, float | None
+        act.collision_energy              # MS:1000045, eV, float | None
     prec.spectrum_ref                     # id of the precursor spectrum, str | None
 
 for prod in spectrum.products:
@@ -193,24 +194,24 @@ for prod in spectrum.products:
 
 - `Precursor`: `isolation_window`, `selected_ions`, `activation`, `spectrum_ref`,
   `external_spectrum_id`, `source_file_ref`.
-- `SelectedIon`: `selected_ion_mz`, `charge_state`, `peak_intensity`, `ir_im` (1/K0),
-  `im_drift_time`, `ccs`, `faims_voltage_start`, `faims_voltage_end`.
-- `Activation`: `activation_type`, `ce`, `supplemental_ce`, `activation_energy`, `collision_gas`,
+- `SelectedIon`: `mz`, `charge`, `intensity`, `ook0` (1/K0),
+  `drift_time`, `ccs`, `faims_voltage_start`, `faims_voltage_end`.
+- `Activation`: `activation_type`, `collision_energy`, `supplemental_collision_energy`, `activation_energy`, `collision_gas`,
   `collision_gas_pressure`.
 - `IsolationWindow`: `target_mz`, `lower_offset`, `upper_offset`, `no_isolation` (MS:1003159).
 - `Product`: `isolation_window`.
-- `Scan`: `scan_start_time`, `ion_injection_time` (both `timedelta | None`), `filter_string`,
-  `scan_windows: list[ScanWindow]`, `is_single_windowed_scan`, `lower_mz`, `upper_mz`,
-  `inverse_reduced_ion_mobility` (MS:1002815), `ion_mobility_drift_time` (MS:1002476),
+- `Scan`: `rt` (float seconds), `ion_injection_time` (`timedelta | None`), `filter_string`,
+  `scan_windows: list[ScanWindow]`, `is_single_windowed_scan`, `mz_range` (envelope of all windows),
+  `ook0` (MS:1002815), `drift_time` (MS:1002476),
   `faims_compensation_voltage` (MS:1001581), `selexion_separation_voltage` (MS:1003394),
   `selexion_compensation_voltage` (MS:1003371).
-- `ScanWindow`: `lower_mz`, `upper_mz`.
+- `ScanWindow`: `lower_mz`, `upper_mz`, `mz_range`.
 
 ## `Chromatogram`
 
 ```python
 with Mzml("run.mzML") as reader:
-    tic = reader.TIC                      # Chromatogram | None
+    tic = reader.total_ion_chromatogram   # Chromatogram | None
     for chrom in reader.chromatograms:
         t = chrom.time                    # np.ndarray | None (time array in its recorded unit)
         i = chrom.intensity
@@ -231,22 +232,22 @@ Methods: `get_binary_array(id)`, `has_binary_array(id)`.
 | `data` | `np.ndarray` | decode and return the array (not cached) |
 | `binary_array_type` | `BinaryDataArrayAccession \| None` | m/z, intensity, ion mobility, ... |
 | `encoding` | `BinaryDataTypeAccession \| None` | 32/64-bit float or int |
-| `compression` | `CompressionTypeAccessions \| None` | zlib, zstd, Numpress variants, none |
+| `compression` | `CompressionTypeAccession \| None` | zlib, zstd, Numpress variants, none |
 
 ## CV parameter access (every record and metadata wrapper)
 
 `Spectrum`, `Chromatogram`, `Scan`, `Precursor`, `BinaryDataArray`, `FileContent`,
 `InstrumentConfiguration`, `Software`, `Sample`, etc. share these helpers:
 
-- `get_cvparm(id: str) -> CvParam | None`: by accession (`"MS:1000511"`) or name (`"ms level"`).
-- `has_cvparm(id: str) -> bool`
+- `get_cv_param(id: str) -> CvParam | None`: by accession (`"MS:1000511"`) or name (`"ms level"`).
+- `has_cv_param(id: str) -> bool`
 - `cv_float(id: str) -> float | None`, `cv_int(id: str) -> int | None`: numeric value; raises
-  `ValueError` naming the term if the value is not numeric.
-- `cv_params -> list[CvParam]`, `accessions -> set[str]`, `names -> set[str]`
-- `user_params -> list[UserParam]`, `get_user_param(name)`, `has_user_param(name)`
-- `ref_params -> list[ReferenceableParamGroupRef]`, `get_ref_param(ref)`, `has_ref_param(ref)`
+  `MzmlError` (a `ValueError`) naming the term if the value is not numeric.
+- `cv_params -> tuple[CvParam, ...]`, `accessions -> frozenset[str]`, `names -> frozenset[str]`
+- `user_params -> tuple[UserParam, ...]`, `get_user_param(name)`, `has_user_param(name)`
+- `ref_params -> tuple[ReferenceableParamGroupRef, ...]`, `get_ref_param(ref)`, `has_ref_param(ref)`
 - `get_attribute(attr_name: str) -> str | None`: raw XML attribute.
-- `serialize() -> dict`: full element content as nested dicts.
+- `serialize() -> dict[str, object]`: full element content as nested dicts (a fresh copy).
 
 `CvParam(name, value, unit_accession, unit_name, unit_cv_ref, cv_ref, accession)` and
 `UserParam(name, value, unit_accession, unit_name, unit_cv_ref, type_value)` are frozen
@@ -254,13 +255,13 @@ dataclasses; both have `to_timedelta -> timedelta | None` for time-unit values.
 `ReferenceableParamGroupRef(ref)` and `SourceFileRef(ref)` hold a referenced id.
 
 Referenceable parameter groups are expanded in place, so a term defined in a
-`<referenceableParamGroup>` is found by `get_cvparm` on the element that references it.
+`<referenceableParamGroup>` is found by `get_cv_param` on the element that references it.
 
 ```python
 spec = reader.spectra[0]
-spec.get_cvparm("MS:1000511").value      # "1" (str | None)
+spec.get_cv_param("MS:1000511").value      # "1" (str | None)
 spec.cv_int("MS:1000511")                # 1
-spec.has_cvparm("centroid spectrum")
+spec.has_cv_param("centroid spectrum")
 ```
 
 ## Header metadata classes
@@ -301,16 +302,16 @@ with Mzml("run.mzML") as reader:
 
 ```python
 with Mzml("run.mzML") as reader:
-    for s in reader.spectra.filter(ms_level=2, retention_time=(60, 180), polarity="positive"):
+    for s in reader.spectra.filter(ms_level=2, rt=(60, 180), polarity="positive"):
         print(s.id)
 ```
 
-`SpectrumFilter(ms_level=None, retention_time=None, polarity=None, precursor_mz=None,
+`SpectrumFilter(*, ms_level=None, rt=None, polarity=None, precursor_mz=None,
 spectrum_type=None, mobility_type=None, ion_mobility=None, faims_voltage=None)` is the same
-predicate as a frozen dataclass; `SpectrumFilter(...).matches(spectrum) -> bool`.
+predicate as a frozen, keyword-only dataclass; `SpectrumFilter(...).matches(spectrum) -> bool`.
 
 - Criteria combine with AND. Range criteria are `(low, high)` tuples, inclusive, either end may be `None`.
-- `retention_time` is in **seconds**, matched against any scan's start time.
+- `rt` is in **seconds**, matched against any scan's start time.
 - `precursor_mz` matches isolation-window overlap, falling back to selected-ion m/z.
 - `ion_mobility` requires `mobility_type="inverse_reduced"` or `"drift_time"` and uses the
   recorded scan value in its declared unit. `faims_voltage` is signed volts.
@@ -420,11 +421,12 @@ Client configuration:
 ## Constants (`mzmlpy.constants`)
 
 CV accessions are `StrEnum`s (compare with the enum or with the accession string):
-`BinaryDataArrayAccession`, `BinaryDataTypeAccession`, `CompressionTypeAccessions`,
+`BinaryDataArrayAccession`, `BinaryDataTypeAccession`, `CompressionTypeAccession`,
 `SpectrumMSAccession`, `ChromatogramTypeAccession`, `CollisionDissociationTypeAccession`,
 `IsolationWindowAccession`, `SelectedIonAccession`, `ActivationAccession`,
 `DIAAcquisitionAccession`, `SpectrumCombinationAccession`, `ChecksumTypeAccession`,
-`ContactAccession`, `TimeUnitAccession`, plus `ION_MOBILITIES` (set of ion-mobility array accessions).
+`ContactAccession`, `TimeUnitAccession`, `SpectrumTypeAccession`, `ScanPolarity`, plus `ION_MOBILITIES`
+(frozenset of ion-mobility array accessions).
 
 ```python
 from mzmlpy.constants import BinaryDataArrayAccession
@@ -438,7 +440,7 @@ arr = spectrum.get_binary_array(BinaryDataArrayAccession.MZ)   # same as "MS:100
 - Numpress arrays reconstruct as float64; no further narrowing.
 - Arrays are writable and freshly decoded on each access. Convert explicitly when you need a
   type: `spectrum.mz.astype(np.float64)`. Integer arithmetic on int32 arrays can overflow.
-- Times from `scan_start_time` / `ion_injection_time` are `timedelta`, converted from the
+- `rt` is a float in seconds and `ion_injection_time` a `timedelta`, both converted from the
   recorded unit; `chrom.time` is the raw array in its recorded unit.
 
 ## Worked examples
@@ -451,10 +453,10 @@ from mzmlpy import Mzml
 rows = []
 with Mzml("run.mzML") as reader:
     for s in reader.spectra.filter(ms_level=2):
-        rt = s.scan_start_time.total_seconds() if s.scan_start_time else None
+        rt = s.rt  # seconds, or None
         for p in s.precursors:
             for ion in p.selected_ions:
-                rows.append((s.id, rt, ion.selected_ion_mz, ion.charge_state))
+                rows.append((s.id, rt, ion.mz, ion.charge))
 ```
 
 Base-peak chromatogram from MS1 spectra (computed by you, not stored in the file):
@@ -467,8 +469,8 @@ times, bpis = [], []
 with Mzml("run.mzML.gz", gzip_mode="extract", in_memory=False) as reader:
     for s in reader.spectra.filter(ms_level=1):
         intensity = s.intensity
-        if intensity is not None and len(intensity) and s.scan_start_time is not None:
-            times.append(s.scan_start_time.total_seconds())
+        if intensity is not None and len(intensity) and s.rt is not None:
+            times.append(s.rt)
             bpis.append(float(intensity.max()))
 ```
 
@@ -497,17 +499,27 @@ for path in Path("data").glob("*.mzML*"):
 - **Decoding is not cached.** `spectrum.mz` / `.intensity` decode on every access. Assign once:
   `mz = spectrum.mz`.
 - **Not thread-safe.** A reader shares one file handle; use one `Mzml` per thread or process.
-- **Absence is `None`.** `polarity`, `ms_level`, `mz`, `TIC`, `scan_start_time`, ... can be `None`.
+- **Absence is `None`.** `polarity`, `ms_level`, `mz`, `total_ion_current`, `rt`, ... can be `None`.
   Always guard. Empty arrays can be `None` or length 0.
 - **Warnings, not exceptions**, for ambiguous cases: a spectrum with several scans warns and
-  returns the first scan's value for `scan_start_time`, `lower_mz`, etc. Missing or assumed
+  returns the first scan's value for `rt`, `mz_range`, etc. Missing or assumed
   compression/data-type terms also warn.
-- **Retention time units differ by API**: `scan_start_time` is a `timedelta`; filter bounds are
-  seconds; `Chromatogram.time` is the raw array in its recorded unit (check its unit CV term).
+- **Retention time units**: `rt` and filter bounds are seconds; `Chromatogram.time` is the raw array in its recorded unit (check its unit CV term).
 - **`gzip_mode="stream"` is for one sequential pass.** Indexing into it rescans from the start.
 - **Use the context manager** (`with Mzml(...) as reader:`) or call `reader.close()`.
 - **Ids are strings.** `reader.spectra["19"]` only works with `spectrum_id_regex`; `reader.spectra[19]`
   is the 20th spectrum by position, not scan 19. Use `s.id_dict["scan"]` for the scan number.
+
+## Exceptions
+
+All in `mzmlpy` (and `mzmlpy.errors`):
+
+- `MzmlError(ValueError)`: base for bad data or bad arguments; `except ValueError` still works.
+- `MzmlParseError`: empty, malformed, truncated or non-mzML XML (wraps `ParseError` as `__cause__`).
+- `MzmlOffsetIndexError`: an offset index (indexList, cached or embedded gzip index) disagrees with the file.
+- `MzmlDecodeError`: a binary array cannot be decoded.
+- `MzmlRecordNotFoundError(MzmlError, KeyError)`: no record with that id.
+- Integer index out of range raises `IndexError`; wrong argument types raise `TypeError`.
 
 ## Error messages you may see
 
@@ -522,6 +534,8 @@ for path in Path("data").glob("*.mzML*"):
 
 ## Changelog highlights
 
+- 0.10.0: breaking API cleanup (`rt`, `ook0`, `mz_range`, `collision_energy`, `MzmlError`
+  hierarchy; see the migration guide: https://tacular-omics.github.io/mzmlpy/migration/).
 - 0.9.1: `numpress` extra requires `pynumpress>=0.1.5` (wheels on macOS/Windows).
 - 0.9.0: optional MCP server; decoded arrays keep their native dtype (previously float64).
 - 0.8.0: `validate`, `SpectrumFilter` / `spectra.filter`, `python -m mzmlpy` CLI, self-indexed gzip.

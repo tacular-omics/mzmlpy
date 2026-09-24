@@ -57,14 +57,14 @@ src/mzmlpy/
 ├── __main__.py             # python -m mzmlpy: inspect / validate / index-gzip / mcp
 ├── run.py                  # Mzml reader (context manager, eager header metadata, lazy records) + peek_spectrum_count
 ├── file_interface.py       # FileInterface + AccessStrategy: picks a file_classes backend, exposes ids/counts
-├── lookup.py               # BaseLookup -> SpectrumLookup / ChromatogramLookup: index, id, slice, iter, filter, cursor
+├── lookup.py               # BaseLookup -> SpectrumLookup / ChromatogramLookup: index, id, slice, iter, filter
 ├── spectra.py              # Spectrum, Chromatogram, BinaryDataArray, Scan, Precursor, ... + the mixins
 ├── filtering.py            # SpectrumFilter: metadata-only predicates (never decodes arrays)
 ├── validation.py           # validate(), ValidationIssue, ValidationReport (streaming structural checks)
 ├── embedded_indexed_gzip.py# read/write pyMZML-compatible self-indexed gzip (write_indexed_gzip, index_gzip alias)
 ├── decoder.py              # MSDecoder: zlib / zstd / MS-Numpress decoding (excluded from ty)
 ├── constants.py            # all CV accessions as StrEnums + ION_MOBILITIES
-├── content.py              # CVElement, MzMLContentBuilder (header parsing)
+├── content.py              # CVElement, _MzMLContentBuilder (header parsing)
 ├── util.py                 # gzip helpers, atomic cache writes, cache signatures, clear_cache (excluded from ty)
 ├── _xml.py                 # streaming record / fragment / header helpers shared by backends
 ├── regex_patterns.py       # byte regexes for encoding and index sniffing
@@ -98,7 +98,7 @@ every access.
   `_PrecursorListMixin`, `_ProductListMixin`; never duplicate logic across them.
 - **Lazy binary decoding**: `BinaryDataArray.data` (and so `spectrum.mz`) decodes on every call, not cached.
 - **XML namespaced lookups**: every `element.find()` uses the `self.ns` prefix (e.g. `f"./{self.ns}scanList"`).
-- **Warnings over exceptions** for ambiguous multi-scan/multi-window cases (e.g. `lower_mz` with several scans).
+- **Warnings over exceptions** for ambiguous multi-scan/multi-window cases (e.g. `rt` or `mz_range` with several scans).
 - **ID regex mapping**: `SpectrumLookup`/`ChromatogramLookup` take `id_regex` and lazily build a
   secondary `{extracted -> full_id}` map; passed via `Mzml(spectrum_id_regex=..., chromatogram_id_regex=...)`.
 - **MzmlInterface protocol**: `file_classes/interface.py` is the contract; `FileInterface` delegates to the active backend.
@@ -115,8 +115,13 @@ Everything below is in `mzmlpy.__all__` (checked by importing it):
   `Software`, `Sample`, `Run`, `DataProcessing`, `ProcessingMethod`, `ScanSetting`, `Target`,
   `SourceFileRef`, `ReferenceableParamGroup`, `ReferenceableParamGroupRef`, `CvParam`, `UserParam`, `CVElement`.
 - **Selection and validation**: `SpectrumFilter`, `validate`, `ValidationReport`, `ValidationIssue`.
+- **Errors** (`errors.py`): `MzmlError(ValueError)`, `MzmlParseError`, `MzmlOffsetIndexError`,
+  `MzmlDecodeError`, `MzmlRecordNotFoundError(MzmlError, KeyError)`. Raise these, not bare `ValueError`/`KeyError`.
+- **Accession enums used in return types**: `BinaryDataArrayAccession`, `BinaryDataTypeAccession`,
+  `ChromatogramTypeAccession`, `CollisionDissociationTypeAccession`, `CompressionTypeAccession`,
+  `DIAAcquisitionAccession`, `SpectrumCombinationAccession`.
 - **Self-indexed gzip**: `write_indexed_gzip` (alias `index_gzip`), `is_embedded_indexed_gzip`, `IndexedGzipWriteResult`.
-- **Not in `__all__`**: `mzmlpy.constants` (CV accession StrEnums), `mzmlpy.mcp.create_server` / `MzmlTools`.
+- **Not in `__all__`**: the rest of `mzmlpy.constants` (CV accession StrEnums), `mzmlpy.mcp.create_server` / `MzmlTools`.
 
 Full signatures and examples: `llms-full.txt`.
 
@@ -143,7 +148,7 @@ Full signatures and examples: `llms-full.txt`.
 
 - `validate(path)` does structural checks by default; `decode_binary=True` and `check_index=True`
   enable the expensive checks explicitly. `reader.validate(...)` uses a fresh handle and does not
-  move the lookup cursor.
+  disturb open iterators.
 - `reader.spectra.filter(...)` / `SpectrumFilter` return a lazy iterator and never request binary
   arrays. Retention-time bounds are in seconds, inclusive, with `None` for an open end.
 
