@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- `BinaryDataArray.compression` no longer depends on cvParam order when an array carries more than one compression
+  term. A bare MS-Numpress term plus the generic zlib or zstd term (the two-term form written before the combined
+  "followed by zlib" terms existed) now decodes as numpress after zlib/zstd instead of garbage or an error;
+  "no compression" no longer masks a real codec; other conflicting pairs warn and use the first term.
+- A one-value MS-Numpress linear array (12 bytes) decodes instead of raising "not enough bytes to read second
+  value" from pynumpress 0.1.5.
+
+### Added
+
+- Reference tests against pyteomics (every bundled file it can decode: ids, arrays, scan times, precursors, spectrum
+  cvParams, chromatograms) and a psims-written file, frozen by `tests/reference/generate_reference.py`.
+- Hypothesis property tests for binary decoding (float32/64, int32/64, none/zlib/zstd/byte-shuffled/dictionary zstd,
+  numpress) and for index offsets through every access strategy and `write_indexed_gzip`. `hypothesis` joins the
+  `test` and `dev` dependency groups.
+
 ## [0.9.2] (2026-09-23)
 
 ### Fixed

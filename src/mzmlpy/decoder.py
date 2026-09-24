@@ -33,7 +33,15 @@ class MSDecoder:
         """Decode MS-Numpress linear prediction compressed data."""
         pynumpress = _require("pynumpress", "numpress")
 
-        result = pynumpress.decode_linear(fix_input(data))
+        data = fix_input(data)
+        if len(data) == 12:
+            # A one-value array: 8-byte big-endian fixed point, then the first value as a 4-byte
+            # little-endian integer. MSNumpress decodeLinear returns it; pynumpress 0.1.5 raises
+            # "not enough bytes to read second value", so decode it here.
+            fixed_point = np.frombuffer(data[:8].tobytes(), dtype=">f8")[0]
+            first = np.frombuffer(data[8:12].tobytes(), dtype="<u4")[0]
+            return np.array([first / fixed_point], dtype=np.float64)
+        result = pynumpress.decode_linear(data)
         return np.asarray(result, dtype=np.float64)
 
     @classmethod
