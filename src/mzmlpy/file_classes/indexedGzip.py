@@ -3,7 +3,6 @@
 import io
 import json
 import logging
-import os
 from collections import OrderedDict
 from io import TextIOWrapper
 from pathlib import Path
@@ -16,7 +15,13 @@ except ImportError:
     RapidgzipFile = None  # type: ignore[assignment, misc]
 
 from ..errors import MzmlOffsetIndexError
-from ..util import atomic_write_path, cache_is_current, source_signature, write_cache_signature
+from ..util import (
+    atomic_write_path,
+    cache_is_current,
+    rapidgzip_threads,
+    source_signature,
+    write_cache_signature,
+)
 from .standardMzml import AbstractRandomAccessMzml
 
 logger = logging.getLogger(__name__)
@@ -136,7 +141,7 @@ class IndexedGzip(AbstractRandomAccessMzml):
         # check would later trust.
         signature = source_signature(self.path)
         with atomic_write_path(self._gzip_index_path) as tmp_path:
-            with RapidgzipFile(self.path, parallelization=os.cpu_count() or 1) as f:
+            with RapidgzipFile(self.path, parallelization=rapidgzip_threads()) as f:
                 # Seek to end to force full decompression and index building
                 f.seek(0, 2)
                 f.export_index(tmp_path)
@@ -145,13 +150,13 @@ class IndexedGzip(AbstractRandomAccessMzml):
 
     def _open_indexed(self) -> RapidgzipFile:
         """Open a new RapidgzipFile with the cached seek index."""
-        fh = RapidgzipFile(self.path, parallelization=os.cpu_count() or 1)
+        fh = RapidgzipFile(self.path, parallelization=rapidgzip_threads())
         try:
             fh.import_index(self._gzip_index_path)
         except Exception:
             fh.close()
             self._ensure_gzip_index(force=True)
-            fh = RapidgzipFile(self.path, parallelization=os.cpu_count() or 1)
+            fh = RapidgzipFile(self.path, parallelization=rapidgzip_threads())
             try:
                 fh.import_index(self._gzip_index_path)
             except BaseException:

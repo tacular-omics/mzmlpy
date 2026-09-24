@@ -61,6 +61,13 @@ def expand_param_group_refs(
     return element
 
 
+def rapidgzip_threads() -> int:
+    """Threads for one rapidgzip reader: the CPUs this process may use, capped at 4."""
+    process_cpu_count = getattr(os, "process_cpu_count", None)  # Python 3.13+
+    count = process_cpu_count() if process_cpu_count is not None else os.cpu_count()
+    return max(1, min(count or 1, 4))
+
+
 def gzip_open_binary(path: str) -> BinaryIO:
     """Open a gzip file for binary reading, using rapidgzip if available."""
     from .embedded_indexed_gzip import is_embedded_indexed_gzip
@@ -68,7 +75,7 @@ def gzip_open_binary(path: str) -> BinaryIO:
     if is_embedded_indexed_gzip(path):
         return gzip.open(path, "rb")
     if _HAS_RAPIDGZIP:
-        return RapidgzipFile(path, parallelization=os.cpu_count() or 1)  # type: ignore[return-value]
+        return RapidgzipFile(path, parallelization=rapidgzip_threads())  # type: ignore[return-value]
     return gzip.open(path, "rb")
 
 
@@ -80,7 +87,7 @@ def gzip_open_text(path: str, encoding: str = "utf-8") -> TextIO:
         return gzip.open(path, "rt", encoding=encoding)
     if _HAS_RAPIDGZIP:
         return io.TextIOWrapper(
-            RapidgzipFile(path, parallelization=os.cpu_count() or 1),
+            RapidgzipFile(path, parallelization=rapidgzip_threads()),
             encoding=encoding,
         )
     return gzip.open(path, "rt", encoding=encoding)

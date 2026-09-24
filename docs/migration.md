@@ -49,6 +49,7 @@ exception hierarchy. Renamed names have no aliases: the old name raises `Attribu
 | `spectra[1.0]`, `spectra.get_by_id(1)` | `spectra[1]`, `spectra.get_by_id("scan=1")` | other key types raise `TypeError` |
 | `Mzml(path)` loads the whole file (`in_memory=True` default) | `Mzml(path)` reads from disk (`in_memory=False` default) | pass `in_memory=True` for the old behaviour |
 | `Mzml("x.mzML.gz")` decompresses into memory | uses the embedded index if the file has one, else rapidgzip if installed (with sidecars next to the file), else decompresses into memory as before | for fast random access to a large `.gz`, run `write_indexed_gzip` on it once, or install `mzmlpy[rapidgzip]` |
+| `Mzml("x.mzML.gz", in_memory=False)` extracted the file to a temporary folder on disk | without rapidgzip and without an embedded index, decompresses into RAM (`access_strategy == "memory"`) and logs a one-time warning | run `write_indexed_gzip` once, or install `mzmlpy[rapidgzip]`, to keep large `.gz` files out of RAM |
 | `gzip_mode="extract"`, `Mzml(extract_dir=...)` | removed | use `write_indexed_gzip` once for fast random access to a .gz; `gzip_mode="extract"` raises `MzmlError`, `extract_dir=` raises `TypeError` |
 | `clear_cache()` | removed | mzmlpy no longer writes to the temp directory; delete an old `<tmpdir>/mzmlpy/` by hand |
 | reading through a closed reader silently reopened the file | raises `MzmlError` | also for an iterator started before `close()` |

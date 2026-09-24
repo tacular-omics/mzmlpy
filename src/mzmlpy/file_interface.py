@@ -148,6 +148,23 @@ def _close_at_exit() -> None:
             logger.debug("Closing an mzML reader at exit failed: %s", error)
 
 
+_warned_gzip_in_memory = False
+
+
+def _note_gzip_read_into_memory(path: str | os.PathLike[str]) -> None:
+    """Log once per process that a gzip file without an index is read into memory."""
+    global _warned_gzip_in_memory
+    if _warned_gzip_in_memory:
+        return
+    _warned_gzip_in_memory = True
+    logger.warning(
+        "Decompressing %s into memory: it has no embedded index and rapidgzip is not installed. "
+        "For random access without holding the file in RAM, run mzmlpy.write_indexed_gzip on it once "
+        "or install mzmlpy[rapidgzip]. (Logged once per process.)",
+        path,
+    )
+
+
 class FileInterface:
     """Interface to different mzML formats."""
 
@@ -275,11 +292,18 @@ class FileInterface:
                             index_regex=self.index_regex,
                         )
                     except OSError as error:  # e.g. no write access for the sidecars
-                        logger.warning("Reading %s into memory; rapidgzip indexing failed: %s", path, error)
+                        logger.warning(
+                            "Reading %s into memory: could not write rapidgzip sidecar indexes in %s (%s)",
+                            path,
+                            Path(path).resolve().parent,
+                            error,
+                        )
                     else:
                         self.access_strategy = AccessStrategy.RAPIDGZIP
                         return handler
-                # No embedded index and no usable rapidgzip: decompress into memory, as 0.9 did.
+                # No embedded index and no usable rapidgzip: decompress into memory.
+                if not _HAS_RAPIDGZIP:
+                    _note_gzip_read_into_memory(path)
                 self.access_strategy = AccessStrategy.MEMORY
                 return BytesMzml(BytesIO(gzip_decompress(path)), self.encoding, self.build_index_from_scratch)
             self.access_strategy = AccessStrategy.STREAM

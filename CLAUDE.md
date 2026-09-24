@@ -4,7 +4,7 @@
 
 **mzmlpy** is a lightweight Python library (3.12+) for reading mzML mass spectrometry files.
 It exposes a type-safe, lazy-loading API for spectra, chromatograms and file metadata, reads
-`.mzML.gz` directly (extract, rapidgzip-indexed, streamed, or pyMZML-style self-indexed gzip),
+`.mzML.gz` directly (pyMZML-style self-indexed gzip, rapidgzip-indexed, in memory, or streamed),
 validates file structure, and ships an optional local MCP server. The only runtime dependency is
 `numpy`.
 
@@ -65,7 +65,7 @@ src/mzmlpy/
 ├── decoder.py              # MSDecoder: zlib / zstd / MS-Numpress decoding (excluded from ty)
 ├── constants.py            # all CV accessions as StrEnums + ION_MOBILITIES
 ├── content.py              # CVElement, _MzMLContentBuilder (header parsing)
-├── util.py                 # gzip helpers, atomic cache writes, cache signatures, clear_cache (excluded from ty)
+├── util.py                 # gzip helpers, atomic cache writes, cache signatures (excluded from ty)
 ├── _xml.py                 # streaming record / fragment / header helpers shared by backends
 ├── regex_patterns.py       # byte regexes for encoding and index sniffing
 ├── _progress.py            # internal cooperative checkpoints (used by validation and MCP jobs)
@@ -86,7 +86,7 @@ src/mzmlpy/
 ```
 
 Data flow: `Mzml(path)` sniffs encoding, `FileInterface` selects a backend (reported as
-`reader.access_strategy`: `memory`, `plain`, `embedded`, `extracted`, `rapidgzip`, `stream`),
+`reader.access_strategy`: `memory`, `plain`, `embedded`, `rapidgzip`, `stream`),
 header metadata is parsed eagerly, and `reader.spectra[...]` fetches one XML record through the
 backend and wraps it in a `Spectrum`. Properties parse CV params on access; binary arrays decode on
 every access.
@@ -107,7 +107,7 @@ every access.
 
 Everything below is in `mzmlpy.__all__` (checked by importing it):
 
-- **Reader**: `Mzml`, `peek_spectrum_count`, `AccessStrategy`, `SpectrumLookup`, `ChromatogramLookup`, `clear_cache`.
+- **Reader**: `Mzml`, `peek_spectrum_count`, `AccessStrategy`, `SpectrumLookup`, `ChromatogramLookup`.
 - **Records**: `Spectrum`, `Chromatogram`, `BinaryDataArray`, `Scan`, `ScanWindow`, `Precursor`,
   `Product`, `IsolationWindow`, `SelectedIon`, `Activation`.
 - **Header metadata**: `FileDescription`, `FileContent`, `SourceFile`, `Contact`,
@@ -185,7 +185,7 @@ Full signatures and examples: `llms-full.txt`.
   would create these next to `tests/data/` files, so `tests/test_docs.py` runs the doc examples
   against a copy in `tmp_path`; the sidecars and their `.src` files are gitignored.
 - **`gzip_mode="stream"` random access rescans the file** from the start each time and warns. Use
-  `extract`, `indexed` or a self-indexed gzip for random access.
+  `indexed`, `in_memory=True` or a self-indexed gzip (`write_indexed_gzip`) for random access.
 - **Cache currency uses source signatures** (`util.source_signature`: realpath, size, mtime_ns,
   ctime_ns) and atomic writes. Do not go back to plain mtime checks: a truncated cache with a fresh
   mtime was trusted forever before this.

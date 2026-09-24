@@ -1,3 +1,5 @@
+import logging
+import os
 import shutil
 from pathlib import Path
 
@@ -52,12 +54,20 @@ def test_auto_uses_rapidgzip_with_sidecars_when_installed(tmp_path: Path) -> Non
         assert reader.access_strategy is AccessStrategy.RAPIDGZIP
 
 
-def test_auto_reads_into_memory_without_rapidgzip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_auto_reads_into_memory_without_rapidgzip(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     monkeypatch.setattr(file_interface, "_HAS_RAPIDGZIP", False)
+    monkeypatch.setattr(file_interface, "_warned_gzip_in_memory", False)
     path = _gzip_copy(tmp_path)
-    with Mzml(path, in_memory=False) as reader:
-        assert reader.access_strategy is AccessStrategy.MEMORY
-        assert reader.spectra[1].id == "scan=20"
+    with caplog.at_level(logging.WARNING, logger="mzmlpy.file_interface"):
+        with Mzml(path, in_memory=False) as reader:
+            assert reader.access_strategy is AccessStrategy.MEMORY
+            assert reader.spectra[1].id == "scan=20"
+        with Mzml(path, in_memory=False):
+            pass
+    notes = [r.getMessage() for r in caplog.records if "write_indexed_gzip" in r.getMessage()]
+    assert len(notes) == 1  # logged once per process, not per reader
     assert sorted(p.name for p in tmp_path.iterdir()) == ["example.mzML.gz"]  # nothing written
 
 
@@ -74,6 +84,24 @@ def test_auto_falls_back_to_memory_when_sidecars_cannot_be_written(
     with Mzml(path, in_memory=False) as reader:
         assert reader.access_strategy is AccessStrategy.MEMORY
         assert len(reader.spectra) == 4
+
+
+@pytest.mark.skipif(not hasattr(os, "geteuid") or os.geteuid() == 0, reason="root ignores directory permissions")
+def test_auto_falls_back_to_memory_in_a_read_only_directory(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    pytest.importorskip("rapidgzip")
+    folder = tmp_path / "ro"
+    folder.mkdir()
+    path = _gzip_copy(folder)
+    folder.chmod(0o555)
+    try:
+        with caplog.at_level(logging.WARNING, logger="mzmlpy.file_interface"):
+            with Mzml(path, in_memory=False) as reader:
+                assert reader.access_strategy is AccessStrategy.MEMORY
+                assert len(reader.spectra) == 4
+        assert any(str(folder.resolve()) in r.getMessage() for r in caplog.records)  # names the directory
+        assert sorted(p.name for p in folder.iterdir()) == ["example.mzML.gz"]
+    finally:
+        folder.chmod(0o755)
 
 
 def test_invalid_gzip_mode_is_rejected() -> None:

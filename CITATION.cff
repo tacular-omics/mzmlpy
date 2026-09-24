@@ -11,8 +11,8 @@ abstract: >-
   data-independent acquisition. Binary decoding covers uncompressed arrays,
   zlib compression, MS-Numpress encodings, and Zstandard-compressed data when
   the corresponding optional support is installed. Gzipped input can be read
-  through a deterministic embedded index, extracted to a reusable temporary
-  cache, accessed through an indexed gzip backend, or streamed sequentially.
+  through a deterministic embedded index, accessed through an indexed gzip
+  backend, decompressed into memory, or streamed sequentially.
   Spectrum collections provide iteration and random access without requiring
   all binary arrays to reside in memory at once. mzmlpy is intended for
   proteomics pipelines, format-conversion tools, metadata inspection, and
