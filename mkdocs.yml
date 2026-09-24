@@ -6,6 +6,10 @@ repo_name: tacular-omics/mzmlpy
 edit_uri: edit/main/docs/
 copyright: Copyright &copy; the mzmlpy authors. MIT licence.
 
+# Copies the repo-root llms.txt and llms-full.txt into the built site.
+hooks:
+  - hooks.py
+
 theme:
   name: material
   palette:
