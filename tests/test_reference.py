@@ -67,10 +67,7 @@ def test_spectra_match_pyteomics(name):
                 got_iw = [None, None, None] if iw is None else [iw.target_mz, iw.lower_offset, iw.upper_offset]
                 assert got_iw == pref["isolation_window"]
                 assert (prec.activation.collision_energy if prec.activation else None) == pref["collision_energy"]
-                got_ions = [
-                    {"mz": si.mz, "charge": si.charge, "intensity": si.intensity}
-                    for si in prec.selected_ions
-                ]
+                got_ions = [{"mz": si.mz, "charge": si.charge, "intensity": si.intensity} for si in prec.selected_ions]
                 assert got_ions == pref["selected_ions"]
 
 

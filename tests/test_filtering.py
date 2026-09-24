@@ -42,9 +42,7 @@ def reader() -> Mzml:
 
 def test_filter_combines_metadata_and_normalizes_time_units() -> None:
     with reader() as source:
-        assert [s.id for s in source.spectra.filter(ms_level=2, rt=(120, 180), polarity="positive")] == [
-            "scan=2"
-        ]
+        assert [s.id for s in source.spectra.filter(ms_level=2, rt=(120, 180), polarity="positive")] == ["scan=2"]
         assert [s.id for s in source.spectra.filter(rt=(None, 60))] == ["scan=0"]
         assert [s.id for s in source.spectra.filter(rt=(180, None))] == ["scan=2"]
         assert len(list(source.spectra.filter())) == 4
