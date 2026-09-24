@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.9.3] (2026-09-23)
+
 ### Fixed
 
 - `BinaryDataArray.compression` no longer depends on cvParam order when an array carries more than one compression
@@ -24,6 +26,12 @@ All notable changes to this project are documented here. The format is based on
 - Hypothesis property tests for binary decoding (float32/64, int32/64, none/zlib/zstd/byte-shuffled/dictionary zstd,
   numpress) and for index offsets through every access strategy and `write_indexed_gzip`. `hypothesis` joins the
   `test` and `dev` dependency groups.
+- `SECURITY.md` and `CONTRIBUTING.md`; the docs site now serves `llms.txt` and `llms-full.txt` at its root.
+
+### Changed
+
+- GitHub Actions are pinned to commit SHAs; docs and dev dependencies bumped (pygments, pymdown-extensions,
+  requests, urllib3).
 
 ## [0.9.2] (2026-09-23)
 
