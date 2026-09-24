@@ -669,7 +669,9 @@ def test_clear_cache_keeps_the_copies_of_open_readers(tmp_path: Path) -> None:
         # Leftovers: an unregistered copy of this process, and (on POSIX) one of an ended process.
         leftovers = [copy.with_name(f"run.mzML.pid{os.getpid()}.gone.mzML")]
         if os.name != "nt":
-            ended = subprocess.run([sys.executable, "-c", "import os; print(os.getpid())"], capture_output=True, text=True)
+            ended = subprocess.run(
+                [sys.executable, "-c", "import os; print(os.getpid())"], capture_output=True, text=True
+            )
             leftovers.append(copy.with_name(f"run.mzML.pid{ended.stdout.strip()}.gone.mzML"))
         for leftover in leftovers:
             leftover.write_bytes(b"")
