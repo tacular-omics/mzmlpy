@@ -78,14 +78,14 @@ def spectrum_metadata(spectrum: Spectrum) -> dict[str, Any]:
         "structure": metadata_tree(spectrum, omit_arrays=True),
         "terms": params(spectrum),
         "user_params": [asdict(param) for param in spectrum.user_params],
-        "retention_times_seconds": [scan.rt for scan in spectrum.scans],
         "scans": [
             {
                 "attributes": dict(scan.element.attrib),
                 "terms": params(scan),
                 "user_params": [asdict(param) for param in scan.user_params],
-                "inverse_reduced_ion_mobility": scan.ook0,
-                "ion_mobility_drift_time": scan.drift_time,
+                "rt": scan.rt,
+                "ook0": scan.ook0,
+                "drift_time": scan.drift_time,
                 "faims_compensation_voltage": scan.faims_compensation_voltage,
                 "windows": [metadata_tree(window) for window in scan.scan_windows],
             }
@@ -194,7 +194,7 @@ def inventory(reader: Mzml) -> dict[str, Any]:
         "declared_array_length_max": max_length,
         "spectra_with_ion_mobility": mobility_spectra,
         "isolation_windows": [
-            {"target_mz": t, "lower_offset_mz": low, "upper_offset_mz": high}
+            {"isolation_mz": t, "lower_offset": low, "upper_offset": high}
             for t, low, high in sorted(windows, key=lambda item: tuple(-math.inf if v is None else v for v in item))
         ],
         "isolation_windows_truncated": windows_truncated,

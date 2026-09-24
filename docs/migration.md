@@ -107,6 +107,17 @@ the `Literal` aliases `ToleranceUnit` (`"da"`, `"ppm"`) and `Polarity` (`"positi
 `MzMLContentBuilder`, `convert_mzml_element_to_object`, `fix_input` and `decode_to_numpy`
 gained a leading underscore. Every public module now declares `__all__`.
 
-The MCP server's tool names, parameters (such as `retention_time_min_seconds`, `mobility_type`,
-`ion_mobility_min`) and JSON keys (such as `target_mz`) are unchanged. `get_chromatogram` reports
-`coordinate_dtype` `float64`, since times are now always converted to seconds.
+The MCP server's tool names are unchanged. Its `find_spectra` parameters and JSON keys now use the
+reader vocabulary:
+
+| 0.9 MCP name | 0.10 MCP name | where |
+|---|---|---|
+| `retention_time_min_seconds`, `retention_time_max_seconds` | `rt_min`, `rt_max` (seconds) | `find_spectra` parameters |
+| `mobility_type="inverse_reduced"` | `mobility_type="ook0"` | `find_spectra` parameter; `"drift_time"` stays |
+| `ion_mobility_min`, `ion_mobility_max` | `mobility_min`, `mobility_max` | `find_spectra` parameters |
+| `inverse_reduced_ion_mobility` | `ook0` | each entry of a spectrum's `scans` |
+| `ion_mobility_drift_time` | `drift_time` | each entry of a spectrum's `scans` |
+| `retention_times_seconds` (spectrum-level list) | `rt` (seconds) | each entry of a spectrum's `scans` |
+| `target_mz`, `lower_offset_mz`, `upper_offset_mz` | `isolation_mz`, `lower_offset`, `upper_offset` | `summarize_run` `isolation_windows` |
+
+`get_chromatogram` reports `coordinate_dtype` `float64`, since times are now always converted to seconds.

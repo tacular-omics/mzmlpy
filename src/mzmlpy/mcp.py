@@ -243,8 +243,8 @@ class MzmlTools:
         self,
         file: str,
         ms_level: int | None = None,
-        retention_time_min_seconds: float | None = None,
-        retention_time_max_seconds: float | None = None,
+        rt_min: float | None = None,
+        rt_max: float | None = None,
         polarity: Polarity | None = None,
         precursor_mz_min: float | None = None,
         precursor_mz_max: float | None = None,
@@ -253,9 +253,9 @@ class MzmlTools:
         scan_limit: int = 10_000,
         expected_revision: str | None = None,
         spectrum_type: Literal["centroid", "profile"] | None = None,
-        mobility_type: Literal["inverse_reduced", "drift_time"] | None = None,
-        ion_mobility_min: float | None = None,
-        ion_mobility_max: float | None = None,
+        mobility_type: Literal["ook0", "drift_time"] | None = None,
+        mobility_min: float | None = None,
+        mobility_max: float | None = None,
         faims_voltage_min: float | None = None,
         faims_voltage_max: float | None = None,
     ) -> FileResult[SpectrumPage]:
@@ -271,20 +271,20 @@ class MzmlTools:
         _integer("start_index", start_index, 0)
         _integer("limit", limit, 1, 100)
         _integer("scan_limit", scan_limit, 1, 100_000)
-        if mobility_type not in {None, "inverse_reduced", "drift_time"}:
-            raise MzmlError("mobility_type must be inverse_reduced or drift_time")
-        mobility = _range(ion_mobility_min, ion_mobility_max)
+        if mobility_type not in {None, "ook0", "drift_time"}:
+            raise MzmlError("mobility_type must be ook0 or drift_time")
+        mobility = _range(mobility_min, mobility_max)
         if mobility is not None and mobility_type is None:
-            raise MzmlError("ion_mobility bounds require an explicit mobility_type")
+            raise MzmlError("mobility bounds require an explicit mobility_type")
         # A mobility_type without bounds selects spectra that record that quantity at all.
         mobility = mobility or ((None, None) if mobility_type is not None else None)
         predicate = SpectrumFilter(
             ms_level=ms_level,
-            rt_range=_range(retention_time_min_seconds, retention_time_max_seconds),
+            rt_range=_range(rt_min, rt_max),
             polarity=polarity,
             precursor_mz_range=_range(precursor_mz_min, precursor_mz_max),
             spectrum_type=spectrum_type,
-            ook0_range=mobility if mobility_type == "inverse_reduced" else None,
+            ook0_range=mobility if mobility_type == "ook0" else None,
             drift_time_range=mobility if mobility_type == "drift_time" else None,
             faims_voltage_range=(faims_voltage_min, faims_voltage_max)
             if faims_voltage_min is not None or faims_voltage_max is not None
