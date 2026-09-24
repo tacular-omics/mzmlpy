@@ -49,11 +49,11 @@ configured root. Export tools exist only with an explicitly configured output di
 """
 
 UNITS = {
-    "retention_time_bounds": "seconds",
+    "rt_bounds": "rt_min and rt_max in seconds",
     "stored_chromatogram_output": "seconds, with source time units also reported",
     "spectrum_coordinates": "m/z",
     "generic_arrays": "Recorded units. No mobility conversion or intensity normalization.",
-    "mobility_filters": "Recorded scan quantity, selected explicitly as inverse_reduced or drift_time.",
+    "mobility_filters": "Recorded scan quantity, selected explicitly with mobility_type ook0 (1/K0) or drift_time.",
     "faims_filters": "signed volts",
     "unknown_units": "Preserved as declared or absent. Never inferred from numeric magnitudes.",
     "binary_export": "Original encoded text and encoding metadata. No numeric decoding.",

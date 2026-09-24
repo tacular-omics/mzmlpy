@@ -441,12 +441,12 @@ def test_mcp_mobility_bounds_map_to_the_named_quantity(tmp_path: Path) -> None:
     write_indexed(tmp_path / "im.mzML", [spectrum_xml(0, None, extra=extra), spectrum_xml(1, 3.0)])
     tools = MzmlTools(tmp_path)
     try:
-        found = tools.find_spectra("im.mzML", mobility_type="inverse_reduced", ion_mobility_min=1.0).data
+        found = tools.find_spectra("im.mzML", mobility_type="ook0", mobility_min=1.0).data
         assert [s["id"] for s in found["spectra"]] == ["scan=0"]
         assert tools.find_spectra("im.mzML", mobility_type="drift_time").data["spectra"] == []
         with pytest.raises(ValueError, match="explicit mobility_type"):
-            tools.find_spectra("im.mzML", ion_mobility_min=1.0)
-        with pytest.raises(ValueError, match="inverse_reduced or drift_time"):
+            tools.find_spectra("im.mzML", mobility_min=1.0)
+        with pytest.raises(ValueError, match="ook0 or drift_time"):
             tools.find_spectra("im.mzML", mobility_type="k0")  # ty: ignore[invalid-argument-type]
     finally:
         tools.close()

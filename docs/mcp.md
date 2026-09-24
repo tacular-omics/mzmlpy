@@ -97,20 +97,20 @@ precursor isolation windows overlap m/z 499 through 501:
   "file": "run.mzML.gz",
   "ms_level": 2,
   "polarity": "positive",
-  "retention_time_min_seconds": 300,
-  "retention_time_max_seconds": 480,
+  "rt_min": 300,
+  "rt_max": 480,
   "precursor_mz_min": 499,
   "precursor_mz_max": 501,
   "limit": 20
 }
 ```
 
-Criteria combine with AND. Retention-time bounds use seconds and match any scan. Precursor
+Criteria combine with AND. Retention-time bounds `rt_min` and `rt_max` use seconds and match any scan. Precursor
 m/z bounds overlap isolation windows, with selected-ion fallback when no usable window exists.
-Additional criteria include `spectrum_type`, `mobility_type`, `ion_mobility_min`,
-`ion_mobility_max`, `faims_voltage_min`, and `faims_voltage_max`.
+Additional criteria include `spectrum_type`, `mobility_type`, `mobility_min`,
+`mobility_max`, `faims_voltage_min`, and `faims_voltage_max`.
 
-Mobility bounds require `mobility_type="inverse_reduced"` or `"drift_time"` and use the recorded
+Mobility bounds require `mobility_type="ook0"` (1/K0) or `"drift_time"` and use the recorded
 scan quantity in its declared units. The server does not convert drift time to inverse reduced
 mobility. Check the scan's CV terms and units before choosing bounds. FAIMS voltage bounds
 are signed volts. These criteria select scan metadata, without filtering per-peak mobility

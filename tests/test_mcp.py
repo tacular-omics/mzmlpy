@@ -56,7 +56,7 @@ def test_spectrum_pages_and_filtering(source: tuple[MzmlTools, str]) -> None:
         start, revision = page.data["next_index"], page.revision
     with Mzml(tools.root / name, in_memory=False, gzip_mode="stream") as reader:
         assert ids == [s.id for s in reader.spectra]
-        matches = tools.find_spectra(name, ms_level=2, retention_time_min_seconds=0, polarity="positive")
+        matches = tools.find_spectra(name, ms_level=2, rt_min=0, polarity="positive")
         assert [s["id"] for s in matches.data["spectra"]] == [
             s.id for s in reader.spectra.filter(ms_level=2, rt_range=(0, None), polarity="positive")
         ]
@@ -143,7 +143,7 @@ def test_symlink_cannot_escape_root(tmp_path: Path) -> None:
         {"start_index": -1},
         {"scan_limit": 100001},
         {"ms_level": 0},
-        {"retention_time_min_seconds": float("nan")},
+        {"rt_min": float("nan")},
         {"precursor_mz_min": 20, "precursor_mz_max": 10},
     ],
 )
