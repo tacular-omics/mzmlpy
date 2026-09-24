@@ -128,6 +128,10 @@ after `start_index`, plus one lookahead record. The default budget is 10,000, wi
 of 100,000. A page with no matches can still have a `next_index`. Continue with unchanged
 filters until `exhausted` is true.
 
+Spectrum records use the reader's attribute names. Each entry of `scans` carries `rt`
+(seconds), `ook0`, `drift_time` and `faims_compensation_voltage`, as on `Scan`, plus the
+scan's attributes, CV terms, user parameters and scan windows.
+
 Array and peak pages contain at most 1,000 values or pairs. Their positions refer to the
 original arrays, including when coordinate bounds exclude some points. A null `next_index`
 means no matching points remain. Arrays are returned in their recorded order without
@@ -153,7 +157,9 @@ intensities and mismatched lengths. Encoded exports retain original binary repre
 `summarize_run` scans recorded metadata and reports counts by MS level, polarity, spectrum
 representation, array type, and compression. It includes declared empty-array counts,
 missing retention times, recorded time ranges, multi-scan counts, and observed isolation
-windows. At most 100 distinct isolation windows are returned, with explicit truncation.
+windows. At most 100 distinct isolation windows are returned, with explicit truncation. Each
+window reports `isolation_mz`, `lower_offset` and `upper_offset` (m/z), the `IsolationWindow`
+attribute names.
 
 Timing statistics use the first scan of each consecutive spectrum. Missing first-scan times
 break adjacency. The largest nonnegative gap and backward-time count are descriptive values,

@@ -66,6 +66,11 @@ Breaking API cleanup. Renamed names have no aliases. See the
   silently reopening the file. Readers and iterators left open are closed at interpreter exit, so an unclosed
   rapidgzip reader no longer aborts the interpreter. A child forked while holding a rapidgzip reader can still abort
   at exit, an upstream rapidgzip limitation: open readers inside each worker, or use the `spawn` start method.
+- MCP JSON keys follow the reader attributes they come from: in each spectrum's `scans`,
+  `inverse_reduced_ion_mobility` -> `ook0`, `ion_mobility_drift_time` -> `drift_time`, and the spectrum-level
+  `retention_times_seconds` list is replaced by an `rt` key (seconds) on each scan; in `summarize_run`'s
+  `isolation_windows`, `target_mz` -> `isolation_mz`, `lower_offset_mz` -> `lower_offset`, `upper_offset_mz` ->
+  `upper_offset`. Tool names and input parameters are unchanged.
 - `IsolationWindow.target_mz` -> `isolation_mz`. `Chromatogram.time` (array in its recorded unit) -> `rt`
   (float64 seconds, converted from the recorded unit, warning once when the unit is missing).
 - `Spectrum.charge` is removed (it was the per-point array, now `charge_array`); the precursor charge is `Spectrum.precursor_charge` (`int | None`). Old `spec.charge` code raises `AttributeError`.

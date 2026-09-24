@@ -14,7 +14,6 @@ class SpectrumData(TypedDict):
     structure: dict[str, Any]
     terms: list[dict[str, Any]]
     user_params: list[dict[str, Any]]
-    retention_times_seconds: list[float | None]
     scans: list[dict[str, Any]]
     precursors: list[dict[str, Any]]
     products: list[dict[str, Any]]
