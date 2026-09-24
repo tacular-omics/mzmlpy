@@ -39,6 +39,8 @@ from .file_classes import (
 )
 from .spectra import Chromatogram, Spectrum
 from .util import (
+    _LIVE_PRIVATE_COPIES,
+    _private_copy_dir,
     atomic_write_path,
     cache_is_current,
     expand_param_group_refs,
@@ -105,11 +107,12 @@ class _TrackedIterator[T]:
     abort the interpreter at exit (``terminate called``) when the handle is finalized too late.
     """
 
-    __slots__ = ("__weakref__", "_closed", "_generator")
+    __slots__ = ("__weakref__", "_closed", "_generator", "_pid")
 
     def __init__(self, generator: Iterator[T]) -> None:
         self._generator = generator
         self._closed = False
+        self._pid = os.getpid()
         _LIVE_ITERATORS.add(self)
 
     def __iter__(self) -> "_TrackedIterator[T]":
@@ -140,21 +143,35 @@ def _close_at_exit() -> None:
 
     rapidgzip aborts the process when one of its handles is finalized after its worker threads
     see the interpreter shutting down, so unclosed readers must be closed while it still runs.
+    Iterators are closed before readers, and a reader closes its handles before deleting its
+    private copy (Windows cannot delete an open file). Readers and iterators inherited by a
+    forked child belong to the parent and are left alone.
     """
+    pid = os.getpid()
     for iterator in list(_LIVE_ITERATORS):
-        iterator.close()
+        if iterator._pid == pid:
+            iterator.close()
     for reader in list(_LIVE_READERS):
+        if reader._pid != pid:
+            continue
         try:
             reader.close()
         except Exception as error:  # never let one reader stop the others being closed
             logger.debug("Closing an mzML reader at exit failed: %s", error)
 
 
-def _discard_copy(handler: MzmlInterface, path: str) -> None:
-    """Close ``handler`` and delete its private decompressed copy at ``path``."""
+def _discard_copy(handler: MzmlInterface, path: str, owner_pid: int) -> None:
+    """Close ``handler`` and delete its private decompressed copy at ``path``.
+
+    Only in the process that made the copy: a forked child shares the file with its parent,
+    which is still reading it.
+    """
+    if os.getpid() != owner_pid:
+        return
     try:
         handler.close()
     finally:
+        _LIVE_PRIVATE_COPIES.discard(path)
         _remove_file(path)
 
 
@@ -195,6 +212,7 @@ class FileInterface:
         self._temporary_copy: weakref.finalize | None = None
         self._temporary_path: str | None = None
         self._iterators: weakref.WeakSet[_TrackedIterator[Any]] = weakref.WeakSet()
+        self._pid = os.getpid()
         self.access_strategy: AccessStrategy
         self.file_handler: MzmlInterface = self._open(path)
         _LIVE_READERS.add(self)
@@ -207,8 +225,12 @@ class FileInterface:
             self.file_handler.close()
         finally:
             self.file_handler = _ClosedBackend()  # ty: ignore[invalid-assignment]
-            if self._temporary_copy is not None:
-                self._temporary_copy()
+            # detach() rather than calling the finalizer: weakref.finalize ignores calls once its
+            # own exit hook has run, which is before _close_at_exit closes this reader.
+            detached = self._temporary_copy.detach() if self._temporary_copy is not None else None
+            if detached is not None:
+                _, discard, args, _ = detached
+                discard(*args)
 
     def _track[T](self, generator: Iterator[T]) -> Iterator[T]:
         """Register an iterator that holds a file handle so close() can release it."""
@@ -353,9 +375,13 @@ class FileInterface:
 
     def _open_private_copy(self, gz_path: str) -> StandardMzml:
         """Decompress ``gz_path`` into a fresh temporary file that close() deletes."""
-        cache_dir = os.path.join(tempfile.gettempdir(), "mzmlpy")
-        os.makedirs(cache_dir, exist_ok=True)
-        fd, target = tempfile.mkstemp(prefix=Path(gz_path).stem + "_", suffix=".mzML", dir=cache_dir)
+        private_dir = _private_copy_dir()
+        os.makedirs(private_dir, exist_ok=True)
+        # The owner pid in the name lets clear_cache() tell a live process's copy from a leftover.
+        prefix = f"{Path(gz_path).stem}.pid{self._pid}."
+        fd, target = tempfile.mkstemp(prefix=prefix, suffix=".mzML", dir=private_dir)
+        target = os.path.abspath(target)
+        _LIVE_PRIVATE_COPIES.add(target)
         try:
             with os.fdopen(fd, "wb") as output, gzip_open_binary(gz_path) as source:
                 shutil.copyfileobj(source, output, length=1024 * 1024)
@@ -366,11 +392,14 @@ class FileInterface:
                 index_regex=self.index_regex,
             )
         except BaseException:
+            _LIVE_PRIVATE_COPIES.discard(target)
             _remove_file(target)
             raise
         # The finalizer closes the backend before deleting: when the reader is garbage collected
-        # its handles may not be closed yet, and Windows cannot delete an open file.
-        finalizer = weakref.finalize(self, _discard_copy, handler, target)
+        # its handles may not be closed yet, and Windows cannot delete an open file. At exit,
+        # _close_at_exit runs it after closing iterators, so it does not run on its own then.
+        finalizer = weakref.finalize(self, _discard_copy, handler, target, self._pid)
+        finalizer.atexit = False
         self._temporary_copy = finalizer
         self._temporary_path = target
         return handler

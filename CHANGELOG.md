@@ -46,10 +46,11 @@ Breaking API cleanup. Renamed names have no aliases. See the
 - A well-formed XML file whose root is not `<mzML>` or `<indexedmzML>` raises `MzmlParseError` on open.
 - `Mzml(..., in_memory=False)` is the default; pass `in_memory=True` to load the whole file as before.
   For a `.mzML.gz` this means `Mzml("x.mzML.gz")` now decompresses to a private temporary file under
-  `<tmpdir>/mzmlpy/` (it needs disk space about the size of the decompressed file) instead of into memory. The
-  copy is deleted on `close()`, when the reader is garbage collected, or at interpreter exit. Pass `extract_dir=`
+  `<tmpdir>/mzmlpy/private/` (it needs disk space about the size of the decompressed file) instead of into
+  memory. The copy is deleted on `close()`, when the reader is garbage collected, or at interpreter exit, only by
+  the process that made it (a forked child leaves it alone). Pass `extract_dir=`
   to keep a reusable copy there instead (the old default cache in `<tmpdir>/mzmlpy/` is no longer reused), or
-  `in_memory=True` for the old behaviour. `clear_cache()` removes copies left behind by a crashed process.
+  `in_memory=True` for the old behaviour. `clear_cache()` removes copies left behind by a crashed process and keeps those of open readers.
 - Reading through a closed reader, including an iterator started before `close()`, raises `MzmlError` instead of
   silently reopening the file.
 - `IsolationWindow.target_mz` -> `isolation_mz`. `Chromatogram.time` (array in its recorded unit) -> `rt`

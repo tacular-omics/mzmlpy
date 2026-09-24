@@ -55,7 +55,7 @@ Mzml(
     build_index_from_scratch: bool = False,  # ignore the file's <indexList> and rebuild offsets
     gzip_mode: Literal["auto", "extract", "indexed", "stream"] = "auto",
     in_memory: bool = False,              # True loads the whole (decompressed) file into memory
-    extract_dir: str | Path | None = None,   # where gzip_mode="extract" writes; default <tmpdir>/mzmlpy/
+    extract_dir: str | Path | None = None,   # kept extraction cache; default: a private temp copy deleted on close
     spectrum_id_regex: str | None = None,    # secondary lookup key for spectra (first capture group)
     chromatogram_id_regex: str | None = None,
 )
@@ -371,13 +371,13 @@ Mzml("run.mzML.gz", gzip_mode="stream")                      # lowest startup; r
   decompressed file is buffered and every mode behaves the same.
 - `"auto"` uses, in order: an embedded index (self-indexed gzip), a current extracted cache in
   `extract_dir` (if given), complete rapidgzip sidecars; otherwise it extracts.
-- Without `extract_dir`, extraction writes a private temporary copy under `<tmpdir>/mzmlpy/`
+- Without `extract_dir`, extraction writes a private temporary copy under `<tmpdir>/mzmlpy/private/`
   (disk space about the decompressed size) and deletes it on `close()`, garbage collection or
   interpreter exit. With `extract_dir`, the copy is a kept cache, reused only while the source's
   path, size and timestamps are unchanged.
 - `"indexed"` writes index sidecars next to the source (`run.mzML.gzidx`, `run.mzMLidx` and
   `.src` signature files), so that directory must be writable.
-- `clear_cache() -> None` deletes `<tmpdir>/mzmlpy/`, e.g. copies left by a crashed process (it does not touch `extract_dir` or sidecars).
+- `clear_cache() -> None` empties `<tmpdir>/mzmlpy/`, e.g. copies left by a crashed process, keeping the copies of open readers (it does not touch `extract_dir` or sidecars).
 
 ### Self-indexed gzip (pyMZML-compatible)
 
@@ -600,7 +600,7 @@ tables are copied from the migration guide (https://tacular-omics.github.io/mzml
 | `lookup.get_by_index("3")` | `lookup.get_by_index(3)` | a non-int raises `TypeError` |
 | `spectra[1.0]`, `spectra.get_by_id(1)` | `spectra[1]`, `spectra.get_by_id("scan=1")` | other key types raise `TypeError` |
 | `Mzml(path)` loads the whole file (`in_memory=True` default) | `Mzml(path)` reads from disk (`in_memory=False` default) | pass `in_memory=True` for the old behaviour |
-| `Mzml("x.mzML.gz")` decompresses into memory | decompresses to a private temporary file under `<tmpdir>/mzmlpy/`, deleted on `close()` (or when the reader is garbage collected or the interpreter exits) | needs free disk space about the size of the decompressed file; `in_memory=True` keeps it in memory; `extract_dir=` keeps a reusable copy there instead; a `.mzML.gz` with a rapidgzip index next to it is read in place |
+| `Mzml("x.mzML.gz")` decompresses into memory | decompresses to a private temporary file under `<tmpdir>/mzmlpy/private/`, deleted on `close()` (or when the reader is garbage collected or the interpreter exits) | needs free disk space about the size of the decompressed file; `in_memory=True` keeps it in memory; `extract_dir=` keeps a reusable copy there instead; a `.mzML.gz` with a rapidgzip index next to it is read in place |
 | reading through a closed reader silently reopened the file | raises `MzmlError` | also for an iterator started before `close()` |
 | `spectra.filter(retention_time=(lo, hi))`, `SpectrumFilter(retention_time=...)` | `rt_range=(lo, hi)` | seconds |
 | (no point query) | `spectra.filter(rt=600.0, rt_tolerance=30.0)` | tdfpy convention; any real number, numpy scalars included; `rt=(lo, hi)` raises `MzmlError` pointing at `rt_range` |
