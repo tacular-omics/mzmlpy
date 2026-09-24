@@ -524,6 +524,9 @@ def test_filtering_a_stream_reader_does_not_count_spectra(tmp_path: Path, monkey
 def test_reading_after_close_raises(tmp_path: Path, gzip_mode: str | None) -> None:
     import gzip
 
+    if gzip_mode == "indexed":
+        pytest.importorskip("rapidgzip")
+
     path = ordered_run(tmp_path, [1.0, 2.0, 3.0])
     if gzip_mode is not None:
         gz = tmp_path / "run.mzML.gz"

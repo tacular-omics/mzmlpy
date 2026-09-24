@@ -150,6 +150,14 @@ def _close_at_exit() -> None:
             logger.debug("Closing an mzML reader at exit failed: %s", error)
 
 
+def _discard_copy(handler: MzmlInterface, path: str) -> None:
+    """Close ``handler`` and delete its private decompressed copy at ``path``."""
+    try:
+        handler.close()
+    finally:
+        _remove_file(path)
+
+
 def _remove_file(path: str) -> None:
     """Delete ``path`` if it still exists (finalizer for a private decompressed copy)."""
     try:
@@ -348,7 +356,6 @@ class FileInterface:
         cache_dir = os.path.join(tempfile.gettempdir(), "mzmlpy")
         os.makedirs(cache_dir, exist_ok=True)
         fd, target = tempfile.mkstemp(prefix=Path(gz_path).stem + "_", suffix=".mzML", dir=cache_dir)
-        finalizer = weakref.finalize(self, _remove_file, target)
         try:
             with os.fdopen(fd, "wb") as output, gzip_open_binary(gz_path) as source:
                 shutil.copyfileobj(source, output, length=1024 * 1024)
@@ -359,8 +366,11 @@ class FileInterface:
                 index_regex=self.index_regex,
             )
         except BaseException:
-            finalizer()
+            _remove_file(target)
             raise
+        # The finalizer closes the backend before deleting: when the reader is garbage collected
+        # its handles may not be closed yet, and Windows cannot delete an open file.
+        finalizer = weakref.finalize(self, _discard_copy, handler, target)
         self._temporary_copy = finalizer
         self._temporary_path = target
         return handler
