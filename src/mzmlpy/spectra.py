@@ -26,6 +26,7 @@ from .constants import (
     CompressionTypeAccession,
     IsolationWindowAccession,
     MzMLElement,
+    Polarity,
     ScanPolarity,
     SelectedIonAccession,
     SpectrumCombinationAccession,
@@ -1106,7 +1107,7 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
         return None
 
     @cached_property
-    def polarity(self) -> Literal["positive", "negative"] | None:
+    def polarity(self) -> Polarity | None:
         """Get polarity (positive / negative / or unknown scan)."""
 
         if ScanPolarity.POSITIVE in self.accessions:

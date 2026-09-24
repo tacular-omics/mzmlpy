@@ -7,6 +7,7 @@ from typing import Literal, TypeGuard
 
 import numpy as np
 
+from .constants import Polarity, ToleranceUnit
 from .errors import MzmlError
 from .spectra import Spectrum
 
@@ -64,17 +65,15 @@ def tolerance_range(value: float | None, tolerance: float, name: str) -> tuple[f
     return (max(0.0, value - tolerance), value + tolerance)
 
 
-def mz_tolerance_range(
-    mz: float | None, tolerance: float, tolerance_type: Literal["ppm", "da"]
-) -> tuple[float, float] | None:
+def mz_tolerance_range(mz: float | None, tolerance: float, tolerance_unit: ToleranceUnit) -> tuple[float, float] | None:
     """m/z bounds around ``mz`` for a tolerance in ppm or Da, matching tdfpy's ``query``."""
-    if tolerance_type not in {"ppm", "da"}:
-        raise MzmlError("mz_tolerance_type must be 'ppm' or 'da'")
+    if tolerance_unit not in {"da", "ppm"}:
+        raise MzmlError("mz_tolerance_unit must be 'da' or 'ppm'")
     _nonnegative("mz_tolerance", tolerance)
     if mz is None:
         return None
     mz, tolerance = float(mz), float(tolerance)
-    width = mz * tolerance / 1e6 if tolerance_type == "ppm" else tolerance
+    width = mz * tolerance / 1e6 if tolerance_unit == "ppm" else tolerance
     return (max(0.0, mz - width), mz + width)
 
 
@@ -92,7 +91,7 @@ class SpectrumFilter:
 
     ms_level: int | None = None
     rt_range: tuple[float | None, float | None] | None = None
-    polarity: Literal["positive", "negative"] | None = None
+    polarity: Polarity | None = None
     precursor_mz_range: tuple[float | None, float | None] | None = None
     spectrum_type: Literal["centroid", "profile"] | None = None
     ook0_range: tuple[float | None, float | None] | None = None

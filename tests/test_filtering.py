@@ -1,7 +1,9 @@
 from io import BytesIO
+from typing import get_args
 
 import pytest
 
+import mzmlpy
 from mzmlpy import Mzml, SpectrumFilter
 
 
@@ -79,7 +81,7 @@ def test_filter_is_lazy_and_independent_of_other_iterators() -> None:
         {"rt": 1.0, "rt_range": (0, 2)},
         {"precursor_mz": 500.0, "precursor_mz_range": (0, 600)},
         {"rt": 1.0, "rt_tolerance": -1},
-        {"precursor_mz": 500.0, "mz_tolerance_type": "mda"},
+        {"precursor_mz": 500.0, "mz_tolerance_unit": "mda"},
         {"precursor_mz": 500.0, "mz_tolerance": float("inf")},
     ],
 )
@@ -103,3 +105,15 @@ def test_selected_ion_fallback_and_missing_metadata() -> None:
     assert SpectrumFilter(precursor_mz_range=(600, 600)).matches(spectrum)
     assert not SpectrumFilter(ms_level=1).matches(spectrum)
     assert not SpectrumFilter(rt_range=(None, None)).matches(spectrum)
+
+
+def test_shared_vocabulary_aliases() -> None:
+    # Same values and order as tacular.types, which an integration test compares against.
+    assert get_args(mzmlpy.ToleranceUnit) == ("da", "ppm")
+    assert get_args(mzmlpy.Polarity) == ("positive", "negative")
+    assert {"ToleranceUnit", "Polarity"} <= set(mzmlpy.__all__)
+
+
+def test_old_tolerance_type_keyword_is_gone() -> None:
+    with reader() as source, pytest.raises(TypeError):
+        source.spectra.filter(precursor_mz=500.0, mz_tolerance_type="da")  # ty: ignore[unknown-argument]

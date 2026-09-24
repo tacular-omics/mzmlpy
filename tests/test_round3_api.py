@@ -155,7 +155,7 @@ def test_point_queries_follow_tdfpy(tmp_path: Path) -> None:
         assert [s.id for s in reader.spectra.filter(rt=5.0)] == ["scan=0"]  # lower bound clamps at 0
         assert [s.id for s in reader.spectra.filter(precursor_mz=500.009, mz_tolerance=20)] == ["scan=1"]
         assert list(reader.spectra.filter(precursor_mz=500.02, mz_tolerance=20)) == []
-        assert [s.id for s in reader.spectra.filter(precursor_mz=500.4, mz_tolerance=0.5, mz_tolerance_type="da")] == [
+        assert [s.id for s in reader.spectra.filter(precursor_mz=500.4, mz_tolerance=0.5, mz_tolerance_unit="da")] == [
             "scan=1"
         ]
     with Mzml(path) as reader, pytest.raises(MzmlError, match="rt_range"):

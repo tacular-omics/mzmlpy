@@ -344,13 +344,13 @@ with Mzml("tests/data/example.mzML") as reader:
         print(spectrum.id, spectrum.ms_level)
     # Point queries, as in tdfpy: within 30 s, and within 20 ppm.
     near = list(reader.spectra.filter(rt=5.0, rt_tolerance=30.0))
-    same_precursor = list(reader.spectra.filter(precursor_mz=445.34, mz_tolerance=20, mz_tolerance_type="ppm"))
+    same_precursor = list(reader.spectra.filter(precursor_mz=445.34, mz_tolerance=20, mz_tolerance_unit="ppm"))
 ```
 
 Available criteria are `ms_level`, `rt_range=(lower_seconds, upper_seconds)` or `rt=` with
 `rt_tolerance`, `polarity="positive"` or `"negative"`,
 `precursor_mz_range=(lower_mz, upper_mz)` or `precursor_mz=` with `mz_tolerance` and
-`mz_tolerance_type` (`"ppm"` or `"da"`), `spectrum_type="centroid"` or `"profile"`, and
+`mz_tolerance_unit` (`"da"` or `"ppm"`), `spectrum_type="centroid"` or `"profile"`, and
 scan-level mobility or FAIMS selection. Pass a point or its range, not both.
 Retention time matches any scan. Precursor m/z matches overlap with any reported isolation
 window. Selected-ion m/z values are used when a precursor has no usable isolation window.

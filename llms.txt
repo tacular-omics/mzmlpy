@@ -13,7 +13,7 @@ Header metadata (instruments, software, samples, CV lists) is parsed when the fi
 `inspect`, `validate`, `index-gzip` and `mcp` commands with JSON output.
 
 Absent CV terms return `None`; readers are not thread-safe; retention time (`Spectrum.rt`) and
-filter bounds are in seconds; errors subclass `MzmlError` (a `ValueError`). mzmlpy only reads data: spectrum processing lives in the sibling package spxtacular.
+filter bounds are in seconds; the Da/ppm switch is `mz_tolerance_unit` (type `ToleranceUnit`); errors subclass `MzmlError` (a `ValueError`). mzmlpy only reads data: spectrum processing lives in the sibling package spxtacular.
 
 ## Docs
 

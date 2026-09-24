@@ -120,6 +120,10 @@ Everything below is in `mzmlpy.__all__` (checked by importing it):
 - **Accession enums used in return types**: `BinaryDataArrayAccession`, `BinaryDataTypeAccession`,
   `ChromatogramTypeAccession`, `CollisionDissociationTypeAccession`, `CompressionTypeAccession`,
   `DIAAcquisitionAccession`, `SpectrumCombinationAccession`.
+- **Shared vocabulary aliases** (`constants.py`): `ToleranceUnit = Literal["da", "ppm"]`,
+  `Polarity = Literal["positive", "negative"]`. Plain assignments with exactly the values and order of
+  `tacular.types` (an integration test compares them); mzmlpy must not depend on tacular. The Da/ppm switch
+  next to a tolerance is always `*_tolerance_unit` (e.g. `spectra.filter(mz_tolerance_unit="da")`), never `*_type`.
 - **Self-indexed gzip**: `write_indexed_gzip` (alias `index_gzip`), `is_embedded_indexed_gzip`, `IndexedGzipWriteResult`.
 - **Not in `__all__`**: the rest of `mzmlpy.constants` (CV accession StrEnums), `mzmlpy.mcp.create_server` / `MzmlTools`.
 
@@ -132,7 +136,7 @@ Full signatures and examples: `llms-full.txt`.
 - Google-style docstrings. mkdocstrings uses `filters: ["!^_"]` (hides private members),
   `inherited_members: true` (mixin members appear on class pages), `merge_init_into_class: true`.
 - `StrEnum` for all CV accessions: never hardcode an accession string outside `constants.py`.
-- `Literal[...]` return types for known-set values (`polarity`, `spectrum_type`, `chromatogram_type`).
+- `Literal[...]` return types for known-set values (`polarity` via `Polarity`, `spectrum_type`, `chromatogram_type`).
 - Absent CV terms return `None` (or `()` for sequences); ambiguous cases warn and return the first value.
 - Runtime deps: `numpy>=1.26.0` only. Extras: `numpress` (`pynumpress>=0.1.5`), `zstd`,
   `rapidgzip` (for `gzip_mode="indexed"`), `mcp` (`mcp>=2.1.1,<3`). Extras import lazily; the
