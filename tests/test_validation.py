@@ -117,6 +117,14 @@ def test_count_ignores_param_children_and_names_the_record(tmp_path: Path) -> No
     assert "found 1" in issue.message
 
 
+def test_reference_issue_inside_a_record_names_the_record(tmp_path: Path) -> None:
+    precursor = '<precursorList count="1"><precursor spectrumRef="scan=404"/></precursorList>'
+    path = write_file(tmp_path, record().replace("<binaryDataArrayList", precursor + "<binaryDataArrayList"))
+    (issue,) = validate(path).issues
+    assert issue.code == "missing_reference"
+    assert issue.location == "spectrum[scan=1]/precursor"
+
+
 def test_validation_expands_parameter_groups(tmp_path: Path) -> None:
     group = (
         '<referenceableParamGroupList count="1"><referenceableParamGroup id="encoding">'
@@ -153,15 +161,16 @@ def test_malformed_xml_returns_partial_report(tmp_path: Path) -> None:
         validate(tmp_path / "missing.mzML")
 
 
-def test_reader_validation_preserves_cursor_and_supports_embedded(tmp_path: Path) -> None:
+def test_reader_validation_preserves_iteration_and_supports_embedded(tmp_path: Path) -> None:
     path = write_file(tmp_path, record() + record("scan=2"), count=2)
     output = tmp_path / "indexed.mzML.gz"
     write_indexed_gzip(path, output)
     for source in (path, output):
         with Mzml(source, in_memory=False) as reader:
-            assert reader.spectra.next().id == "scan=1"
+            spectra = iter(reader.spectra)
+            assert next(spectra).id == "scan=1"
             assert reader.validate(decode_binary=True).valid
-            assert reader.spectra.next().id == "scan=2"
+            assert next(spectra).id == "scan=2"
 
 
 def test_cli_commands_and_exit_codes(tmp_path: Path, capsys) -> None:

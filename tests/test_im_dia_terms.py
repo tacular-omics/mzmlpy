@@ -47,7 +47,7 @@ def test_no_isolation_marker_present() -> None:
     window = IsolationWindow(element)
     assert window.no_isolation is True
     # A "no isolation" window carries no target/offsets.
-    assert window.target_mz is None
+    assert window.isolation_mz is None
 
 
 def test_no_isolation_false_for_normal_window() -> None:
@@ -57,7 +57,7 @@ def test_no_isolation_false_for_normal_window() -> None:
     )
     window = IsolationWindow(element)
     assert window.no_isolation is False
-    assert window.target_mz == 500.0
+    assert window.isolation_mz == 500.0
 
 
 # --- DIA merged-concept file-content terms (§3.3) ---

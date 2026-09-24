@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from ..errors import MzmlError
 from .dtree_wrapper import _ParamGroup
 
 
@@ -16,7 +17,7 @@ class ReferenceableParamGroup(_ParamGroup):
         """
         id = self.get_attribute("id")
         if id is None:
-            raise ValueError("ReferenceableParamGroup must have an 'id' attribute")
+            raise MzmlError("ReferenceableParamGroup must have an 'id' attribute")
         return id
 
     def __repr__(self) -> str:
@@ -24,3 +25,6 @@ class ReferenceableParamGroup(_ParamGroup):
 
     def __str__(self) -> str:
         return self.__repr__()
+
+
+__all__ = ["ReferenceableParamGroup"]

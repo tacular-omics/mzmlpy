@@ -21,12 +21,12 @@ def test_scan_settings(filename):
     assert len(settings.targets) == 2
 
     t1 = settings.targets[0]
-    param1 = t1.get_cvparm("MS:1000744")
+    param1 = t1.get_cv_param("MS:1000744")
     assert param1 is not None
     assert param1.value == "1000"
     assert param1.unit_name == "m/z"
 
     t2 = settings.targets[1]
-    param2 = t2.get_cvparm("MS:1000744")
+    param2 = t2.get_cv_param("MS:1000744")
     assert param2 is not None
     assert param2.value == "1200"

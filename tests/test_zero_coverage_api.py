@@ -1,15 +1,14 @@
 """Tests for public API surfaces flagged with zero coverage in a prior audit.
 
 Covers: `_ParamGroup.has_ref_param`/`get_ref_param`/`has_user_param`, `Contact` fields beyond
-`.name`, `SourceFile.checksum`/`.checksum_type`, `Mzml(extract_dir=...)`, `clear_cache()`, and
-`cv_int`'s non-integer error path.
+`.name`, `SourceFile.checksum`/`.checksum_type`, and `cv_int`'s non-integer error path.
 """
 
 from pathlib import Path
 
 import pytest
 
-from mzmlpy import Mzml, clear_cache
+from mzmlpy import Mzml
 
 EXAMPLE = "tests/data/example.mzML"
 
@@ -112,46 +111,6 @@ def test_source_file_checksums_differ_across_files() -> None:
         checksums = [sf.checksum for sf in fd.source_files if sf.checksum is not None]
         assert len(checksums) >= 2
         assert len(set(checksums)) == len(checksums)  # each source file's checksum is distinct
-
-
-# --------------------------------------------------------------------------------------------
-# Mzml(extract_dir=...)
-# --------------------------------------------------------------------------------------------
-
-
-def test_extract_dir_places_extracted_file_and_reads_correctly(tmp_path: Path) -> None:
-    with Mzml("tests/data/example.mzML.gz", gzip_mode="extract", in_memory=False, extract_dir=tmp_path) as reader:
-        extracted = Path(reader._file_object.file_handler.path)
-        assert extracted.parent == tmp_path
-        assert extracted.exists()
-        assert len(reader.spectra) == 4
-        assert reader.spectra[0].id == "scan=19"
-
-
-# --------------------------------------------------------------------------------------------
-# clear_cache()
-# --------------------------------------------------------------------------------------------
-
-
-def test_clear_cache_runs_without_error() -> None:
-    clear_cache()  # must not raise even if nothing has been cached yet
-
-
-def test_clear_cache_removes_default_gz_extraction() -> None:
-    """Extracting with the default (no extract_dir) cache location, then clearing it, must
-    remove the extracted file from the default temp cache directory."""
-    import tempfile
-
-    reader = Mzml("tests/data/example.mzML.gz", gzip_mode="extract", in_memory=False)
-    cached_path = Path(reader._file_object.file_handler.path)
-    reader.close()
-
-    assert str(cached_path).startswith(str(Path(tempfile.gettempdir()) / "mzmlpy"))
-    assert cached_path.exists()
-
-    clear_cache()
-
-    assert not cached_path.exists()
 
 
 # --------------------------------------------------------------------------------------------

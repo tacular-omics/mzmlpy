@@ -13,7 +13,7 @@ from re import Match
 from typing import Any, BinaryIO, Literal, Self, cast
 
 from .constants import MzMLElement
-from .content import CVElement, MzMLContentBuilder, _MzMLContent
+from .content import CVElement, _MzMLContent, _MzMLContentBuilder
 from .elems import (
     DataProcessing,
     FileDescription,
@@ -25,6 +25,7 @@ from .elems import (
     Software,
 )
 from .embedded_indexed_gzip import decompress_indexed_member, is_embedded_indexed_gzip, read_embedded_index
+from .errors import MzmlParseError, _parse_errors
 from .file_interface import AccessStrategy, FileInterface
 from .lookup import ChromatogramLookup, SpectrumLookup
 from .regex_patterns import FILE_ENCODING_PATTERN
@@ -95,17 +96,18 @@ def peek_spectrum_count(file: str | Path) -> int | None:
     is_gz = path_str.endswith(".gz") or path_str.endswith(".igz")
     file_handle = gzip_open_binary(path_str) if is_gz else open(path_str, "rb")
     try:
-        # Read the count off the spectrumList *start* tag, but clear completed elements on their
-        # *end* events so that a file with no spectrumList doesn't accumulate the whole tree in
-        # memory before returning None.
-        for event, element in ElementTree.iterparse(file_handle, events=("start", "end")):
-            if event == "start":
-                if get_tag(element) == MzMLElement.SPECTRUM_LIST:
-                    count = element.attrib.get("count")
-                    return int(count) if count is not None else None
-            else:
-                element.clear()
-        return None
+        with _parse_errors(path_str):
+            # Read the count off the spectrumList *start* tag, but clear completed elements on their
+            # *end* events so that a file with no spectrumList doesn't accumulate the whole tree in
+            # memory before returning None.
+            for event, element in ElementTree.iterparse(file_handle, events=("start", "end")):
+                if event == "start":
+                    if get_tag(element) == MzMLElement.SPECTRUM_LIST:
+                        count = element.attrib.get("count")
+                        return int(count) if count is not None else None
+                else:
+                    element.clear()
+            return None
     finally:
         file_handle.close()
 
@@ -134,22 +136,21 @@ class Mzml:
             automatically when ``in_memory=False``. They use their embedded index regardless of
             this setting.
 
-            - ``"auto"`` (default): Use an embedded index, a current extracted cache, or
-              complete rapidgzip sidecars in that order. Extract when none is available.
-            - ``"extract"``: Decompress to a temporary file on disk, then use
-              standard random-access reading.
+            - ``"auto"`` (default): Use the embedded index if the file has one. Otherwise use
+              ``rapidgzip`` if it is installed, reading current sidecar indexes if present and
+              otherwise indexing in memory. Otherwise decompress the whole file into memory.
+              Never writes files. For fast re-opens of large files, run
+              :func:`mzmlpy.write_indexed_gzip` once or open once with ``"indexed"``.
             - ``"indexed"``: Use the ``rapidgzip`` library for seekable access to the
-              compressed file without extracting to disk. Requires
-              ``pip install mzmlpy[rapidgzip]``.
+              compressed file without decompressing it all, saving sidecar indexes next to it
+              for fast re-opens. Requires ``pip install mzmlpy[rapidgzip]``.
             - ``"stream"``: Stream the file sequentially without building an index.
               Individual spectrum access re-scans the file from the beginning each time.
-        in_memory: Load the entire (decompressed) file into memory for faster access. Defaults to
-            ``True``; pass ``False`` for large files or to use ``gzip_mode``.
-        extract_dir: Directory to store extracted ``.mzML`` files when using
-            ``gzip_mode='extract'``. If ``None`` (default), a system temp directory
-            is used (``<tmpdir>/mzmlpy/``). Set this to a custom path to manage
-            extracted files yourself — useful for batch processing where you want
-            to extract all files to one directory and clean up afterward.
+
+            ``"extract"`` and ``extract_dir`` were removed in 0.10.
+        in_memory: Load the entire (decompressed) file into memory. Defaults to ``False``: plain
+            files are read from disk through their index and gzip files follow ``gzip_mode``.
+            Pass ``True`` to buffer a small file, or a gzip file you will read many times.
         spectrum_id_regex: Optional regex applied to spectrum IDs to create a secondary lookup
             key. The first capture group (or full match if no groups) becomes the simplified key.
             For example, ``r"scan=(\\d+)"`` lets you look up spectra by scan number
@@ -160,11 +161,11 @@ class Mzml:
 
     def __init__(
         self,
-        file: str | Path | Any,
+        file: str | Path | BinaryIO,
+        *,
         build_index_from_scratch: bool = False,
-        gzip_mode: Literal["auto", "extract", "indexed", "stream"] = "auto",
-        in_memory: bool = True,
-        extract_dir: str | Path | None = None,
+        gzip_mode: Literal["auto", "indexed", "stream"] = "auto",
+        in_memory: bool = False,
         spectrum_id_regex: str | None = None,
         chromatogram_id_regex: str | None = None,
     ) -> None:
@@ -196,46 +197,50 @@ class Mzml:
             self._encoding = _guess_encoding(file)
             file_interface_arg = file
 
+        source = str(self._path) if self._path is not None else "in-memory-stream"
         # Open file
-        self._file_object: FileInterface = FileInterface(
-            path=file_interface_arg,
-            encoding=self._encoding,
-            build_index_from_scratch=build_index_from_scratch,
-            gzip_mode=gzip_mode,
-            in_memory=in_memory,
-            extract_dir=str(extract_dir) if extract_dir is not None else None,
-        )
+        with _parse_errors(source):
+            self._file_object: FileInterface = FileInterface(
+                path=file_interface_arg,
+                encoding=self._encoding,
+                build_index_from_scratch=build_index_from_scratch,
+                gzip_mode=gzip_mode,
+                in_memory=in_memory,
+            )
 
         # Parse metadata. If parsing fails, close the file object so a half-constructed
-        # reader does not leak extracted temp files or rapidgzip worker threads — the caller
+        # reader does not leak file handles or rapidgzip worker threads — the caller
         # never receives the object, so it can never call close() itself.
         try:
-            self._root, self.iter, builder = self._parse_metadata()
+            with _parse_errors(source):
+                builder = self._parse_metadata()
             # Extract parsed content
             self._content: _MzMLContent = builder.build()
-            self.obo_version = builder.obo_version
+            self._obo_version: str | None = builder.obo_version
         except BaseException:
             self._file_object.close()
             raise
 
-    def _parse_metadata(
-        self,
-    ) -> tuple[ElementTree.Element, Iterator[tuple[str, ElementTree.Element]], MzMLContentBuilder]:
-        """Parse metadata and return root, iterator, and builder."""
+    def _parse_metadata(self) -> _MzMLContentBuilder:
+        """Parse the metadata sections into a content builder."""
         file_handle = self._file_object.file_handler.get_file_handler(self._encoding)
         try:
             mzml_iter: Iterator[tuple[str, ElementTree.Element]] = iter(
                 ElementTree.iterparse(file_handle, events=("end", "start"))
             )
 
+            # iterparse raises ParseError ("no element found") on input without a root element,
+            # which _parse_errors turns into MzmlParseError, so next() cannot hit StopIteration.
             _, root = next(mzml_iter)
+            if get_tag(root) not in ("mzML", "indexedmzML"):
+                raise MzmlParseError(f"Root element is <{get_tag(root)}>, not <mzML> or <indexedmzML>")
 
             # Build metadata
-            builder = MzMLContentBuilder()
+            builder = _MzMLContentBuilder()
             builder.parse_from_iterator(chain((("start", root),), mzml_iter))
 
             root.clear()
-            return root, mzml_iter, builder
+            return builder
         finally:
             # Metadata is fully extracted into the builder above, so this transient handle is
             # no longer needed. Closing it matters for gzip_mode="indexed", where the handle is a
@@ -244,7 +249,7 @@ class Mzml:
             file_handle.close()
 
     def validate(self, *, decode_binary: bool = False, check_index: bool = False) -> ValidationReport:
-        """Validate this reader's XML through a fresh handle, preserving its lookup cursor.
+        """Validate this reader's XML through a fresh handle.
 
         See :func:`mzmlpy.validate` for check scope. This checks the representation selected
         by the reader. Use the standalone function to validate the original file directly.
@@ -274,9 +279,8 @@ class Mzml:
     def spectra(self) -> SpectrumLookup:
         """Access spectra lookup.
 
-        Returns the same lookup instance across calls so its ``next()``/``reset()`` cursor and
-        regex ``_id_map`` persist — ``reader.spectra.next()`` in a loop advances instead of
-        restarting, and ID lookups don't re-scan the file on every access.
+        Returns the same lookup instance across calls, so the regex id map built for
+        ``spectrum_id_regex`` persists and id lookups don't re-scan the file on every access.
         """
         if self._spectra_lookup is None:
             self._spectra_lookup = SpectrumLookup(file_object=self._file_object, id_regex=self._spectrum_id_regex)
@@ -295,12 +299,17 @@ class Mzml:
         return self._chromatograms_lookup
 
     @property
-    def TIC(self) -> Chromatogram | None:
-        """Access the Total Ion Chromatogram (TIC)."""
-        try:
-            return self._file_object.TIC
-        except KeyError:
-            return None
+    def total_ion_chromatogram(self) -> Chromatogram | None:
+        """The total ion chromatogram, or None if the file has none.
+
+        Found by the id ``"TIC"`` or, failing that, by the MS:1000235 CV term.
+        """
+        return self._file_object.total_ion_chromatogram()
+
+    @property
+    def obo_version(self) -> str | None:
+        """Version of the PSI-MS controlled vocabulary declared in the ``cvList``."""
+        return self._obo_version
 
     def __enter__(self) -> Self:
         return self
@@ -333,8 +342,8 @@ class Mzml:
 
     @property
     def referenceable_param_groups(self) -> dict[str, ReferenceableParamGroup]:
-        """Access referenceable parameter groups."""
-        return self._content.referenceable_param_groups
+        """Access referenceable parameter groups (a new dict on every call)."""
+        return dict(self._content.referenceable_param_groups)
 
     @property
     def softwares(self) -> dict[str, Software]:
@@ -343,13 +352,13 @@ class Mzml:
 
     @property
     def instrument_configurations(self) -> dict[str, InstrumentConfiguration]:
-        """Access instrument configurations."""
-        return self._content.instrument_configurations
+        """Access instrument configurations (a new dict on every call)."""
+        return dict(self._content.instrument_configurations)
 
     @property
     def data_processes(self) -> dict[str, DataProcessing]:
-        """Access data processing steps."""
-        return self._content.data_processes
+        """Access data processing steps (a new dict on every call)."""
+        return dict(self._content.data_processes)
 
     @property
     def samples(self) -> dict[str, Sample]:
@@ -358,10 +367,13 @@ class Mzml:
 
     @property
     def scan_settings(self) -> dict[str, ScanSetting]:
-        """Access scan settings."""
-        return self._content.scan_settings
+        """Access scan settings (a new dict on every call)."""
+        return dict(self._content.scan_settings)
 
     @property
     def run(self) -> Run | None:
         """Access run information."""
         return self._content.run
+
+
+__all__ = ["Mzml", "peek_spectrum_count"]

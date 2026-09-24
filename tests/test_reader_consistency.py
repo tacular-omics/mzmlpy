@@ -1,10 +1,8 @@
 """Regression coverage for equivalent documents and independent storage backends."""
 
 import gzip
-import os
 import re
 import tracemalloc
-from contextlib import ExitStack
 from pathlib import Path
 
 import pytest
@@ -12,7 +10,7 @@ import pytest
 from mzmlpy import Mzml, write_indexed_gzip
 from mzmlpy.util import atomic_write_path
 
-MODES = ["memory", "plain", "extract", "stream", "embedded", "indexed"]
+MODES = ["memory", "plain", "auto", "stream", "embedded", "indexed"]
 
 
 def document(identifier: str = "scan=1", count: int = 1, payload: str = "", chromatograms: bool = True) -> bytes:
@@ -46,7 +44,7 @@ def open_mode(path: Path, mode: str) -> Mzml:
     if mode == "indexed":
         pytest.importorskip("rapidgzip")
     output.write_bytes(gzip.compress(path.read_bytes(), mtime=0))
-    return Mzml(output, in_memory=False, gzip_mode=mode, extract_dir=path.parent / "cache")
+    return Mzml(output, in_memory=False, gzip_mode=mode)
 
 
 @pytest.mark.filterwarnings("ignore:Random access on gzip_mode='stream'")
@@ -84,7 +82,7 @@ def test_xml_variants_agree_on_counts_and_lookup(tmp_path: Path, mode: str, vari
         assert reader.spectra[0].id == reader.spectra["scan=1"].id == spectra[0].id
         assert reader.spectra[-1].id == "scan=1"
         assert len(reader.chromatograms) == 1
-        assert reader.chromatograms[0].id == reader.TIC.id == "tic"
+        assert reader.chromatograms[0].id == reader.total_ion_chromatogram.id == "tic"
         for lookup in (reader.spectra, reader.chromatograms):
             for index in (-2, 1):
                 with pytest.raises(IndexError):
@@ -122,26 +120,7 @@ def test_embedded_absent_record_kinds(tmp_path: Path, count: int, chromatograms:
     with open_mode(path, "embedded") as reader:
         assert len(reader.spectra) == len(list(reader.spectra)) == count
         assert len(reader.chromatograms) == len(list(reader.chromatograms)) == int(chromatograms)
-        assert (reader.TIC is not None) == chromatograms
-
-
-def test_shared_extraction_cache_preserves_both_sources(tmp_path: Path) -> None:
-    paths = []
-    for name, identifier in [("a", "scan=1"), ("b", "scan=2")]:
-        directory = tmp_path / name
-        directory.mkdir()
-        path = directory / "sample.mzML.gz"
-        path.write_bytes(gzip.compress(document(identifier), compresslevel=0, mtime=0))
-        os.utime(path, ns=(1700000000000000000, 1700000000000000000))
-        paths.append(path)
-    assert paths[0].stat().st_size == paths[1].stat().st_size
-    with ExitStack() as stack:
-        readers = [stack.enter_context(Mzml(p, in_memory=False, extract_dir=tmp_path / "cache")) for p in paths]
-        assert [r.spectra[0].id for r in readers] == ["scan=1", "scan=2"]
-        paths[0].write_bytes(gzip.compress(document("scan=3"), compresslevel=0, mtime=0))
-        with Mzml(paths[0], in_memory=False, extract_dir=tmp_path / "cache") as updated:
-            assert updated.spectra[0].id == "scan=3"
-            assert readers[0].spectra[0].id == "scan=1"
+        assert (reader.total_ion_chromatogram is not None) == chromatograms
 
 
 def test_overlapping_atomic_writes_have_independent_temporaries(tmp_path: Path) -> None:
@@ -156,7 +135,7 @@ def test_overlapping_atomic_writes_have_independent_temporaries(tmp_path: Path) 
     assert sorted(tmp_path.iterdir()) == [destination]
 
 
-@pytest.mark.parametrize("mode", ["plain", "memory", "stream", "extract"])
+@pytest.mark.parametrize("mode", ["plain", "memory", "stream", "auto"])
 def test_reading_chromatograms_does_not_retain_spectra(tmp_path: Path, mode: str) -> None:
     path = tmp_path / "large.mzML"
     path.write_bytes(document(count=1000, payload="A" * 20000))
@@ -176,13 +155,14 @@ def test_cold_open_has_bounded_python_memory(tmp_path: Path, compressed: bool) -
     path = tmp_path / "cold.mzML"
     data = document(count=1000, payload="A" * 20000)
     if compressed:
+        pytest.importorskip("rapidgzip")  # without it, auto decompresses into memory
         path = path.with_suffix(".mzML.gz")
         data = gzip.compress(data)
     path.write_bytes(data)
     del data
     tracemalloc.start()
     try:
-        with Mzml(path, in_memory=False, extract_dir=tmp_path / "cache") as reader:
+        with Mzml(path, in_memory=False) as reader:
             assert len(reader.spectra) == 1000
             _, peak = tracemalloc.get_traced_memory()
     finally:

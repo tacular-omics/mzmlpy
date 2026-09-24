@@ -67,3 +67,6 @@ class ReferenceableParamGroupRef:
     """A reference to a referenceable parameter group by its id string."""
 
     ref: str
+
+
+__all__ = ["CvParam", "ReferenceableParamGroupRef", "UserParam"]

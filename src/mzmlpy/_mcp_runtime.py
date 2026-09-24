@@ -12,6 +12,7 @@ from typing import Any, Literal
 from uuid import uuid4
 
 from ._progress import _progress
+from .errors import MzmlError
 
 
 class OperationCancelled(RuntimeError):
@@ -72,11 +73,11 @@ class JobManager:
     def submit(self, operation: str, work: Callable[[], Any]) -> JobStatus:
         with self._lock:
             if self._closed:
-                raise ValueError("The job manager is closed")
+                raise MzmlError("The job manager is closed")
             now = time.monotonic()
             self._expire(now)
             if len(self._jobs) >= 8:
-                raise ValueError("Eight jobs are retained. Release a finished job before starting another")
+                raise MzmlError("Eight jobs are retained. Release a finished job before starting another")
             identifier = uuid4().hex
             entry = {
                 "job_id": identifier,
@@ -117,7 +118,7 @@ class JobManager:
                 result = asdict(result)
             payload = json.dumps(result, allow_nan=False)
             if len(payload.encode()) > 262_144:
-                raise ValueError("Job result exceeds 256 KiB")
+                raise MzmlError("Job result exceeds 256 KiB")
             with self._lock:
                 # Export publication is the commit point. Do not discard an artifact result
                 # after a completed write just because a late cancellation arrived.
@@ -140,7 +141,7 @@ class JobManager:
         with self._lock:
             self._expire(time.monotonic())
             if job_id not in self._jobs:
-                raise ValueError("Unknown or expired job ID")
+                raise MzmlError("Unknown or expired job ID")
             return self._snapshot(self._jobs[job_id])
 
     def cancel(self, job_id: str) -> JobStatus:
@@ -156,7 +157,7 @@ class JobManager:
         with self._lock:
             status = self.get(job_id)
             if status.status in {"queued", "running"}:
-                raise ValueError("Cancel the job and wait for it to finish before releasing it")
+                raise MzmlError("Cancel the job and wait for it to finish before releasing it")
             del self._jobs[job_id]
             return {"released": True}
 

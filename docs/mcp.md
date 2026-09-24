@@ -24,7 +24,7 @@ python -m mzmlpy mcp --root /absolute/path/to/data --output-dir /absolute/path/t
 
 The server exposes 17 tools by default and two additional export tools with `--output-dir`.
 It uses local stdio, with no network listener. Source files are never modified, and the server
-does not create extracted caches or sidecar indexes.
+does not create sidecar indexes or other files.
 
 ## Client configuration
 
@@ -114,7 +114,8 @@ Mobility bounds require `mobility_type="inverse_reduced"` or `"drift_time"` and 
 scan quantity in its declared units. The server does not convert drift time to inverse reduced
 mobility. Check the scan's CV terms and units before choosing bounds. FAIMS voltage bounds
 are signed volts. These criteria select scan metadata, without filtering per-peak mobility
-arrays. They are also available through `SpectrumFilter` and `reader.spectra.filter()`.
+arrays. In Python the same selection is `ook0_range` or `drift_time_range` on `SpectrumFilter`
+and `reader.spectra.filter()`.
 
 File results retain the `file`, `revision`, and `data` envelope, with tool-specific output
 schemas. Pass the returned `revision` as `expected_revision` when continuing a file query.

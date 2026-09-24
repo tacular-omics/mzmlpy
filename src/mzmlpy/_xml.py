@@ -7,21 +7,32 @@ from typing import BinaryIO, TextIO, cast
 from xml.etree import ElementTree as ET
 from xml.sax.saxutils import quoteattr
 
+from .errors import MzmlParseError
 from .util import get_tag
+
+_RECORD_TAGS = frozenset({"spectrum", "chromatogram"})
 
 
 def iter_records(handle: TextIO, kind: str | None = None) -> Iterator[ET.Element]:
     """Yield intact records and detach both record kinds to bound parser memory."""
     parents: list[ET.Element] = []
+    # Qualified tag -> local record name (or None), so each end event costs one dict lookup.
+    record_kind: dict[str, str | None] = {}
+    push, pop = parents.append, parents.pop
     for event, element in ET.iterparse(handle, events=("start", "end")):
         if event == "start":
-            parents.append(element)
+            push(element)
             continue
-        parents.pop()
-        tag = get_tag(element)
-        if tag not in {"spectrum", "chromatogram"}:
+        pop()
+        tag = element.tag
+        try:
+            local = record_kind[tag]
+        except KeyError:
+            name = get_tag(element)
+            local = record_kind[tag] = name if name in _RECORD_TAGS else None
+        if local is None:
             continue
-        if kind is None or tag == kind:
+        if kind is None or local == kind:
             yield element
         if parents:
             parents[-1].remove(element)
@@ -51,7 +62,7 @@ def read_fragment(handle: BinaryIO, encoding: str, namespaces: dict[str, str]) -
                 return element
         if not chunk:
             break
-    raise ValueError("Could not find end of XML element (file may be truncated)")
+    raise MzmlParseError("Could not find end of XML element (file may be truncated)")
 
 
 def read_header(
@@ -91,5 +102,5 @@ def read_header(
             if parents and get_tag(item) in {"spectrum", "chromatogram"}:
                 parents[-1].remove(item)
     if target is not None:
-        raise ValueError(f"Record {target!r} was not found while resolving namespaces")
+        raise MzmlParseError(f"Record {target!r} was not found while resolving namespaces")
     return namespaces, count

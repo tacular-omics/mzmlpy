@@ -4,8 +4,9 @@
     options:
       members:
         - ScanPolarity
-        - SpectrumType
+        - SpectrumTypeAccession
         - BinaryDataArrayAccession
-        - CompressionTypeAccessions
+        - CompressionTypeAccession
+        - ChromatogramTypeAccession
+        - CollisionDissociationTypeAccession
         - ION_MOBILITIES
-        - PROTON_MASS

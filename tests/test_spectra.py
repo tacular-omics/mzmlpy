@@ -38,26 +38,26 @@ def test_spectra(filename):
     # (CommonMS1SpectrumParams); it must be resolved from the referenced group.
     assert s1.polarity == "positive"
     assert s1.spectrum_type == "centroid"
-    assert s1.TIC == 16675500.0
+    assert s1.total_ion_current == 16675500.0
 
     # Check Scan List
     assert len(s1.scans) == 1
     scan = s1.scans[0]
-    assert scan.scan_start_time.total_seconds() == 5.8905 * 60  # minutes to seconds
+    assert scan.rt == 5.8905 * 60  # minutes to seconds
+    assert scan.mz_range == (400.0, 1800.0)
     assert len(scan.scan_windows) == 1
     assert scan.scan_windows[0].lower_mz == 400.0
     assert scan.scan_windows[0].upper_mz == 1800.0
 
     # Check spectrum-level scan delegation (via _ScanListMixin)
-    assert s1.scan_start_time.total_seconds() == 5.8905 * 60
+    assert s1.rt == 5.8905 * 60
     assert s1.ion_injection_time is None
-    assert s1.lower_mz == 400.0
-    assert s1.upper_mz == 1800.0
+    assert s1.mz_range == (400.0, 1800.0)
 
     # Check new binary array properties (no IM or charge data in test file)
     assert s1.has_im is False
     assert s1.im_types == set()
-    assert s1.charge is None
+    assert s1.charge_array is None
 
     # Check Binary Data
     assert s1.mz is not None
@@ -77,20 +77,20 @@ def test_spectra(filename):
     assert precursor.spectrum_ref == "scan=19"
 
     # Isolation Window
-    assert precursor.isolation_window.target_mz == 445.3
+    assert precursor.isolation_window.isolation_mz == 445.3
     assert precursor.isolation_window.lower_offset == 0.5
     assert precursor.isolation_window.upper_offset == 0.5
 
     # Selected Ion
     assert len(precursor.selected_ions) == 1
     sel_ion = precursor.selected_ions[0]
-    assert sel_ion.selected_ion_mz == 445.34
-    assert sel_ion.peak_intensity == 120053.0
-    assert sel_ion.charge_state == 2
+    assert sel_ion.mz == 445.34
+    assert sel_ion.intensity == 120053.0
+    assert sel_ion.charge == 2
 
     # Activation
-    assert precursor.activation.ce == 35.0
-    assert precursor.activation.get_cvparm("MS:1000133") is not None  # CID
+    assert precursor.activation.collision_energy == 35.0
+    assert precursor.activation.get_cv_param("MS:1000133") is not None  # CID
 
     # Spectrum 2 - No binary data
     s3 = reader.spectra[2]

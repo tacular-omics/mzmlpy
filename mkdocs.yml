@@ -41,6 +41,7 @@ nav:
   - Guides:
     - MCP server: mcp.md
     - Benchmarks: benchmarks.md
+    - Migrating to 0.10: migration.md
   - API reference:
     - Mzml reader: api/mzml.md
     - Spectrum: api/spectrum.md
@@ -55,6 +56,7 @@ nav:
     - Metadata: api/metadata.md
     - CV parameters: api/params.md
     - Constants: api/constants.md
+    - Errors: api/errors.md
   - Changelog: https://github.com/tacular-omics/mzmlpy/blob/main/CHANGELOG.md
   - Citation: citation.md
 

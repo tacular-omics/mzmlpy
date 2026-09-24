@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import BinaryIO
 from xml.parsers import expat
 
+from .errors import MzmlError, MzmlOffsetIndexError, MzmlParseError
 from .util import atomic_write_path
 
 _GZIP_MAGIC = b"\x1f\x8b"
@@ -64,11 +65,11 @@ def _read_c_string(file_handler: BinaryIO, limit: int | None = None) -> bytes:
     while limit is None or len(value) <= limit:
         byte = file_handler.read(1)
         if not byte:
-            raise ValueError("Truncated gzip header")
+            raise MzmlOffsetIndexError("Truncated gzip header")
         if byte == b"\x00":
             return bytes(value)
         value.extend(byte)
-    raise ValueError("Gzip header field exceeds the supported size")
+    raise MzmlOffsetIndexError("Gzip header field exceeds the supported size")
 
 
 def _seek_comment(file_handler: BinaryIO) -> bool:
@@ -77,14 +78,14 @@ def _seek_comment(file_handler: BinaryIO) -> bool:
         return False
     flags = header[3]
     if flags & _RESERVED_FLAGS:
-        raise ValueError("Gzip header uses reserved flags")
+        raise MzmlOffsetIndexError("Gzip header uses reserved flags")
     if flags & _FEXTRA:
         raw_length = file_handler.read(2)
         if len(raw_length) != 2:
-            raise ValueError("Truncated gzip extra-field length")
+            raise MzmlOffsetIndexError("Truncated gzip extra-field length")
         extra_length = struct.unpack("<H", raw_length)[0]
         if len(file_handler.read(extra_length)) != extra_length:
-            raise ValueError("Truncated gzip extra field")
+            raise MzmlOffsetIndexError("Truncated gzip extra field")
     if flags & _FNAME:
         _read_c_string(file_handler, limit=1024 * 1024)
     return bool(flags & _FCOMMENT)
@@ -106,15 +107,15 @@ def read_embedded_index(path: str | Path) -> list[EmbeddedIndexEntry]:
     file_size = os.path.getsize(path)
     with open(path, "rb") as file_handler:
         if not _seek_comment(file_handler):
-            raise ValueError("Gzip file has no embedded index comment")
+            raise MzmlOffsetIndexError("Gzip file has no embedded index comment")
         if file_handler.read(3) != _FORMAT_MARKER:
-            raise ValueError("Gzip comment is not an FU version 1 index")
+            raise MzmlOffsetIndexError("Gzip comment is not an FU version 1 index")
         widths = file_handler.read(2)
         if len(widths) != 2:
-            raise ValueError("Truncated embedded index widths")
+            raise MzmlOffsetIndexError("Truncated embedded index widths")
         identifier_width, offset_width = widths
         if identifier_width == 0 or offset_width == 0:
-            raise ValueError("Embedded index widths must be positive")
+            raise MzmlOffsetIndexError("Embedded index widths must be positive")
 
         entries: list[EmbeddedIndexEntry] = []
         seen: set[str] = set()
@@ -122,13 +123,13 @@ def read_embedded_index(path: str | Path) -> list[EmbeddedIndexEntry]:
         while True:
             first = file_handler.read(1)
             if not first:
-                raise ValueError("Embedded index comment has no terminator")
+                raise MzmlOffsetIndexError("Embedded index comment has no terminator")
             if first == b"\x00":
                 break
             raw_identifier = first + file_handler.read(identifier_width - 1)
             raw_offset = file_handler.read(offset_width)
             if len(raw_identifier) != identifier_width or len(raw_offset) != offset_width:
-                raise ValueError("Truncated embedded index entry")
+                raise MzmlOffsetIndexError("Truncated embedded index entry")
             if raw_identifier == b"\x01" * identifier_width:
                 break
             try:
@@ -141,21 +142,21 @@ def read_embedded_index(path: str | Path) -> list[EmbeddedIndexEntry]:
             except ValueError as error:
                 if raw_offset == b"\x01" * offset_width:
                     break
-                raise ValueError("Embedded index contains an invalid offset") from error
+                raise MzmlOffsetIndexError("Embedded index contains an invalid offset") from error
             if not identifier:
-                raise ValueError("Embedded index contains an empty identifier")
+                raise MzmlOffsetIndexError("Embedded index contains an empty identifier")
             if identifier in seen:
-                raise ValueError(f"Duplicate embedded index identifier: {identifier}")
+                raise MzmlOffsetIndexError(f"Duplicate embedded index identifier: {identifier}")
             if not 0 < offset < file_size:
-                raise ValueError(f"Embedded index offset is outside the file: {offset}")
+                raise MzmlOffsetIndexError(f"Embedded index offset is outside the file: {offset}")
             if offset < previous_offset:
-                raise ValueError("Embedded index offsets are not ordered")
+                raise MzmlOffsetIndexError("Embedded index offsets are not ordered")
             seen.add(identifier)
             entries.append(EmbeddedIndexEntry(identifier, offset))
             previous_offset = offset
 
     if not entries:
-        raise ValueError("Embedded index contains no entries")
+        raise MzmlOffsetIndexError("Embedded index contains no entries")
     return entries
 
 
@@ -168,23 +169,23 @@ def decompress_indexed_member(path: str | Path, offset: int) -> bytes:
         while not decompressor.eof:
             chunk = file_handler.read(_CHUNK_SIZE)
             if not chunk:
-                raise ValueError(f"Truncated deflate stream at offset {offset}")
+                raise MzmlParseError(f"Truncated deflate stream at offset {offset}")
             try:
                 output.extend(decompressor.decompress(chunk))
             except zlib.error as error:
-                raise ValueError(f"Invalid deflate stream at offset {offset}") from error
+                raise MzmlParseError(f"Invalid deflate stream at offset {offset}") from error
 
         trailer_position = file_handler.tell() - len(decompressor.unused_data)
         file_handler.seek(trailer_position)
         raw_trailer = file_handler.read(_TRAILER.size)
         if len(raw_trailer) != _TRAILER.size:
-            raise ValueError(f"Truncated gzip trailer at offset {offset}")
+            raise MzmlParseError(f"Truncated gzip trailer at offset {offset}")
         expected_crc, expected_size = _TRAILER.unpack(raw_trailer)
 
     actual_crc = zlib.crc32(output) & 0xFFFFFFFF
     actual_size = len(output) & 0xFFFFFFFF
     if actual_crc != expected_crc or actual_size != expected_size:
-        raise ValueError(f"Gzip member checksum failed at offset {offset}")
+        raise MzmlParseError(f"Gzip member checksum failed at offset {offset}")
     return bytes(output)
 
 
@@ -227,9 +228,9 @@ def _iter_blocks(file_handler: BinaryIO) -> Iterator[_Block]:
         kind = name.rsplit("}", 1)[-1]
         if kind in positions:
             if active is not None:
-                raise ValueError("Nested spectrum or chromatogram elements are not supported")
+                raise MzmlParseError("Nested spectrum or chromatogram elements are not supported")
             if "id" not in attributes:
-                raise ValueError(f"{kind} element has no id attribute")
+                raise MzmlParseError(f"{kind} element has no id attribute")
             active = kind, attributes["id"], parser.CurrentByteIndex
 
     def on_end(name: str) -> None:
@@ -253,7 +254,7 @@ def _iter_blocks(file_handler: BinaryIO) -> Iterator[_Block]:
         try:
             parser.Parse(chunk, not chunk)
         except expat.ExpatError as error:
-            raise ValueError(f"Invalid or unclosed mzML input: {error}") from error
+            raise MzmlParseError(f"Invalid or unclosed mzML input: {error}") from error
         consumed = 0
         for kind, identifier, start, end in records:
             prefix = bytes(buffer[consumed : start - buffer_offset])
@@ -326,10 +327,10 @@ def write_indexed_gzip(
     the index can be sized before the output header is written.
     """
     if not -1 <= compression_level <= 9:
-        raise ValueError("compression_level must be between -1 and 9")
+        raise MzmlError("compression_level must be between -1 and 9")
     output_path = str(output)
     if not output_path.lower().endswith((".gz", ".igz")):
-        raise ValueError("output path must end in .gz or .igz")
+        raise MzmlError("output path must end in .gz or .igz")
 
     with _decompressed_source(source) as plain_path:
         blocks: list[tuple[str, ...]] = []
@@ -341,10 +342,10 @@ def write_indexed_gzip(
                 aliases = []
                 for alias in _aliases(block):
                     if "\x00" in alias:
-                        raise ValueError("Embedded index identifiers cannot contain a null byte")
+                        raise MzmlOffsetIndexError("Embedded index identifiers cannot contain a null byte")
                     if alias in seen_aliases:
                         if alias.startswith(("s:", "c:", "si:", "ci:")):
-                            raise ValueError(f"Duplicate mzML identifier in input: {block.identifier}")
+                            raise MzmlError(f"Duplicate mzML identifier in input: {block.identifier}")
                         continue
                     seen_aliases.add(alias)
                     aliases.append(alias)
@@ -356,9 +357,9 @@ def write_indexed_gzip(
         identifier_width = max((len(alias) for alias in encoded_aliases), default=1)
         offset_width = 20
         if identifier_width > 255:
-            raise ValueError("Embedded index identifiers cannot exceed 255 UTF-8 bytes")
+            raise MzmlOffsetIndexError("Embedded index identifiers cannot exceed 255 UTF-8 bytes")
         if len(encoded_aliases) > 10_000_000:
-            raise ValueError("Embedded index contains too many entries")
+            raise MzmlOffsetIndexError("Embedded index contains too many entries")
 
         comment_size = 5 + len(encoded_aliases) * (identifier_width + offset_width)
         comment = bytearray(_FORMAT_MARKER + bytes((identifier_width, offset_width)))
@@ -382,7 +383,7 @@ def write_indexed_gzip(
                 raw_identifier = entry.identifier.encode("utf-8")
                 raw_offset = str(entry.offset).encode("ascii")
                 if len(raw_offset) > offset_width:
-                    raise ValueError("Compressed offset exceeds embedded index width")
+                    raise MzmlOffsetIndexError("Compressed offset exceeds embedded index width")
                 output_handler.write(raw_identifier.rjust(identifier_width, _PAD))
                 output_handler.write(raw_offset.rjust(offset_width, _PAD))
             output_handler.flush()

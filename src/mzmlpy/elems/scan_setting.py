@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from ..constants import MzMLElement, SelectedIonAccession
+from ..errors import MzmlError
 from .dtree_wrapper import _ParamGroup
 
 
@@ -36,7 +37,7 @@ class ScanSetting(_ParamGroup):
         """
         id = self.get_attribute("id")
         if id is None:
-            raise ValueError("ScanSetting ID is missing")
+            raise MzmlError("ScanSetting ID is missing")
         return id
 
     @property
@@ -64,3 +65,6 @@ class ScanSetting(_ParamGroup):
 
     def __str__(self) -> str:
         return self.__repr__()
+
+
+__all__ = ["ScanSetting", "SourceFileRef", "Target"]

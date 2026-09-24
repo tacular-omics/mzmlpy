@@ -1,5 +1,14 @@
 __version__ = "0.9.3"
 
+from .constants import (
+    BinaryDataArrayAccession,
+    BinaryDataTypeAccession,
+    ChromatogramTypeAccession,
+    CollisionDissociationTypeAccession,
+    CompressionTypeAccession,
+    DIAAcquisitionAccession,
+    SpectrumCombinationAccession,
+)
 from .content import CVElement
 from .elems import (
     AnalyzerComponent,
@@ -29,6 +38,13 @@ from .embedded_indexed_gzip import (
     is_embedded_indexed_gzip,
     write_indexed_gzip,
 )
+from .errors import (
+    MzmlDecodeError,
+    MzmlError,
+    MzmlOffsetIndexError,
+    MzmlParseError,
+    MzmlRecordNotFoundError,
+)
 from .file_interface import AccessStrategy
 from .filtering import SpectrumFilter
 from .lookup import ChromatogramLookup, SpectrumLookup
@@ -45,7 +61,6 @@ from .spectra import (
     SelectedIon,
     Spectrum,
 )
-from .util import clear_cache
 from .validation import ValidationIssue, ValidationReport, validate
 
 __all__ = [
@@ -56,7 +71,6 @@ __all__ = [
     "SpectrumFilter",
     "Mzml",
     "peek_spectrum_count",
-    "clear_cache",
     "write_indexed_gzip",
     "index_gzip",
     "is_embedded_indexed_gzip",
@@ -95,4 +109,16 @@ __all__ = [
     "Precursor",
     "Product",
     "CVElement",
+    "MzmlError",
+    "MzmlParseError",
+    "MzmlOffsetIndexError",
+    "MzmlDecodeError",
+    "MzmlRecordNotFoundError",
+    "BinaryDataArrayAccession",
+    "BinaryDataTypeAccession",
+    "ChromatogramTypeAccession",
+    "CollisionDissociationTypeAccession",
+    "CompressionTypeAccession",
+    "DIAAcquisitionAccession",
+    "SpectrumCombinationAccession",
 ]

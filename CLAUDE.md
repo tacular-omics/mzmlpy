@@ -4,7 +4,7 @@
 
 **mzmlpy** is a lightweight Python library (3.12+) for reading mzML mass spectrometry files.
 It exposes a type-safe, lazy-loading API for spectra, chromatograms and file metadata, reads
-`.mzML.gz` directly (extract, rapidgzip-indexed, streamed, or pyMZML-style self-indexed gzip),
+`.mzML.gz` directly (pyMZML-style self-indexed gzip, rapidgzip-indexed, in memory, or streamed),
 validates file structure, and ships an optional local MCP server. The only runtime dependency is
 `numpy`.
 
@@ -57,15 +57,15 @@ src/mzmlpy/
 ├── __main__.py             # python -m mzmlpy: inspect / validate / index-gzip / mcp
 ├── run.py                  # Mzml reader (context manager, eager header metadata, lazy records) + peek_spectrum_count
 ├── file_interface.py       # FileInterface + AccessStrategy: picks a file_classes backend, exposes ids/counts
-├── lookup.py               # BaseLookup -> SpectrumLookup / ChromatogramLookup: index, id, slice, iter, filter, cursor
+├── lookup.py               # BaseLookup -> SpectrumLookup / ChromatogramLookup: index, id, slice, iter, filter
 ├── spectra.py              # Spectrum, Chromatogram, BinaryDataArray, Scan, Precursor, ... + the mixins
 ├── filtering.py            # SpectrumFilter: metadata-only predicates (never decodes arrays)
 ├── validation.py           # validate(), ValidationIssue, ValidationReport (streaming structural checks)
 ├── embedded_indexed_gzip.py# read/write pyMZML-compatible self-indexed gzip (write_indexed_gzip, index_gzip alias)
 ├── decoder.py              # MSDecoder: zlib / zstd / MS-Numpress decoding (excluded from ty)
 ├── constants.py            # all CV accessions as StrEnums + ION_MOBILITIES
-├── content.py              # CVElement, MzMLContentBuilder (header parsing)
-├── util.py                 # gzip helpers, atomic cache writes, cache signatures, clear_cache (excluded from ty)
+├── content.py              # CVElement, _MzMLContentBuilder (header parsing)
+├── util.py                 # gzip helpers, atomic cache writes, cache signatures (excluded from ty)
 ├── _xml.py                 # streaming record / fragment / header helpers shared by backends
 ├── regex_patterns.py       # byte regexes for encoding and index sniffing
 ├── _progress.py            # internal cooperative checkpoints (used by validation and MCP jobs)
@@ -86,7 +86,7 @@ src/mzmlpy/
 ```
 
 Data flow: `Mzml(path)` sniffs encoding, `FileInterface` selects a backend (reported as
-`reader.access_strategy`: `memory`, `plain`, `embedded`, `extracted`, `rapidgzip`, `stream`),
+`reader.access_strategy`: `memory`, `plain`, `embedded`, `rapidgzip`, `stream`),
 header metadata is parsed eagerly, and `reader.spectra[...]` fetches one XML record through the
 backend and wraps it in a `Spectrum`. Properties parse CV params on access; binary arrays decode on
 every access.
@@ -98,7 +98,7 @@ every access.
   `_PrecursorListMixin`, `_ProductListMixin`; never duplicate logic across them.
 - **Lazy binary decoding**: `BinaryDataArray.data` (and so `spectrum.mz`) decodes on every call, not cached.
 - **XML namespaced lookups**: every `element.find()` uses the `self.ns` prefix (e.g. `f"./{self.ns}scanList"`).
-- **Warnings over exceptions** for ambiguous multi-scan/multi-window cases (e.g. `lower_mz` with several scans).
+- **Warnings over exceptions** for ambiguous multi-scan/multi-window cases (e.g. `rt` or `mz_range` with several scans).
 - **ID regex mapping**: `SpectrumLookup`/`ChromatogramLookup` take `id_regex` and lazily build a
   secondary `{extracted -> full_id}` map; passed via `Mzml(spectrum_id_regex=..., chromatogram_id_regex=...)`.
 - **MzmlInterface protocol**: `file_classes/interface.py` is the contract; `FileInterface` delegates to the active backend.
@@ -107,7 +107,7 @@ every access.
 
 Everything below is in `mzmlpy.__all__` (checked by importing it):
 
-- **Reader**: `Mzml`, `peek_spectrum_count`, `AccessStrategy`, `SpectrumLookup`, `ChromatogramLookup`, `clear_cache`.
+- **Reader**: `Mzml`, `peek_spectrum_count`, `AccessStrategy`, `SpectrumLookup`, `ChromatogramLookup`.
 - **Records**: `Spectrum`, `Chromatogram`, `BinaryDataArray`, `Scan`, `ScanWindow`, `Precursor`,
   `Product`, `IsolationWindow`, `SelectedIon`, `Activation`.
 - **Header metadata**: `FileDescription`, `FileContent`, `SourceFile`, `Contact`,
@@ -115,8 +115,13 @@ Everything below is in `mzmlpy.__all__` (checked by importing it):
   `Software`, `Sample`, `Run`, `DataProcessing`, `ProcessingMethod`, `ScanSetting`, `Target`,
   `SourceFileRef`, `ReferenceableParamGroup`, `ReferenceableParamGroupRef`, `CvParam`, `UserParam`, `CVElement`.
 - **Selection and validation**: `SpectrumFilter`, `validate`, `ValidationReport`, `ValidationIssue`.
+- **Errors** (`errors.py`): `MzmlError(ValueError)`, `MzmlParseError`, `MzmlOffsetIndexError`,
+  `MzmlDecodeError`, `MzmlRecordNotFoundError(MzmlError, KeyError)`. Raise these, not bare `ValueError`/`KeyError`.
+- **Accession enums used in return types**: `BinaryDataArrayAccession`, `BinaryDataTypeAccession`,
+  `ChromatogramTypeAccession`, `CollisionDissociationTypeAccession`, `CompressionTypeAccession`,
+  `DIAAcquisitionAccession`, `SpectrumCombinationAccession`.
 - **Self-indexed gzip**: `write_indexed_gzip` (alias `index_gzip`), `is_embedded_indexed_gzip`, `IndexedGzipWriteResult`.
-- **Not in `__all__`**: `mzmlpy.constants` (CV accession StrEnums), `mzmlpy.mcp.create_server` / `MzmlTools`.
+- **Not in `__all__`**: the rest of `mzmlpy.constants` (CV accession StrEnums), `mzmlpy.mcp.create_server` / `MzmlTools`.
 
 Full signatures and examples: `llms-full.txt`.
 
@@ -128,7 +133,7 @@ Full signatures and examples: `llms-full.txt`.
   `inherited_members: true` (mixin members appear on class pages), `merge_init_into_class: true`.
 - `StrEnum` for all CV accessions: never hardcode an accession string outside `constants.py`.
 - `Literal[...]` return types for known-set values (`polarity`, `spectrum_type`, `chromatogram_type`).
-- Absent CV terms return `None` (or `[]` for lists); ambiguous cases warn and return the first value.
+- Absent CV terms return `None` (or `()` for sequences); ambiguous cases warn and return the first value.
 - Runtime deps: `numpy>=1.26.0` only. Extras: `numpress` (`pynumpress>=0.1.5`), `zstd`,
   `rapidgzip` (for `gzip_mode="indexed"`), `mcp` (`mcp>=2.1.1,<3`). Extras import lazily; the
   base install must work without them.
@@ -143,7 +148,7 @@ Full signatures and examples: `llms-full.txt`.
 
 - `validate(path)` does structural checks by default; `decode_binary=True` and `check_index=True`
   enable the expensive checks explicitly. `reader.validate(...)` uses a fresh handle and does not
-  move the lookup cursor.
+  disturb open iterators.
 - `reader.spectra.filter(...)` / `SpectrumFilter` return a lazy iterator and never request binary
   arrays. Retention-time bounds are in seconds, inclusive, with `None` for an open end.
 
@@ -168,14 +173,20 @@ Full signatures and examples: `llms-full.txt`.
 
 - **Decoding is not cached.** `spectrum.mz` decodes again on every access; store it in a variable.
 - **Not thread-safe.** A reader shares one file handle; use one `Mzml` per thread.
-- **`gzip_mode` only matters with `in_memory=False`.** The default `in_memory=True` buffers the
-  whole (decompressed) file, so `reader.access_strategy` is `memory` for every mode.
-- **`gzip_mode="indexed"` writes sidecars next to the source** (`X.mzML.gzidx`, `X.mzMLidx` and
-  their `.src` signature files), so the source directory must be writable. Running the tests
-  would create these next to `tests/data/` files, so `tests/test_docs.py` runs the doc examples
-  against a copy in `tmp_path`; the sidecars and their `.src` files are gitignored.
+- **`gzip_mode` only matters with `in_memory=False`** (the default since 0.10). `in_memory=True`
+  buffers the whole (decompressed) file, so `reader.access_strategy` is `memory` for every mode.
+- **`spectra.filter` with an rt criterion uses a cached scan-time table** on random-access readers
+  (`SpectrumLookup._scan_rt_table`), built once from each record's bytes before its binary arrays
+  (`iter_spectrum_heads` + `lookup._head_scan_rts`, which defers anything unusual to a full parse).
+  It never assumes rt order. Indexed iteration parses each record's
+  byte span (`iter_indexed`) and falls back to the streaming parser at the first anomaly.
+- **Only `gzip_mode="indexed"` writes sidecars next to the source** (`X.mzML.gzidx`, `X.mzMLidx`
+  and their `.src` signature files), so the source directory must be writable. `"auto"` reads
+  current ones read-only and otherwise indexes in memory (`IndexedGzip(write_sidecars=False)`);
+  never make auto write (user decision, 2026-09-24). Tests that use `"indexed"` work on a copy in
+  `tmp_path`; the sidecars and their `.src` files are gitignored.
 - **`gzip_mode="stream"` random access rescans the file** from the start each time and warns. Use
-  `extract`, `indexed` or a self-indexed gzip for random access.
+  `indexed`, `in_memory=True` or a self-indexed gzip (`write_indexed_gzip`) for random access.
 - **Cache currency uses source signatures** (`util.source_signature`: realpath, size, mtime_ns,
   ctime_ns) and atomic writes. Do not go back to plain mtime checks: a truncated cache with a fresh
   mtime was trusted forever before this.

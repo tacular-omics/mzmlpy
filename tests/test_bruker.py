@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 import numpy as np
 import pytest
 
@@ -21,7 +19,7 @@ def test_bruker_im_spectra(filename):
     assert s.ms_level == 2
     assert s.polarity == "positive"
     assert s.spectrum_type == "centroid"
-    assert s.TIC == 3186.0
+    assert s.total_ion_current == 3186.0
 
 
 def test_bruker_im_empty_spectra():
@@ -36,7 +34,7 @@ def test_bruker_im_empty_spectra():
     # This timsTOF PASEF MS2 spectrum has ion mobility as a scan-level cvParam (MS:1002815),
     # so has_im is True even though there is no ion-mobility binary array.
     assert s.has_im is True
-    assert s.ion_mobility == 1.595546371847
+    assert s.ook0 == 1.595546371847
 
 
 def test_bruker_im_scan_metadata():
@@ -45,13 +43,12 @@ def test_bruker_im_scan_metadata():
 
     assert s.is_single_scan is True
     assert s.spectra_combination == "no_combination"
-    assert s.scan_start_time == timedelta(seconds=124.958506)
-    assert s.lower_mz == 100.0
-    assert s.upper_mz == 1700.0
+    assert s.rt == pytest.approx(124.958506)
+    assert s.mz_range == (100.0, 1700.0)
 
     # Ion mobility stored as cvParam in the scan element
     scan = s.scans[0]
-    im_cv = scan.get_cvparm("MS:1002815")
+    im_cv = scan.get_cv_param("MS:1002815")
     assert im_cv is not None
     assert im_cv.name == "inverse reduced ion mobility"
     assert im_cv.value is not None
@@ -90,10 +87,10 @@ def test_bruker_combined_im_multi_scan():
     assert s.spectra_combination == "sum"
     assert len(s.scans) == 25
 
-    # scan_start_time warns about multiple scans but still returns first scan's value
+    # rt warns about multiple scans but still returns the first scan's value
     with pytest.warns(UserWarning, match="multiple scans"):
-        scan_time = s.scan_start_time
-    assert scan_time == timedelta(seconds=124.958506)
+        scan_time = s.rt
+    assert scan_time == pytest.approx(124.958506)
 
     # User params for ion mobility range
     user_param_names = [up.name for up in s.user_params]
@@ -111,22 +108,22 @@ def test_bruker_combined_im_precursors():
     # Isolation window
     iso = precursor.isolation_window
     assert iso is not None
-    assert iso.target_mz == pytest.approx(577.050745983777, rel=1e-6)
+    assert iso.isolation_mz == pytest.approx(577.050745983777, rel=1e-6)
     assert iso.lower_offset == 1.0
     assert iso.upper_offset == 1.0
 
     # Selected ion
     si = precursor.selected_ions[0]
-    assert si.selected_ion_mz == pytest.approx(576.762738803541, rel=1e-6)
-    assert si.charge_state == 2
-    assert si.peak_intensity == 2614.0
+    assert si.mz == pytest.approx(576.762738803541, rel=1e-6)
+    assert si.charge == 2
+    assert si.intensity == 2614.0
     assert si.ccs == pytest.approx(356.922244927527, rel=1e-6)
 
     # Activation
     act = precursor.activation
     assert act is not None
     assert act.activation_type == CollisionDissociationTypeAccession.COLLISION_INDUCED_DISSOCIATION
-    assert act.ce == pytest.approx(30.617136659436, rel=1e-4)
+    assert act.collision_energy == pytest.approx(30.617136659436, rel=1e-4)
 
 
 @pytest.mark.parametrize("filename", BRUKER_FILES)
@@ -154,7 +151,7 @@ def test_bruker_metadata(filename):
     assert "Analysis.tdf" in src_names
     assert "Analysis.tdf_bin" in src_names
     for sf in src_files:
-        assert sf.has_cvparm("MS:1002817")  # Bruker TDF format
+        assert sf.has_cv_param("MS:1002817")  # Bruker TDF format
 
     # Software
     assert len(reader.softwares) == 3
@@ -171,7 +168,7 @@ def test_bruker_metadata(filename):
     ref_groups = reader.referenceable_param_groups
     assert len(ref_groups) == 1
     assert "CommonInstrumentParams" in ref_groups
-    assert ref_groups["CommonInstrumentParams"].has_cvparm("MS:1003123")
+    assert ref_groups["CommonInstrumentParams"].has_cv_param("MS:1003123")
 
 
 def test_bruker_id_regex():

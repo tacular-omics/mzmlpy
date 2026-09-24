@@ -107,19 +107,18 @@ gzip** — passing a `.mzML.gz` path makes it parse the compressed bytes as XML 
 `XMLSyntaxError`. You must wrap it in `gzip.open()` yourself, which is ~2.5× slower on a 28 MB
 file (2.46 s vs 1.0 s) *and* forfeits random-access indexing.
 
-**mzmlpy's three modes only matter with `in_memory=False`.** The default `in_memory=True`
-buffers the whole decompressed file in RAM after open, so all three modes then perform
-identically (and random access is instant). The mode choice becomes decisive only in the
-memory-constrained case — measured here on a 232 MB `.mzML.gz` (76,501 spectra, `in_memory=False`):
+**mzmlpy's modes only matter with `in_memory=False`.** With `in_memory=True` the whole
+decompressed file is buffered in RAM after open, so the modes then perform identically (and
+random access is instant). The mode choice becomes decisive only in the memory-constrained case —
+measured here on a 232 MB `.mzML.gz` (76,501 spectra, `in_memory=False`). These numbers predate
+0.10, which removed the `extract` mode; a self-indexed copy from `write_indexed_gzip` is now the
+way to get fast random access without rapidgzip.
 
 | mode | startup, first open | startup, cached | random 8 reads (non-monotonic) | full decode |
 |---|---|---|---|---|
-| `extract` | **1.2 s** | 1.2 s | **0.16 s** | ~20 s |
 | `indexed` | 17.2 s | **0.12 s** | 0.28 s | ~20 s |
 | `stream` | 6.4 s | 6.4 s | ⚠️ **49 s** | ~20 s |
 
-- **`extract`** — decompress once to disk (cached across sessions), then random-access the plain
-  file. Best all-rounder; costs disk space for the decompressed copy.
 - **`indexed`** — seekable access to the compressed file via `rapidgzip`, no disk copy. Pays a
   large one-time seek-index build (17 s), but the index is cached next to the file, so later
   opens are the fastest of any mode (0.12 s) with fast random access.
@@ -127,9 +126,9 @@ memory-constrained case — measured here on a 232 MB `.mzML.gz` (76,501 spectra
   each read rescans from the top (49 s for 8 reads), and mzmlpy emits a warning telling you so.
 
 Full *sequential* decode is ~20 s regardless of mode — the mode differences live entirely in
-startup and random access. Before each mode the harness purges **all** mzmlpy caches — the tmp
-`extract` directory *and* the `.gzidx`/`.mzidx` (+`.src`) index sidecars written next to the
-`.gz` file — so every startup figure is a genuine cold build, not a re-used index.
+startup and random access. Before each mode the harness removes the `.gzidx`/`.mzidx` (+`.src`)
+index sidecars written next to the `.gz` file by `"indexed"`, so every startup figure is a genuine cold build,
+not a re-used index.
 
 ## Notes on fairness
 

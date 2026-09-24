@@ -41,11 +41,21 @@ Both `.mzML` and `.mzML.gz` files are supported. The reader lazily parses the fi
 
 When working with `.mzML.gz` files, the `gzip_mode` parameter controls how the compressed file is accessed:
 
-`gzip_mode="auto"` is the default. With `in_memory=False`, it selects an embedded index, a current
-extracted cache, or complete rapidgzip sidecars in that order. If none exists, it creates an
-extracted cache. Inspect `reader.access_strategy` to see the concrete route.
+`gzip_mode="auto"` is the default. Reading from disk (the default), it uses, in order:
 
-For fast random access without cache files, create a self-indexed gzip file once:
+1. The embedded index, if the file has one (written by `write_indexed_gzip`, below).
+2. `rapidgzip`, if it is installed (`pip install mzmlpy[rapidgzip]`). It reads the compressed
+   file in place. If current sidecar indexes from `gzip_mode="indexed"` exist next to the file,
+   it reads them; otherwise it builds the indexes in memory for this reader.
+3. Otherwise it decompresses the whole file into memory and logs a one-time warning.
+
+`"auto"` never writes files next to your `.gz`. Inspect `reader.access_strategy` to see the
+route taken (`"embedded"`, `"rapidgzip"` or `"memory"`). For a large `.mzML.gz`, step 3 needs
+memory about the size of the decompressed file, and step 2 rescans the file on every open.
+For fast re-opens, run `write_indexed_gzip` on it once, or open it once with
+`gzip_mode="indexed"` to save sidecar indexes that later `"auto"` opens reuse.
+
+For fast random access with no extra files, create a self-indexed gzip file once:
 
 ```python
 from pathlib import Path
@@ -57,44 +67,44 @@ with TemporaryDirectory() as directory:
     output = Path(directory) / "input.indexed.mzML.gz"
     write_indexed_gzip("tests/data/example.mzML", output)
 
-    with Mzml(output, in_memory=False) as reader:
+    with Mzml(output) as reader:
         spectrum = reader.spectra[0]
 ```
 
 mzmlpy detects this pyMZML-compatible embedded format automatically. The file remains a standard
 concatenated gzip stream, and decompressing it reconstructs the original mzML bytes exactly.
 
-- **`"auto"`** (default) selects the best valid representation already available and otherwise extracts into the central cache.
-- **`"extract"`** decompresses to a cached file under the OS temp directory (`<tmpdir>/mzmlpy/`), then reads with full random access. The cache persists across Python sessions so subsequent opens of the same file skip decompression entirely. The OS clears the temp directory on reboot. Call `clear_cache()` to reclaim space sooner.
-- **`"indexed"`** — Use the `rapidgzip` library for seekable access to the compressed file without extracting to disk. Requires `pip install mzmlpy[rapidgzip]`. Builds a gzip seek index (`.gzidx`) and mzML offset index (`.mzMLidx`) on first open, cached alongside the file for instant startup on subsequent opens.
+- **`"auto"`** (default) takes the first of the routes above that is available.
+- **`"indexed"`** — Use the `rapidgzip` library for seekable access to the compressed file without decompressing it all. Requires `pip install mzmlpy[rapidgzip]`. Builds a gzip seek index (`.gzidx`) and mzML offset index (`.mzMLidx`) on first open, cached alongside the file for instant startup on subsequent opens (including `"auto"` opens). This is the only mode that writes files next to the source, so its directory must be writable.
 - **`"stream"`** — Stream the file sequentially with no index. Lowest startup cost, but random access (e.g. `reader.spectra[0]`) scans from the beginning each time — a warning is emitted.
 
-`"extract"` pays a one-time decompression cost then matches plain `.mzML` speed on later opens of
-the same file (the extracted copy is cached). `"indexed"` pays a one-time index-build cost for
-seekable access with no disk copy, then fast random access on later opens (the index is cached
-alongside the file). `"stream"` has the lowest startup cost, but random access re-scans from the
-start each time. For a reproducible benchmark with real numbers — including a comparison against
-pyteomics and pymzml — see [`benchmarks/`](https://github.com/tacular-omics/mzmlpy/tree/main/benchmarks)
-in the repository.
+`gzip_mode="extract"` and `extract_dir` were removed in 0.10; see the [migration notes](migration.md).
 
-For best performance with `.mzML.gz` files, use `"extract"` or `"indexed"`:
+An embedded index gives fast random access with no extra files. `"indexed"` pays a one-time
+index-build cost, then fast random access on later opens (the index is cached alongside the
+file). `"stream"` has the lowest startup cost, but random access re-scans from the start each
+time. For a reproducible benchmark with real numbers — including a comparison against pyteomics
+and pymzml — see [`benchmarks/`](https://github.com/tacular-omics/mzmlpy/tree/main/benchmarks)
+in the repository.
 
 ```python
 from mzmlpy import Mzml
 
-# Indexed mode — no extraction, seekable (requires rapidgzip)
-with Mzml("tests/data/example.mzML.gz", gzip_mode="indexed", in_memory=False) as reader:
+# Indexed mode — seekable, no full decompression (requires rapidgzip)
+with Mzml("tests/data/example.mzML.gz", gzip_mode="indexed") as reader:
     print(f"Spectra: {len(reader.spectra)}")
     spec = reader.spectra[0]
     print(spec.id)
 ```
 
-To reclaim disk space before the OS clears the temp directory on reboot:
+### Readers and multiprocessing
 
-```python
-from mzmlpy import clear_cache
-clear_cache()
-```
+Open readers inside each worker process rather than passing an open reader to it. A child
+process forked (`os.fork`, or the `fork` start method) while it holds a rapidgzip-backed reader
+can abort when it exits (`terminate called`, exit status 134). This is a limitation of rapidgzip,
+which cannot be forked safely once its worker threads are running; the parent is not affected.
+If workers must inherit readers, use the `spawn` start method:
+`multiprocessing.get_context("spawn")`.
 
 ## Iterating Spectra
 
@@ -106,7 +116,7 @@ from mzmlpy import Mzml
 with Mzml("tests/data/example.mzML") as reader:
     # Iterate all spectra
     for spectrum in reader.spectra:
-        print(f"Scan {spectrum.id} (MS{spectrum.ms_level}) - TIC: {spectrum.TIC}")
+        print(f"Scan {spectrum.id} (MS{spectrum.ms_level}) - TIC: {spectrum.total_ion_current}")
 
     # Access by index
     first = reader.spectra[0]
@@ -123,7 +133,7 @@ with Mzml("tests/data/example.mzML") as reader:
 
 ## Native IDs and Summary Values
 
-The native `id` string encodes vendor-specific components (e.g. Thermo's `controllerType=0 controllerNumber=1 scan=19`); `id_dict` parses it into a dict with numeric components coerced to `int`. Common summary values and the instrument scan filter are also exposed directly, instead of requiring a manual `get_cvparm` lookup:
+The native `id` string encodes vendor-specific components (e.g. Thermo's `controllerType=0 controllerNumber=1 scan=19`); `id_dict` parses it into a dict with numeric components coerced to `int`. Common summary values and the instrument scan filter are also exposed directly, instead of requiring a manual `get_cv_param` lookup:
 
 ```python
 from mzmlpy import Mzml
@@ -159,7 +169,7 @@ with Mzml("tests/data/example.mzML") as reader:
 
     mz = spec.mz  # np.ndarray | None
     intensity = spec.intensity  # np.ndarray | None
-    charge = spec.charge  # np.ndarray | None
+    charge = spec.charge_array  # np.ndarray | None
 
     # For less common array types, use get_binary_array with a CV accession
     barr = spec.get_binary_array(c.BinaryDataArrayAccession.RAW_ION_MOBILITY)
@@ -173,7 +183,7 @@ with Mzml("tests/data/example.mzML") as reader:
 
 ## Working with Scan Timing
 
-Retention time and ion injection time are accessible as `timedelta` objects through the spectrum, which delegates to the first scan:
+Retention time is a float in seconds (`rt`), ion injection time is a float in milliseconds (`ion_injection_time`), and `mz_range` is the scan window envelope. The spectrum delegates each to its first scan:
 
 ```python
 from mzmlpy import Mzml
@@ -181,17 +191,16 @@ from mzmlpy import Mzml
 with Mzml("tests/data/example.mzML") as reader:
     spec = reader.spectra[0]
 
-    if spec.scan_start_time is not None:
-        rt_seconds = spec.scan_start_time.total_seconds()
-        rt_minutes = rt_seconds / 60
+    if spec.rt is not None:
+        rt_minutes = spec.rt / 60
         print(f"RT: {rt_minutes:.4f} min")
 
     if spec.ion_injection_time is not None:
-        iit_ms = spec.ion_injection_time.total_seconds() * 1000
-        print(f"Ion injection time: {iit_ms:.2f} ms")
+        print(f"Ion injection time: {spec.ion_injection_time:.2f} ms")
 
-    print(f"Lower m/z: {spec.lower_mz}")
-    print(f"Upper m/z: {spec.upper_mz}")
+    if spec.mz_range is not None:
+        lower, upper = spec.mz_range
+        print(f"Scan window: {lower}-{upper} m/z")
 ```
 
 ## Working with Ion Mobility
@@ -225,7 +234,7 @@ from mzmlpy import Mzml
 with Mzml("tests/data/example.mzML") as reader:
     tic = reader.chromatograms["tic"]
 
-    time = tic.time  # np.ndarray | None
+    rt = tic.rt  # np.ndarray | None, float64 seconds whatever unit the file records
     intensity = tic.intensity  # np.ndarray | None
 
     # Precursor and product info (SRM chromatograms)
@@ -286,7 +295,7 @@ how many arrays and index entries were checked, and whether XML parsing complete
 Malformed content is reported through `report.issues`.
 
 An open reader also has `reader.validate(...)`. It uses a fresh handle to the selected
-representation and preserves the lookup cursor. Use standalone `validate(path)` when the
+representation and leaves open iterators untouched. Use standalone `validate(path)` when the
 original source file, rather than a cached representation, is what you want to inspect.
 These checks do not constitute full XSD or controlled-vocabulary validation, and they do
 not verify the embedded gzip index itself.
@@ -305,7 +314,7 @@ and int32 data. Code that needs float64 for calculations can convert explicitly:
 import numpy as np
 from mzmlpy import Mzml
 
-with Mzml("tests/data/example.mzML", in_memory=False) as reader:
+with Mzml("tests/data/example.mzML") as reader:
     spectrum = reader.spectra[0]
     intensity = spectrum.intensity.astype(np.float64)
 ```
@@ -323,34 +332,44 @@ For arrays without a declared numeric type, the existing warning and float64 fal
 ## Lazy filtering
 
 `reader.spectra.filter(...)` selects spectra from metadata without decoding their binary
-arrays. All supplied criteria must match. Bounds are inclusive, and `None` leaves an
-endpoint open. Retention times are expressed in seconds, with source units normalized.
+arrays. All supplied criteria must match. `*_range` bounds are inclusive, and `None` leaves
+an endpoint open. Retention times are expressed in seconds, with source units normalized.
 
 ```python
 from mzmlpy import Mzml
 
-with Mzml("tests/data/example.mzML", in_memory=False) as reader:
-    selected = reader.spectra.filter(ms_level=2, retention_time=(0, None))
+with Mzml("tests/data/example.mzML") as reader:
+    selected = reader.spectra.filter(ms_level=2, rt_range=(0, None))
     for spectrum in selected:
         print(spectrum.id, spectrum.ms_level)
+    # Point queries, as in tdfpy: within 30 s, and within 20 ppm.
+    near = list(reader.spectra.filter(rt=5.0, rt_tolerance=30.0))
+    same_precursor = list(reader.spectra.filter(precursor_mz=445.34, mz_tolerance=20, mz_tolerance_type="ppm"))
 ```
 
-Available criteria are `ms_level`, `retention_time=(lower_seconds, upper_seconds)`,
-`polarity="positive"` or `"negative"`, `precursor_mz=(lower_mz, upper_mz)`,
-`spectrum_type="centroid"` or `"profile"`, and scan-level mobility or FAIMS selection.
+Available criteria are `ms_level`, `rt_range=(lower_seconds, upper_seconds)` or `rt=` with
+`rt_tolerance`, `polarity="positive"` or `"negative"`,
+`precursor_mz_range=(lower_mz, upper_mz)` or `precursor_mz=` with `mz_tolerance` and
+`mz_tolerance_type` (`"ppm"` or `"da"`), `spectrum_type="centroid"` or `"profile"`, and
+scan-level mobility or FAIMS selection. Pass a point or its range, not both.
 Retention time matches any scan. Precursor m/z matches overlap with any reported isolation
 window. Selected-ion m/z values are used when a precursor has no usable isolation window.
 Missing metadata does not match a requested criterion. Invalid numeric metadata raises its
 normal contextual error. `SpectrumFilter` provides the same reusable predicate through
 its `matches(spectrum)` method.
 
-For mobility selection, use `mobility_type="inverse_reduced"` or `"drift_time"` and
-optionally `ion_mobility=(lower, upper)`. Bounds use the recorded scan quantity and require
-an explicit mobility type. `faims_voltage=(lower, upper)` accepts signed volts. These
-criteria inspect scan metadata and do not process per-peak mobility arrays.
+For mobility selection, use `ook0_range=(lower, upper)` (1/K0, V·s/cm²) or
+`drift_time_range=(lower, upper)`; `(None, None)` selects spectra that record the quantity at
+all. `faims_voltage_range=(lower, upper)` accepts signed volts. These criteria inspect scan
+metadata and do not process per-peak mobility arrays.
 
-Filtering is a sequential scan. Keep the reader open while consuming the returned iterator.
-It neither builds a retention-time index nor changes the cursor used by `reader.spectra.next()`.
+With an indexed reader (access strategy `plain`, `rapidgzip` or `memory`; not
+`stream` or `embedded`, which scan every spectrum), the first retention-time criterion reads the scan times of every spectrum once, from the bytes before
+each record's binary arrays, and caches them on `reader.spectra`. That query and every later
+one then read in full only the spectra inside the window. Record order does not matter, so
+merged or re-sorted files give the same result as a full scan. Other criteria are a
+sequential scan. Keep the reader
+open while consuming the returned iterator; each call returns a new, independent iterator.
 
 ## Command-line inspection
 
@@ -365,16 +384,11 @@ python -m mzmlpy index-gzip data.mzML data.indexed.mzML.gz
 Exit codes are `0` for success, `1` for validation findings with errors, and `2` for an
 operational error. Inspection reads metadata and counts without decoding arrays.
 
-## Memory and extracted caches
+## Memory
 
-`in_memory=True` remains the reader default. Use `in_memory=False` for large files and to
-activate gzip access strategies. Extraction copies decompressed chunks directly to disk.
+Since 0.10 the reader reads records from disk on demand by default. Pass `in_memory=True` to
+load the whole (decompressed) file once, which suits many random reads of a small file.
+`gzip_mode` only applies when reading from disk.
 Sequential iteration detaches completed spectra and chromatograms, including records that
 are skipped while finding the requested kind. Keeping returned spectra in a list still
 retains their XML in your own code.
-
-Both the default cache and a custom `extract_dir` use filenames based on source identity
-and filesystem revision. Files with matching basenames in different directories do not
-share an extracted file. Replacing a source creates a new cache path, so existing readers
-can continue using their previous extracted copy. Older cache files can remain until you
-clean the directory. `clear_cache()` removes the default cache only.

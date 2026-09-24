@@ -105,10 +105,12 @@ class _Validator:
             self.issue("invalid_integer", f"{attribute} must be a nonnegative integer, got {text!r}", location)
             return None
 
-    def start(self, element: ET.Element) -> None:
+    def start(self, element: ET.Element, record_location: str | None = None) -> None:
         tag = get_tag(element)
         identifier = element.get("id")
         location = f"{tag}[{identifier}]" if identifier is not None else tag
+        if record_location is not None and tag not in self.records:
+            location = f"{record_location}/{location}"
         if identifier is not None:
             known = self.ids.setdefault(tag, set())
             if identifier in known:
@@ -245,7 +247,7 @@ def _validate_stream(handle: BinaryIO, *, decode_binary: bool, check_index: bool
                 parents.append(element)
                 child_counts.append(0)
                 saw_mzml |= tag == "mzML"
-                validator.start(element)
+                validator.start(element, record_location)
                 continue
             count = child_counts.pop()
             parents.pop()
@@ -305,3 +307,6 @@ def validate(file: str | Path, *, decode_binary: bool = False, check_index: bool
             with gzip.GzipFile(fileobj=raw) as handle:
                 return _validate_stream(cast(BinaryIO, handle), decode_binary=decode_binary, check_index=check_index)
         return _validate_stream(raw, decode_binary=decode_binary, check_index=check_index)
+
+
+__all__ = ["ValidationIssue", "ValidationReport", "validate"]

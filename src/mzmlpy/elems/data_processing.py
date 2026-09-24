@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from ..constants import MzMLElement
+from ..errors import MzmlError
 from .dtree_wrapper import _DataTreeWrapper, _ParamGroup
 
 
@@ -39,7 +40,7 @@ class DataProcessing(_DataTreeWrapper):
         """
         id = self.get_attribute("id")
         if id is None:
-            raise ValueError("DataProcessing ID is missing")
+            raise MzmlError("DataProcessing ID is missing")
         return id
 
     @property
@@ -53,3 +54,6 @@ class DataProcessing(_DataTreeWrapper):
 
     def __str__(self) -> str:
         return self.__repr__()
+
+
+__all__ = ["DataProcessing", "ProcessingMethod"]

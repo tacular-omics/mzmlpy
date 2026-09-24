@@ -14,11 +14,11 @@ def test_referenceable_param_groups(filename):
     ms1_group = rpgs["CommonMS1SpectrumParams"]
     assert ms1_group is not None
 
-    ms1_spectrum_param = ms1_group.get_cvparm("MS:1000579")
+    ms1_spectrum_param = ms1_group.get_cv_param("MS:1000579")
     assert ms1_spectrum_param is not None
     assert ms1_spectrum_param.name == "MS1 spectrum"
 
-    positive_scan_param = ms1_group.get_cvparm("MS:1000130")
+    positive_scan_param = ms1_group.get_cv_param("MS:1000130")
     assert positive_scan_param is not None
     assert positive_scan_param.name == "positive scan"
 
@@ -26,9 +26,9 @@ def test_referenceable_param_groups(filename):
     ms2_group = rpgs["CommonMS2SpectrumParams"]
     assert ms2_group is not None
 
-    msn_spectrum_param = ms2_group.get_cvparm("MS:1000580")
+    msn_spectrum_param = ms2_group.get_cv_param("MS:1000580")
     assert msn_spectrum_param is not None
     assert msn_spectrum_param.name == "MSn spectrum"
 
-    positive_scan_param = ms2_group.get_cvparm("MS:1000130")
+    positive_scan_param = ms2_group.get_cv_param("MS:1000130")
     assert positive_scan_param is not None

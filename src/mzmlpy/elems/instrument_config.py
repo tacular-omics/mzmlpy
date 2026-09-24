@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from ..constants import MzMLElement
+from ..errors import MzmlError
 from .dtree_wrapper import _ParamGroup
 
 
@@ -52,7 +53,7 @@ class InstrumentConfiguration(_ParamGroup):
         """
         id = self.get_attribute("id")
         if id is None:
-            raise ValueError("InstrumentConfiguration ID is missing")
+            raise MzmlError("InstrumentConfiguration ID is missing")
         return id
 
     @property
@@ -100,3 +101,6 @@ class InstrumentConfiguration(_ParamGroup):
 
     def __str__(self) -> str:
         return self.__repr__()
+
+
+__all__ = ["AnalyzerComponent", "DetectorComponent", "InstrumentConfiguration", "SourceComponent"]

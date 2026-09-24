@@ -48,13 +48,13 @@ def synthetic_reader(tmp_path):
 def test_spectrum_level_ref_resolved(synthetic_reader):
     s = synthetic_reader.spectra[0]
     assert s.polarity == "positive"  # MS:1000130 comes only from SpecGroup (plus a direct copy)
-    assert s.has_cvparm("MS:1000579")  # MS1 spectrum, group-only
+    assert s.has_cv_param("MS:1000579")  # MS1 spectrum, group-only
 
 
 def test_scan_level_nested_ref_resolved(synthetic_reader):
     scan = synthetic_reader.spectra[0].scans[0]
     # filter string is supplied via a scan-level referenceableParamGroupRef (nested in the subtree)
-    fs = scan.get_cvparm("MS:1000512")
+    fs = scan.get_cv_param("MS:1000512")
     assert fs is not None
     assert fs.value == "FTMS + p"
 

@@ -15,7 +15,7 @@ import pytest
 
 from mzmlpy import BinaryDataArray, Mzml
 from mzmlpy.constants import BinaryDataTypeAccession as DType
-from mzmlpy.constants import CompressionTypeAccessions as Compression
+from mzmlpy.constants import CompressionTypeAccession as Compression
 from mzmlpy.decoder import MSDecoder
 from mzmlpy.mcp import MzmlTools, _points
 
@@ -148,8 +148,8 @@ def test_public_array_accessors(tmp_path, accession, dtype, compressed, in_memor
         spectrum = next(iter(reader.spectra))
         chromatogram = next(iter(reader.chromatograms))
         assert spectrum.mz.dtype == np.dtype("<f4")
-        assert chromatogram.time.dtype == np.dtype("<f4")
-        for actual in [spectrum.intensity, spectrum.charge, chromatogram.intensity]:
+        assert chromatogram.rt.dtype == np.float64
+        for actual in [spectrum.intensity, spectrum.charge_array, chromatogram.intensity]:
             assert actual.dtype == values.dtype
             assert actual.tobytes() == values.tobytes()
 
@@ -169,7 +169,7 @@ def test_mcp_values_preserve_large_integers_and_types(tmp_path):
         assert peaks["intensity_dtype"] == "int64"
         chromatogram = service.get_chromatogram("run.mzML", "record").data
         assert [point[1] for point in chromatogram["points"]] == expected
-        assert chromatogram["coordinate_dtype"] == "float32"
+        assert chromatogram["coordinate_dtype"] == "float64"
     finally:
         service.close()
     # Bound comparisons must also happen before a lossy float conversion.

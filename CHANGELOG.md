@@ -6,6 +6,118 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+Breaking API cleanup. Renamed names have no aliases. See the
+[migration guide](https://tacular-omics.github.io/mzmlpy/migration/) for an old -> new table.
+
+### Removed
+
+- `Spectrum.TIC` (use `total_ion_current`), `Mzml.TIC` and `ChromatogramLookup.TIC` (use
+  `Mzml.total_ion_chromatogram`; the lookup has no TIC property).
+- The stateful lookup cursor `SpectrumLookup.next()` / `reset()` (and on `ChromatogramLookup`); iterate instead.
+- `get_cvparm` / `has_cvparm` (use `get_cv_param` / `has_cv_param`).
+- `Spectrum.lower_mz` / `upper_mz` and `Scan.lower_mz` / `upper_mz` (use `mz_range`); `ScanWindow.lower_mz` /
+  `upper_mz` stay.
+- `Mzml.iter`, the lookups' public `file_object` attribute.
+- `Spectrum.ion_mobility` (1/K0 with a silent drift-time fallback): use `ook0` or `scans[0].drift_time`.
+- `SpectrumFilter(mobility_type=..., ion_mobility=...)`: use `ook0_range` or `drift_time_range`.
+- Unused constants: `PeakType`, `NoiseMode`, `DataType`, `TimeUnit`, `XMLAttribute`, `EncodingFormat`,
+  `XMLNamespace`, `PROTON_MASS`, `ISOTOPE_AVERAGE_DIFFERENCE`, `ISOLATION_WINDOW_TARGET_MZ`. `XMLElement` is merged
+  into `MzMLElement`.
+
+- `gzip_mode="extract"`, the `extract_dir` parameter and `clear_cache()`: mzmlpy no longer writes decompressed
+  copies to disk. `gzip_mode="extract"` raises `MzmlError` and `extract_dir=` raises `TypeError`. For fast random
+  access to a `.mzML.gz`, run `write_indexed_gzip` on it once or install the rapidgzip extra.
+  `AccessStrategy.EXTRACTED` is gone with them.
+
+### Changed
+
+- Reader vocabulary shared with tdfpy and spxtacular: `scan_start_time` (`timedelta`) -> `rt` (float, seconds) on
+  `Spectrum` and `Scan`; `Scan.inverse_reduced_ion_mobility` -> `ook0`, `Scan.ion_mobility_drift_time` ->
+  `drift_time`; `SelectedIon.selected_ion_mz` -> `mz`, `peak_intensity` -> `intensity`, `charge_state` -> `charge`,
+  `ir_im` -> `ook0`, `im_drift_time` -> `drift_time`; `Activation.ce` -> `collision_energy`, `supplemental_ce` ->
+  `supplemental_collision_energy`; `Spectrum.charge` (per-point array) -> `charge_array`.
+- Every public sequence property is a tuple (empty tuple when absent): `Spectrum.scans`, `precursors`, `products`,
+  `binary_arrays` (also on `Chromatogram`), `Scan.scan_windows`, `Precursor.selected_ions`,
+  `FileDescription.source_files` and `contact`. Lookup slices still return lists.
+- `ion_injection_time` on `Spectrum` and `Scan` is a float in milliseconds (was a `timedelta`), converted from
+  whatever time unit the file records.
+- `rt` and `ion_injection_time` with no unit, or a non-time unit, take the value as seconds (milliseconds for
+  injection time) and warn once per unit. A non-numeric value raises `MzmlError`.
+- `Spectrum.total_ion_current` returns `None` when the file has no TIC term instead of raising `KeyError`.
+- A `userParam` with no `name` and a `referenceableParamGroupRef` with no `ref` give `""` instead of `None`.
+- `user_params` and `ref_params` are cached like `cv_params`.
+- A lookup key that is not an int, str or slice raises `TypeError` (`spectra[1.0]`); `x in spectra` is `False`
+  for a non-str. A negative index past the start names the valid range.
+- A well-formed XML file whose root is not `<mzML>` or `<indexedmzML>` raises `MzmlParseError` on open.
+- `Mzml(..., in_memory=False)` is the default; pass `in_memory=True` to load the whole file as before.
+  For a `.mzML.gz`, `gzip_mode="auto"` (the default) uses the embedded index if the file has one (written by
+  `write_indexed_gzip`), else rapidgzip if it is installed (reading current sidecars from `gzip_mode="indexed"`,
+  otherwise indexing in memory; subject to the fork caveat below), else decompresses the file into
+  memory and logs a one-time warning suggesting `write_indexed_gzip` or `mzmlpy[rapidgzip]`. In 0.9,
+  `in_memory=False` on a `.gz` extracted it to a temporary folder on disk; in 0.10 without rapidgzip it reads into
+  RAM (`access_strategy == "memory"`).
+- `gzip_mode="auto"` never writes files next to the source. Only `gzip_mode="indexed"` writes sidecar indexes; use
+  it (or `write_indexed_gzip`) once for fast re-opens. Sidecars now get normal file permissions (`0o666 & ~umask`)
+  instead of `0600`.
+- Reading through a closed reader, including an iterator started before `close()`, raises `MzmlError` instead of
+  silently reopening the file. Readers and iterators left open are closed at interpreter exit, so an unclosed
+  rapidgzip reader no longer aborts the interpreter. A child forked while holding a rapidgzip reader can still abort
+  at exit, an upstream rapidgzip limitation: open readers inside each worker, or use the `spawn` start method.
+- `IsolationWindow.target_mz` -> `isolation_mz`. `Chromatogram.time` (array in its recorded unit) -> `rt`
+  (float64 seconds, converted from the recorded unit, warning once when the unit is missing).
+- `Spectrum.charge` is removed (it was the per-point array, now `charge_array`); the precursor charge is `Spectrum.precursor_charge` (`int | None`). Old `spec.charge` code raises `AttributeError`.
+- Filter ranges end in `_range`: `spectra.filter(retention_time=...)` and `SpectrumFilter(retention_time=...)` ->
+  `rt_range=...`, `precursor_mz=(lo, hi)` -> `precursor_mz_range`, `faims_voltage` -> `faims_voltage_range`.
+  `SpectrumFilter` is keyword-only.
+- `spectra.filter` with a retention-time criterion on an indexed reader (not `stream` or `embedded`) reads every spectrum's scan times
+  once (only the bytes before the binary arrays), caches them, and then reads in full only the spectra inside the
+  window. It is correct for files in any order. On a 36,000-spectrum file a 60 s window takes 1.4 s on the first
+  query and 0.6 s after, against 8.2 s for 0.9's full scan.
+- Errors: bad data and bad arguments raise `MzmlError` (a `ValueError`) or a subclass: `MzmlParseError`
+  (malformed XML, wrapping `ParseError` as `__cause__`), `MzmlOffsetIndexError`, `MzmlDecodeError`. A missing id
+  raises `MzmlRecordNotFoundError`, which is also a `KeyError`. `lookup.get_by_index()` raises `TypeError` for a
+  non-int.
+- `cv_params`, `user_params` and `ref_params` are tuples; `accessions` and `names` are frozensets.
+  `serialize()` returns a copy. `Mzml.referenceable_param_groups`, `instrument_configurations`, `data_processes`
+  and `scan_settings` return a new dict on each call. `Mzml.obo_version` is read-only.
+- Constants: `SpectrumType` -> `SpectrumTypeAccession`, `CompressionTypeAccessions` -> `CompressionTypeAccession`,
+  `ChromatogramTypeAccession.EMMISION` -> `EMISSION`, `ION_MOBILITIES` is a frozenset.
+- Internal helpers are private: `MzMLContentBuilder`, `convert_mzml_element_to_object`, `fix_input`,
+  `decode_to_numpy`, `BINARY_DECODE_DTYPES` gained a leading underscore. Every public module declares `__all__`.
+- `validate()` issue locations inside a spectrum or chromatogram name the record, e.g.
+  `spectrum[scan=1]/precursor`.
+- MCP: `get_chromatogram` reports `coordinate_dtype` `float64`, since chromatogram times are now always converted
+  to seconds. Tool names, parameters and JSON keys are unchanged.
+
+### Added
+
+- The error classes and the accession enums used in return types (`BinaryDataArrayAccession`,
+  `BinaryDataTypeAccession`, `ChromatogramTypeAccession`, `CollisionDissociationTypeAccession`,
+  `CompressionTypeAccession`, `DIAAcquisitionAccession`, `SpectrumCombinationAccession`) are exported from `mzmlpy`.
+- `ScanWindow.mz_range`, `IsolationWindow.isolation_mz_range` (`(target - lower offset, target + upper offset)`)
+  and `IsolationWindow.isolation_width`.
+- `Spectrum.precursor_mz`, `precursor_charge`, `collision_energy` and `isolation_mz_range`, from the first precursor.
+- Point queries in `spectra.filter`, following tdfpy: `rt=` with `rt_tolerance` (seconds, default 30) and
+  `precursor_mz=` with `mz_tolerance` (default 20) and `mz_tolerance_type` (`"ppm"` or `"da"`). Passing a point
+  and its range raises `MzmlError`. Points, tolerances and range bounds accept any real number, numpy scalars
+  included (not `bool`).
+- `SpectrumFilter(ook0_range=..., drift_time_range=...)`.
+- `Spectrum.ook0`; docs pages "Migrating to 0.10" and "Errors".
+
+### Performance
+
+- Indexed files are iterated by parsing each record's byte span in one call, with a streaming fallback at the
+  first span that is not exactly the indexed record. Random access parses the exact span from a handle kept open
+  for the reader's lifetime. Accession lookups, `binary_arrays`, `scans` and `precursors` are cached.
+- `spectra.filter` on a `stream` reader no longer reads the whole file to count spectra before its first result.
+
+### Fixed
+
+- The process no longer aborts at exit (`terminate called`, code 134) when a reader over a `.mzML.gz` read
+  through rapidgzip, or an iterator over it, is still open: open readers and iterators are closed at exit.
+- `rt` returns `None` for a scan start time with no value, and reads a value with no unit as seconds (with a
+  warning), instead of raising `AttributeError`.
+
 ## [0.9.3] (2026-09-23)
 
 ### Fixed

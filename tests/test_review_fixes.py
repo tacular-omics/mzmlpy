@@ -44,28 +44,13 @@ def test_random_access_truncated_raises_not_hangs():
             _ = reader.spectra["x"]
 
 
-def test_next_advances_and_reset():
-    """#5 — next() is a real cursor that advances and can be reset."""
+def test_lookup_has_no_cursor_methods():
+    """0.10 removed the stateful next()/reset() cursor; iterate the lookup instead."""
     with Mzml(EXAMPLE) as reader:
-        lookup = reader.spectra
-        first = lookup.next()
-        second = lookup.next()
-        assert first.id == "scan=19"
-        assert second.id == "scan=20"
-        assert first.id != second.id
-
-        lookup.reset()
-        assert lookup.next().id == first.id
-
-
-def test_next_stops_at_end():
-    """#5 — next() raises StopIteration once exhausted."""
-    with Mzml(EXAMPLE) as reader:
-        lookup = reader.spectra
-        for _ in range(len(lookup)):
-            lookup.next()
-        with pytest.raises(StopIteration):
-            lookup.next()
+        assert not hasattr(reader.spectra, "next")
+        assert not hasattr(reader.spectra, "reset")
+        it = iter(reader.spectra)
+        assert [next(it).id, next(it).id] == ["scan=19", "scan=20"]
 
 
 def test_negative_index_returns_from_end():
@@ -127,7 +112,7 @@ def test_iteration_yields_detached_but_intact_spectra(filename):
 def test_tic_resolved_regardless_of_id_casing(filename):
     """#1 — TIC is found via its CV term even when the id is 'tic' (not the hardcoded 'TIC')."""
     with Mzml(filename) as reader:
-        tic = reader.TIC
+        tic = reader.total_ion_chromatogram
         assert tic is not None
         assert tic.id == "tic"
 
@@ -142,7 +127,7 @@ def test_tic_none_when_absent(monkeypatch):
             "get_chromatogram_by_id",
             lambda identifier: (_ for _ in ()).throw(KeyError(identifier)),
         )
-        assert reader.TIC is None
+        assert reader.total_ion_chromatogram is None
 
 
 def test_duplicate_id_warns_and_keeps_last():

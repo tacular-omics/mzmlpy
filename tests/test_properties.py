@@ -24,7 +24,7 @@ from hypothesis import strategies as st
 from hypothesis.extra import numpy as hnp
 
 from mzmlpy import Mzml, validate, write_indexed_gzip
-from mzmlpy.constants import CompressionTypeAccessions as C
+from mzmlpy.constants import CompressionTypeAccession as C
 from mzmlpy.decoder import MSDecoder
 from mzmlpy.spectra import BinaryDataArray
 

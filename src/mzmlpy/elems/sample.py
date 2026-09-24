@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from ..errors import MzmlError
 from .dtree_wrapper import _ParamGroup
 
 
@@ -16,7 +17,7 @@ class Sample(_ParamGroup):
         """
         id = self.get_attribute("id")
         if id is None:
-            raise ValueError("Sample ID is missing")
+            raise MzmlError("Sample ID is missing")
         return id
 
     @property
@@ -30,3 +31,6 @@ class Sample(_ParamGroup):
 
     def __str__(self) -> str:
         return self.__repr__()
+
+
+__all__ = ["Sample"]

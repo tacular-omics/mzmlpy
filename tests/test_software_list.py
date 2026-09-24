@@ -15,7 +15,7 @@ def test_software_list(filename):
     assert bioworks is not None
     assert bioworks.version == "3.3.1 sp1"
     # Access by Acession
-    item = bioworks.get_cvparm("MS:1000533")
+    item = bioworks.get_cv_param("MS:1000533")
     assert item is not None
     assert item.name == "Bioworks"
 
@@ -23,7 +23,7 @@ def test_software_list(filename):
     pwiz = software_list[1]
     assert pwiz is not None
     assert pwiz.version == "1.0"
-    item = pwiz.get_cvparm("MS:1000615")
+    item = pwiz.get_cv_param("MS:1000615")
     assert item is not None
     assert item.name == "ProteoWizard"
 
@@ -31,6 +31,6 @@ def test_software_list(filename):
     compass = software_list[2]
     assert compass is not None
     assert compass.version == "2.0.5"
-    item = compass.get_cvparm("MS:1000718")
+    item = compass.get_cv_param("MS:1000718")
     assert item is not None
     assert item.name == "CompassXtract"

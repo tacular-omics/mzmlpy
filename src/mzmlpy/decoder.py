@@ -7,6 +7,8 @@ import zlib
 import numpy as np
 from numpy.typing import NDArray
 
+from .errors import MzmlDecodeError
+
 
 def _require(module: str, extra: str):
     """Import an optional decoding dependency, raising an actionable error if it is missing."""
@@ -19,7 +21,7 @@ def _require(module: str, extra: str):
         ) from exc
 
 
-def fix_input(data: NDArray[np.uint8] | bytes) -> NDArray[np.uint8]:
+def _fix_input(data: NDArray[np.uint8] | bytes) -> NDArray[np.uint8]:
     if isinstance(data, bytes):
         return np.frombuffer(data, dtype=np.uint8)
     return data
@@ -33,7 +35,7 @@ class MSDecoder:
         """Decode MS-Numpress linear prediction compressed data."""
         pynumpress = _require("pynumpress", "numpress")
 
-        data = fix_input(data)
+        data = _fix_input(data)
         if len(data) == 12:
             # A one-value array: 8-byte big-endian fixed point, then the first value as a 4-byte
             # little-endian integer. MSNumpress decodeLinear returns it; pynumpress 0.1.5 raises
@@ -49,7 +51,7 @@ class MSDecoder:
         """Decode MS-Numpress positive integer compressed data."""
         pynumpress = _require("pynumpress", "numpress")
 
-        result = pynumpress.decode_pic(fix_input(data))
+        result = pynumpress.decode_pic(_fix_input(data))
         return np.asarray(result, dtype=np.float64)
 
     @classmethod
@@ -57,7 +59,7 @@ class MSDecoder:
         """Decode MS-Numpress short logged float compressed data."""
         pynumpress = _require("pynumpress", "numpress")
 
-        result = pynumpress.decode_slof(fix_input(data))
+        result = pynumpress.decode_slof(_fix_input(data))
         return np.asarray(result, dtype=np.float64)
 
     @classmethod
@@ -120,10 +122,12 @@ class MSDecoder:
         numeric arrays. This reverses that transform.
         """
         if element_size <= 0:
-            raise ValueError(f"element_size must be positive, got {element_size}")
+            raise MzmlDecodeError(f"element_size must be positive, got {element_size}")
         if len(data) % element_size != 0:
             # Otherwise numpy silently broadcasts mismatched slices into scrambled output.
-            raise ValueError(f"byte-shuffled data length {len(data)} is not a multiple of element size {element_size}")
+            raise MzmlDecodeError(
+                f"byte-shuffled data length {len(data)} is not a multiple of element size {element_size}"
+            )
         n_elements = len(data) // element_size
         src = np.frombuffer(data, dtype=np.uint8)
         dst = np.empty_like(src)
@@ -205,3 +209,6 @@ class MSDecoder:
             indices = np.frombuffer(cls.unshuffle(idx_data, idx_size), dtype=np.dtype(f"<u{idx_size}"))
 
         return values[indices]
+
+
+__all__: list[str] = []

@@ -5,6 +5,7 @@ from functools import cached_property
 from typing import Protocol, runtime_checkable
 
 from ..constants import MzMLElement
+from ..errors import MzmlError
 from .params import CvParam, ReferenceableParamGroupRef, UserParam
 
 
@@ -18,25 +19,25 @@ class _DataTreeWrapperProtocol(Protocol):
     def ns(self) -> str: ...
 
     @property
-    def cv_params(self) -> list[CvParam]: ...
+    def cv_params(self) -> tuple[CvParam, ...]: ...
 
-    def get_cvparm(self, id: str) -> CvParam | None: ...
+    def get_cv_param(self, id: str) -> CvParam | None: ...
 
     def cv_float(self, id: str) -> float | None: ...
 
     def cv_int(self, id: str) -> int | None: ...
 
     @property
-    def accessions(self) -> set[str]: ...
+    def accessions(self) -> frozenset[str]: ...
 
     @property
-    def names(self) -> set[str]: ...
+    def names(self) -> frozenset[str]: ...
 
     @property
-    def user_params(self) -> list[UserParam]: ...
+    def user_params(self) -> tuple[UserParam, ...]: ...
 
     @property
-    def ref_params(self) -> list[ReferenceableParamGroupRef]: ...
+    def ref_params(self) -> tuple[ReferenceableParamGroupRef, ...]: ...
 
 
 @dataclass(frozen=True)
@@ -60,11 +61,14 @@ class _DataTreeWrapper:
     def __str__(self) -> str:
         return self.__repr__()
 
-    def serialize(self) -> dict:
-        """return the full element content"""
+    def serialize(self) -> dict[str, object]:
+        """Return the element as nested dicts: ``tag``, ``attributes``, ``text``, ``children``.
+
+        The result is a fresh copy; changing it does not change the wrapped element.
+        """
         return {
             "tag": self.element.tag,
-            "attributes": self.element.attrib,
+            "attributes": dict(self.element.attrib),
             "text": self.element.text,
             "children": [_DataTreeWrapper(child).serialize() for child in self.element],
         }
@@ -77,9 +81,9 @@ class _DataTreeWrapper:
 @dataclass(frozen=True)
 class _ParamGroup(_DataTreeWrapper):
     @cached_property
-    def cv_params(self) -> list[CvParam]:
-        """Parse cvParams from the XML element."""
-        cv_params = []
+    def cv_params(self) -> tuple[CvParam, ...]:
+        """The element's cvParams, in document order."""
+        cv_params: list[CvParam] = []
         for cv_param in self.element.findall(f"{self.ns}{MzMLElement.CV_PARAM}"):
             cv_param = cv_param.attrib
             # cvRef/accession/name are schema-required, but tolerate their absence with empty
@@ -95,66 +99,66 @@ class _ParamGroup(_DataTreeWrapper):
                     unit_cv_ref=cv_param.get("unitCvRef", None),
                 )
             )
-        return cv_params
+        return tuple(cv_params)
 
-    def get_cvparm(self, id: str) -> CvParam | None:
-        """Get a cvParam by accession or name."""
+    def get_cv_param(self, id: str) -> CvParam | None:
+        """Get a cvParam by accession or name, or None if absent."""
         for cv_param in self.cv_params:
             if cv_param.accession == id or cv_param.name == id:
                 return cv_param
         return None
 
-    def has_cvparm(self, id: str) -> bool:
+    def has_cv_param(self, id: str) -> bool:
         """Check if a cvParam with the given accession or name exists."""
         return any(cv_param.accession == id or cv_param.name == id for cv_param in self.cv_params)
 
     def cv_float(self, id: str) -> float | None:
         """Return a cvParam's value as a float, or None if the term is absent or has no value.
 
-        Raises ValueError naming the term and its bad value if the value is present but not
+        Raises MzmlError naming the term and its bad value if the value is present but not
         numeric — more actionable than a bare "could not convert string to float".
         """
-        cv_param = self.get_cvparm(id)
+        cv_param = self.get_cv_param(id)
         if cv_param is None or cv_param.value is None:
             return None
         try:
             return float(cv_param.value)
         except ValueError as e:
-            raise ValueError(
+            raise MzmlError(
                 f"CV param {cv_param.name or id!r} ({id}) has a non-numeric value {cv_param.value!r}"
             ) from e
 
     def cv_int(self, id: str) -> int | None:
         """Return a cvParam's value as an int, or None if absent or valueless (see :meth:`cv_float`)."""
-        cv_param = self.get_cvparm(id)
+        cv_param = self.get_cv_param(id)
         if cv_param is None or cv_param.value is None:
             return None
         try:
             return int(cv_param.value)
         except ValueError as e:
-            raise ValueError(
+            raise MzmlError(
                 f"CV param {cv_param.name or id!r} ({id}) has a non-integer value {cv_param.value!r}"
             ) from e
 
     @cached_property
-    def accessions(self) -> set[str]:
-        """Get a set of all accession numbers from the cvParams."""
-        return {cv_param.accession for cv_param in self.cv_params}
+    def accessions(self) -> frozenset[str]:
+        """All cvParam accessions."""
+        return frozenset(cv_param.accession for cv_param in self.cv_params)
 
     @cached_property
-    def names(self) -> set[str]:
-        """Get a set of all names from the cvParams."""
-        return {cv_param.name for cv_param in self.cv_params}
+    def names(self) -> frozenset[str]:
+        """All cvParam names."""
+        return frozenset(cv_param.name for cv_param in self.cv_params)
 
-    @property
-    def user_params(self) -> list[UserParam]:
-        """Parse userParams from the XML element."""
-        user_params = []
+    @cached_property
+    def user_params(self) -> tuple[UserParam, ...]:
+        """The element's userParams, in document order."""
+        user_params: list[UserParam] = []
         for user_param in self.element.findall(f"{self.ns}{MzMLElement.USER_PARAM}"):
             user_param = user_param.attrib
             user_params.append(
                 UserParam(
-                    name=user_param["name"],
+                    name=user_param.get("name", ""),
                     value=user_param.get("value", None),
                     type_value=user_param.get("typeValue", None),
                     unit_accession=user_param.get("unitAccession", None),
@@ -162,7 +166,7 @@ class _ParamGroup(_DataTreeWrapper):
                     unit_cv_ref=user_param.get("unitCvRef", None),
                 )
             )
-        return user_params
+        return tuple(user_params)
 
     def get_user_param(self, name: str) -> UserParam | None:
         """Get a userParam by name."""
@@ -175,14 +179,14 @@ class _ParamGroup(_DataTreeWrapper):
         """Check if a userParam with the given name exists."""
         return any(user_param.name == name for user_param in self.user_params)
 
-    @property
-    def ref_params(self) -> list[ReferenceableParamGroupRef]:
-        """Get a list of all referenceable parameters from the XML element."""
-        ref_params = []
+    @cached_property
+    def ref_params(self) -> tuple[ReferenceableParamGroupRef, ...]:
+        """The element's referenceableParamGroupRefs, in document order."""
+        ref_params: list[ReferenceableParamGroupRef] = []
         for ref_param in self.element.findall(f"{self.ns}{MzMLElement.REFERENCEABLE_PARAM_GROUP_REF}"):
             ref_param = ref_param.attrib
-            ref_params.append(ReferenceableParamGroupRef(ref=ref_param["ref"]))
-        return ref_params
+            ref_params.append(ReferenceableParamGroupRef(ref=ref_param.get("ref", "")))
+        return tuple(ref_params)
 
     def get_ref_param(self, ref: str) -> ReferenceableParamGroupRef | None:
         """Get a referenceable parameter by ref."""
@@ -208,3 +212,6 @@ class _ParamGroup(_DataTreeWrapper):
 
     def __str__(self) -> str:
         return self.__repr__()
+
+
+__all__: list[str] = []

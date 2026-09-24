@@ -39,7 +39,7 @@ def test_stream_mode_full_api():
             assert [s.id for s in r.spectra[0:2]] == ref_ids[0:2]  # slice
             assert r.chromatograms["tic"].id == "tic"  # chromatogram by id
             assert r.chromatograms[0].id == r.chromatograms.__iter__().__next__().id
-            assert r.TIC is not None
+            assert r.total_ion_chromatogram is not None
 
 
 def test_stream_mode_unknown_id_raises():
@@ -110,15 +110,15 @@ def test_ion_mobility_faims_ccs_and_products(tmp_path):
     path = _write(tmp_path, "im.mzML", body)
     with Mzml(path) as r:
         ion = r.spectra[0].precursors[0].selected_ions[0]
-        assert ion.peak_intensity == 1234.0
-        assert ion.ir_im == 0.85
-        assert ion.im_drift_time == 12.3
+        assert ion.intensity == 1234.0
+        assert ion.ook0 == 0.85
+        assert ion.drift_time == 12.3
         assert ion.faims_voltage_start == -45.0
         assert ion.faims_voltage_end == -50.0
         assert ion.ccs == 350.0
         products = r.spectra[0].products
         assert len(products) == 1
-        assert products[0].isolation_window.target_mz == 250.0
+        assert products[0].isolation_window.isolation_mz == 250.0
 
 
 # ------------------------------------------------------------------ decoder encode round-trips
@@ -169,13 +169,13 @@ def test_spectrum_summary_and_filter_accessors():
 
 def test_scan_level_ion_mobility_bruker():
     """timsTOF PASEF MS2 stores ion mobility as a scan cvParam (MS:1002815), not a binary array.
-    has_im and ion_mobility must reflect it (has_im previously returned False for such spectra)."""
+    has_im and ook0 must reflect it (has_im previously returned False for such spectra)."""
     with Mzml("tests/data/bruker_ms2_im.mzML") as r:
         s = r.spectra[0]
         assert s.has_im is True
-        assert s.ion_mobility == 1.595546371847
-        assert s.scans[0].inverse_reduced_ion_mobility == 1.595546371847
-        assert s.scans[0].ion_mobility_drift_time is None
+        assert s.ook0 == 1.595546371847
+        assert s.scans[0].ook0 == 1.595546371847
+        assert s.scans[0].drift_time is None
 
 
 def test_numpress_encode_decode_roundtrip():

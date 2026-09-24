@@ -39,6 +39,7 @@ from ._mcp_types import (
 from ._progress import checkpoint
 from .constants import BinaryDataArrayAccession, TimeUnitAccession
 from .elems.dtree_wrapper import _ParamGroup
+from .errors import MzmlError, MzmlRecordNotFoundError
 
 if TYPE_CHECKING:
     from mcp.server import MCPServer
@@ -55,7 +56,7 @@ class FileResult[T]:
 
 def _bounded(value: Any) -> None:
     if len(json.dumps(value, allow_nan=False).encode()) > 262_144:
-        raise ValueError("Result exceeds 256 KiB. Request a smaller page or use an export")
+        raise MzmlError("Result exceeds 256 KiB. Request a smaller page or use an export")
 
 
 class _RunSummary(TypedDict):
@@ -69,12 +70,12 @@ class _RunSummary(TypedDict):
 
 def _integer(name: str, value: int, minimum: int, maximum: int | None = None) -> None:
     if type(value) is not int or value < minimum or (maximum is not None and value > maximum):
-        raise ValueError(f"{name} must be an integer from {minimum} to {maximum or 'unbounded'}")
+        raise MzmlError(f"{name} must be an integer from {minimum} to {maximum or 'unbounded'}")
 
 
 def _range(lower: float | None, upper: float | None) -> tuple[float | None, float | None] | None:
     bounds = (lower, upper) if lower is not None or upper is not None else None
-    SpectrumFilter(retention_time=bounds)
+    SpectrumFilter(rt_range=bounds)
     return bounds
 
 
@@ -104,13 +105,13 @@ def _points(
     bounds: tuple[float | None, float | None] | None,
 ) -> dict[str, Any]:
     if x is None or y is None:
-        raise ValueError("The requested coordinate or intensity array is missing")
+        raise MzmlError("The requested coordinate or intensity array is missing")
     if len(x) != len(y):
-        raise ValueError("Coordinate and intensity arrays have different lengths")
+        raise MzmlError("Coordinate and intensity arrays have different lengths")
     if not np.all(np.isfinite(x)) or not np.all(np.isfinite(y)):
-        raise ValueError("The requested arrays contain nonfinite values")
+        raise MzmlError("The requested arrays contain nonfinite values")
     if start > len(x):
-        raise ValueError("start_index exceeds the array length")
+        raise MzmlError("start_index exceeds the array length")
     points = []
     lower, upper = bounds or (None, None)
     next_index = None
@@ -140,16 +141,16 @@ class MzmlTools:
     """Read-only operations restricted to one configured data directory.
 
     Each call opens and closes its own reader. Gzip input uses streaming access or an
-    existing embedded index, with no extracted cache or sidecar creation.
+    existing embedded index, with no sidecar creation.
     """
 
     def __init__(self, root: str | Path, output_dir: str | Path | None = None) -> None:
         self.root = Path(root).expanduser().resolve(strict=True)
         if not self.root.is_dir():
-            raise ValueError("The MCP root must be an existing directory")
+            raise MzmlError("The MCP root must be an existing directory")
         self.output_dir = Path(output_dir).expanduser().resolve(strict=True) if output_dir is not None else None
         if self.output_dir is not None and not self.output_dir.is_dir():
-            raise ValueError("The output directory must be an existing directory")
+            raise MzmlError("The output directory must be an existing directory")
         self._cache = ResultCache()
         self.jobs = JobManager()
 
@@ -158,15 +159,15 @@ class MzmlTools:
         candidate = Path(file)
         path = (candidate if candidate.is_absolute() else self.root / candidate).resolve()
         if not path.is_relative_to(self.root):
-            raise ValueError("File must be inside the configured data directory")
+            raise MzmlError("File must be inside the configured data directory")
         if not path.is_file():
-            raise ValueError("File must be an existing regular mzML file")
+            raise MzmlError("File must be an existing regular mzML file")
         if not path.name.endswith((".mzML", ".mzml", ".mzML.gz", ".mzml.gz", ".igz")):
-            raise ValueError("Supported file suffixes are .mzML, .mzML.gz, and .igz")
+            raise MzmlError("Supported file suffixes are .mzML, .mzML.gz, and .igz")
         stat = path.stat()
         revision = f"{stat.st_size}:{stat.st_mtime_ns}:{stat.st_ctime_ns}"
         if expected_revision is not None and revision != expected_revision:
-            raise ValueError("File revision changed. Restart the query against the current file")
+            raise MzmlError("File revision changed. Restart the query against the current file")
         return path, revision
 
     def _result(self, path: Path, revision: str, data: dict[str, Any]) -> FileResult:
@@ -174,7 +175,7 @@ class MzmlTools:
         result = FileResult(path.relative_to(self.root).as_posix(), revision, data)
         encoded = json.dumps(asdict(result), allow_nan=False).encode()
         if len(encoded) > 262_144:
-            raise ValueError("Result exceeds 256 KiB. Request a smaller page or a narrower selection")
+            raise MzmlError("Result exceeds 256 KiB. Request a smaller page or a narrower selection")
         return result
 
     def inspect_file(self, file: str) -> FileResult[InspectData]:
@@ -270,15 +271,22 @@ class MzmlTools:
         _integer("start_index", start_index, 0)
         _integer("limit", limit, 1, 100)
         _integer("scan_limit", scan_limit, 1, 100_000)
+        if mobility_type not in {None, "inverse_reduced", "drift_time"}:
+            raise MzmlError("mobility_type must be inverse_reduced or drift_time")
+        mobility = _range(ion_mobility_min, ion_mobility_max)
+        if mobility is not None and mobility_type is None:
+            raise MzmlError("ion_mobility bounds require an explicit mobility_type")
+        # A mobility_type without bounds selects spectra that record that quantity at all.
+        mobility = mobility or ((None, None) if mobility_type is not None else None)
         predicate = SpectrumFilter(
             ms_level=ms_level,
-            retention_time=_range(retention_time_min_seconds, retention_time_max_seconds),
+            rt_range=_range(retention_time_min_seconds, retention_time_max_seconds),
             polarity=polarity,
-            precursor_mz=_range(precursor_mz_min, precursor_mz_max),
+            precursor_mz_range=_range(precursor_mz_min, precursor_mz_max),
             spectrum_type=spectrum_type,
-            mobility_type=mobility_type,
-            ion_mobility=_range(ion_mobility_min, ion_mobility_max),
-            faims_voltage=(faims_voltage_min, faims_voltage_max)
+            ook0_range=mobility if mobility_type == "inverse_reduced" else None,
+            drift_time_range=mobility if mobility_type == "drift_time" else None,
+            faims_voltage_range=(faims_voltage_min, faims_voltage_max)
             if faims_voltage_min is not None or faims_voltage_max is not None
             else None,
         )
@@ -323,12 +331,12 @@ class MzmlTools:
         _integer("limit", limit, 1, 1000)
         bounds = _range(mz_min, mz_max)
         if not include_peaks and (start_index != 0 or bounds is not None):
-            raise ValueError("Peak selection requires include_peaks=True")
+            raise MzmlError("Peak selection requires include_peaks=True")
         path, revision = self._source(file, expected_revision)
         with Mzml(path, in_memory=False, gzip_mode="stream") as reader:
             spectrum = reader.spectra.get_by_id(spectrum_id)
             if spectrum.id != spectrum_id:
-                raise KeyError(f"No spectrum with exact native ID {spectrum_id!r}")
+                raise MzmlRecordNotFoundError(f"No spectrum with exact native ID {spectrum_id!r}")
             data = _spectrum(spectrum)
             data["peaks"] = None
             if include_peaks:
@@ -359,24 +367,21 @@ class MzmlTools:
         with Mzml(path, in_memory=False, gzip_mode="stream") as reader:
             chromatogram = reader.chromatograms.get_by_id(chromatogram_id)
             if chromatogram.id != chromatogram_id:
-                raise KeyError(f"No chromatogram with exact native ID {chromatogram_id!r}")
+                raise MzmlRecordNotFoundError(f"No chromatogram with exact native ID {chromatogram_id!r}")
             unit = _array_unit(chromatogram, BinaryDataArrayAccession.TIME)
-            factors = {
-                TimeUnitAccession.MILLISECOND: 0.001,
-                TimeUnitAccession.SECOND: 1.0,
-                TimeUnitAccession.MINUTE: 60.0,
-                TimeUnitAccession.HOUR: 3600.0,
+            known = {
+                TimeUnitAccession.MILLISECOND,
+                TimeUnitAccession.SECOND,
+                TimeUnitAccession.MINUTE,
+                TimeUnitAccession.HOUR,
             }
-            factor = factors.get(unit["accession"])
-            if factor is None and unit["accession"] is None:
-                factor = {"millisecond": 0.001, "second": 1.0, "minute": 60.0, "hour": 3600.0}.get(
-                    (unit["name"] or "").lower()
-                )
-            if factor is None:
-                raise ValueError("Chromatogram time array has missing or unsupported time units")
-            time = chromatogram.time
+            if unit["accession"] not in known and not (
+                unit["accession"] is None
+                and (unit["name"] or "").lower() in {"millisecond", "second", "minute", "hour"}
+            ):
+                raise MzmlError("Chromatogram time array has missing or unsupported time units")
             points = _points(
-                time.astype(np.float64) * factor if time is not None and factor != 1 else time,
+                chromatogram.rt,
                 chromatogram.intensity,
                 start_index,
                 limit,
@@ -443,14 +448,14 @@ class MzmlTools:
         _integer("limit", limit, 1, 100)
         path = (self.root / directory).resolve(strict=True)
         if not path.is_relative_to(self.root) or not path.is_dir():
-            raise ValueError("Directory must be inside the configured data directory")
+            raise MzmlError("Directory must be inside the configured data directory")
         if len(pattern) > 256 or "/" in pattern or "\\" in pattern:
-            raise ValueError("pattern must be a filename glob with at most 256 characters")
+            raise MzmlError("pattern must be a filename glob with at most 256 characters")
         entries: list[FileEntry] = []
         for index, entry in enumerate(path.iterdir()):
             checkpoint("listing directory", index)
             if index >= 20000:
-                raise ValueError("Directory exceeds 20000 entries. Organize files into smaller directories")
+                raise MzmlError("Directory exceeds 20000 entries. Organize files into smaller directories")
             resolved = entry.resolve()
             if not resolved.is_relative_to(self.root):
                 continue
@@ -477,7 +482,7 @@ class MzmlTools:
         entries.sort(key=lambda entry: entry["file"])
         revision = hashlib.sha256(json.dumps([entry["file"] for entry in entries]).encode()).hexdigest()
         if expected_revision is not None and revision != expected_revision:
-            raise ValueError("Directory contents changed. Restart listing")
+            raise MzmlError("Directory contents changed. Restart listing")
         end = start_index + limit
         result: DirectoryPage = {
             "directory": path.relative_to(self.root).as_posix(),
@@ -544,7 +549,7 @@ class MzmlTools:
                 "vocabularies": list(reader.cvs.values()),
             }
             if section not in sections:
-                raise ValueError("Unknown metadata section")
+                raise MzmlError("Unknown metadata section")
             items = sections[section]
             selected = items[start_index : start_index + limit]
             if section == "vocabularies":
@@ -594,17 +599,17 @@ class MzmlTools:
         signal processing, or claims about sample equivalence are performed.
         """
         if not 2 <= len(files) <= 8:
-            raise ValueError("Supply 2 through 8 files")
+            raise MzmlError("Supply 2 through 8 files")
         sources = [self._source(file) for file in files]
         if len({str(path) for path, _ in sources}) != len(sources):
-            raise ValueError("Supply distinct files")
+            raise MzmlError("Supply distinct files")
         summaries: list[_RunSummary] = []
         for index, (path, revision) in enumerate(sources):
             checkpoint("comparing files", index)
             summary = self.summarize_run(str(path), revision)
             instruments = self.get_metadata(str(path), section="instruments", limit=100, expected_revision=revision)
             if instruments.data["next_index"] is not None:
-                raise ValueError("More than 100 instruments. Compare paged instrument metadata explicitly")
+                raise MzmlError("More than 100 instruments. Compare paged instrument metadata explicitly")
             summaries.append(
                 {
                     "file": summary.file,
@@ -664,7 +669,7 @@ class MzmlTools:
         Missing IDs are reported explicitly. Duplicate requested IDs are rejected. No binary decoding.
         """
         if not 1 <= len(spectrum_ids) <= 20 or len(set(spectrum_ids)) != len(spectrum_ids):
-            raise ValueError("Supply 1 through 20 distinct spectrum IDs")
+            raise MzmlError("Supply 1 through 20 distinct spectrum IDs")
         path, revision = self._source(file, expected_revision)
         wanted = set(spectrum_ids)
         records = {}
@@ -706,21 +711,21 @@ class MzmlTools:
         _integer("start_index", start_index, 0)
         _integer("limit", limit, 1, 1000)
         if kind not in {"spectrum", "chromatogram"}:
-            raise ValueError("kind must be spectrum or chromatogram")
+            raise MzmlError("kind must be spectrum or chromatogram")
         path, revision = self._source(file, expected_revision)
         with Mzml(path, in_memory=False, gzip_mode="stream") as reader:
             lookup = reader.spectra if kind == "spectrum" else reader.chromatograms
             record = lookup.get_by_id(record_id)
             if record.id != record_id:
-                raise KeyError(f"No record with exact native ID {record_id!r}")
+                raise MzmlRecordNotFoundError(f"No record with exact native ID {record_id!r}")
             arrays = record.binary_arrays
             if array_index >= len(arrays):
-                raise ValueError("array_index exceeds the record's array count")
+                raise MzmlError("array_index exceeds the record's array count")
             array = arrays[array_index]
             checkpoint("decoding array")
             values = array.data
             if start_index > len(values):
-                raise ValueError("start_index exceeds the array length")
+                raise MzmlError("start_index exceeds the array length")
             result = [_json_number(value) for value in values[start_index : start_index + limit]]
         return self._result(
             path,
@@ -761,12 +766,12 @@ class MzmlTools:
         if self.output_dir is not None:
             operations["export_records"] = self.export_records
         if operation not in operations:
-            raise ValueError("Unsupported operation, or exports are not enabled")
+            raise MzmlError("Unsupported operation, or exports are not enabled")
         function = operations[operation]
         try:
             inspect.signature(function).bind(**arguments)
         except TypeError as error:
-            raise ValueError(str(error)) from error
+            raise MzmlError(str(error)) from error
         # Snapshot arguments so direct Python callers cannot mutate a queued request.
         copied = json.loads(json.dumps(arguments, allow_nan=False))
         return self.jobs.submit(operation, lambda: function(**copied))
@@ -803,11 +808,11 @@ class MzmlTools:
         from ._mcp_export import export_records
 
         if self.output_dir is None:
-            raise ValueError("Exports require a configured output directory")
+            raise MzmlError("Exports require a configured output directory")
         if kind not in {"spectrum", "chromatogram"}:
-            raise ValueError("kind must be spectrum or chromatogram")
+            raise MzmlError("kind must be spectrum or chromatogram")
         if not 1 <= len(record_ids) <= 100 or len(set(record_ids)) != len(record_ids):
-            raise ValueError("Supply 1 through 100 distinct record IDs")
+            raise MzmlError("Supply 1 through 100 distinct record IDs")
         path, revision = self._source(file, expected_revision)
         result = export_records(self, path, revision, record_ids, kind)
         # The export function verifies the source immediately before publishing the artifact.
@@ -818,7 +823,7 @@ class MzmlTools:
         from ._mcp_export import read_export
 
         if self.output_dir is None:
-            raise ValueError("Exports require a configured output directory")
+            raise MzmlError("Exports require a configured output directory")
         _integer("start_line", start_line, 0)
         _integer("limit", limit, 1, 20)
         result = read_export(self.output_dir, artifact_id, start_line, limit)
@@ -828,7 +833,7 @@ class MzmlTools:
 
 def _array_unit(record: Any, accession: BinaryDataArrayAccession) -> dict[str, str | None]:
     array = record.get_binary_array(accession)
-    param = array.get_cvparm(accession) if array is not None else None
+    param = array.get_cv_param(accession) if array is not None else None
     return {"accession": param.unit_accession if param else None, "name": param.unit_name if param else None}
 
 
@@ -839,3 +844,6 @@ def create_server(root: str | Path, output_dir: str | Path | None = None) -> "MC
     except ImportError as error:
         raise ImportError('MCP support requires pip install "mzmlpy[mcp]"') from error
     return build_server(root, output_dir)
+
+
+__all__ = ["FileResult", "MzmlTools", "create_server"]

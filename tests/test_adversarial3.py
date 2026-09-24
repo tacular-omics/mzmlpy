@@ -61,10 +61,10 @@ def test_precursor_full_chain(tmp_path):
         s = r.spectra[0]
         assert len(s.precursors) == 1
         p = s.precursors[0]
-        assert p.isolation_window is not None and p.isolation_window.target_mz == 500.0
+        assert p.isolation_window is not None and p.isolation_window.isolation_mz == 500.0
         assert len(p.selected_ions) == 1
-        assert p.selected_ions[0].selected_ion_mz == 500.5
-        assert p.selected_ions[0].charge_state == 2
+        assert p.selected_ions[0].mz == 500.5
+        assert p.selected_ions[0].charge == 2
         assert p.activation is not None
 
 
@@ -82,7 +82,7 @@ def test_ms1_has_no_precursors(tmp_path):
 
 def s_precursors_empty(spectrum):
     p = spectrum.precursors
-    return p == [] or p is None
+    return p == ()
 
 
 def test_precursor_missing_charge_is_none(tmp_path):
@@ -98,8 +98,8 @@ def test_precursor_missing_charge_is_none(tmp_path):
     path = _write(tmp_path, "nocharge.mzML", body)
     with Mzml(path) as r:
         si = r.spectra[0].precursors[0].selected_ions[0]
-        assert si.selected_ion_mz == 500.5
-        assert si.charge_state is None
+        assert si.mz == 500.5
+        assert si.charge is None
 
 
 # ---------------------------------------------------------------- binary arrays
@@ -156,7 +156,7 @@ def test_chromatogram_time_intensity(tmp_path):
     path = _write(tmp_path, "chrom.mzML", body)
     with Mzml(path) as r:
         c = r.chromatograms["tic"]
-        assert list(c.time) == times
+        assert list(c.rt) == times
         assert list(c.intensity) == intens
 
 

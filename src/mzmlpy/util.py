@@ -3,7 +3,6 @@ import gzip
 import io
 import json
 import os
-import shutil
 import tempfile
 import xml.etree.ElementTree as ElementTree
 from collections.abc import Iterator
@@ -30,6 +29,10 @@ def expand_param_group_refs(
     place to preserve provenance, and repeated expansion is idempotent.
     """
     if not templates:
+        return element
+    ns = element.tag[: element.tag.index("}") + 1] if "}" in element.tag else ""
+    if next(element.iter(f"{ns}referenceableParamGroupRef"), None) is None:
+        # Most records carry no refs; skip the Python-level walk over every descendant.
         return element
 
     targets = [
@@ -58,6 +61,13 @@ def expand_param_group_refs(
     return element
 
 
+def rapidgzip_threads() -> int:
+    """Threads for one rapidgzip reader: the CPUs this process may use, capped at 4."""
+    process_cpu_count = getattr(os, "process_cpu_count", None)  # Python 3.13+
+    count = process_cpu_count() if process_cpu_count is not None else os.cpu_count()
+    return max(1, min(count or 1, 4))
+
+
 def gzip_open_binary(path: str) -> BinaryIO:
     """Open a gzip file for binary reading, using rapidgzip if available."""
     from .embedded_indexed_gzip import is_embedded_indexed_gzip
@@ -65,7 +75,7 @@ def gzip_open_binary(path: str) -> BinaryIO:
     if is_embedded_indexed_gzip(path):
         return gzip.open(path, "rb")
     if _HAS_RAPIDGZIP:
-        return RapidgzipFile(path, parallelization=os.cpu_count() or 1)  # type: ignore[return-value]
+        return RapidgzipFile(path, parallelization=rapidgzip_threads())  # type: ignore[return-value]
     return gzip.open(path, "rb")
 
 
@@ -77,7 +87,7 @@ def gzip_open_text(path: str, encoding: str = "utf-8") -> TextIO:
         return gzip.open(path, "rt", encoding=encoding)
     if _HAS_RAPIDGZIP:
         return io.TextIOWrapper(
-            RapidgzipFile(path, parallelization=os.cpu_count() or 1),
+            RapidgzipFile(path, parallelization=rapidgzip_threads()),
             encoding=encoding,
         )
     return gzip.open(path, "rt", encoding=encoding)
@@ -87,6 +97,20 @@ def gzip_decompress(path: str) -> bytes:
     """Read and decompress an entire gzip file, using rapidgzip if available."""
     with gzip_open_binary(path) as f:
         return f.read()
+
+
+def _current_umask() -> int:
+    """Return the process umask, without changing it where the platform allows."""
+    try:  # Linux: read it, so other threads never see a temporary umask of 0
+        with open("/proc/self/status") as status:
+            for line in status:
+                if line.startswith("Umask:"):
+                    return int(line.split()[1], 8)
+    except (OSError, ValueError, IndexError):
+        pass
+    mask = os.umask(0o022)
+    os.umask(mask)
+    return mask
 
 
 @contextlib.contextmanager
@@ -105,6 +129,8 @@ def atomic_write_path(final_path: str) -> Iterator[str]:
     os.close(fd)
     try:
         yield tmp_path
+        # mkstemp creates 0600 files; give the cache the mode a normal open() would.
+        os.chmod(tmp_path, 0o666 & ~_current_umask())
         os.replace(tmp_path, final_path)
     except BaseException:
         with contextlib.suppress(OSError):
@@ -143,22 +169,4 @@ def write_cache_signature(cache_path: str, source_path: str, expected_source: st
         json.dump({"source": signature, "cache": [st.st_size, st.st_mtime_ns]}, handle)
 
 
-def _get_cache_dir() -> str:
-    """Return the mzmlpy cache directory path."""
-    return os.path.join(tempfile.gettempdir(), "mzmlpy")
-
-
-def clear_cache() -> None:
-    """Remove all cached files from the mzmlpy temporary directory.
-
-    Deletes the ``<tmpdir>/mzmlpy/`` directory and all its contents.
-    This includes extracted ``.mzML`` files created by ``gzip_mode='extract'``.
-
-    Example::
-
-        from mzmlpy import clear_cache
-        clear_cache()
-    """
-    cache_dir = _get_cache_dir()
-    if os.path.isdir(cache_dir):
-        shutil.rmtree(cache_dir)
+__all__: list[str] = []  # internal helpers only

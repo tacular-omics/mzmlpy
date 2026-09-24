@@ -1,30 +1,6 @@
 from enum import StrEnum
 
 
-class PeakType(StrEnum):
-    """Enumeration of peak types."""
-
-    PROFILE = "profile"
-    CENTROIDED = "centroided"
-    DECONVOLUTED = "deconvoluted"
-
-
-class NoiseMode(StrEnum):
-    """Enumeration of noise estimation modes."""
-
-    MEDIAN = "median"
-    MEAN = "mean"
-    MAD = "mad"
-
-
-class DataType(StrEnum):
-    """Enumeration of data array types."""
-
-    MZ = "mz"
-    INTENSITY = "i"
-    TIME = "time"
-
-
 class TimeUnitAccession(StrEnum):
     """Controlled vocabulary identifiers for supported time units."""
 
@@ -32,15 +8,6 @@ class TimeUnitAccession(StrEnum):
     SECOND = "UO:0000010"
     MINUTE = "UO:0000031"
     HOUR = "UO:0000032"
-
-
-class TimeUnit(StrEnum):
-    """Enumeration of time units."""
-
-    MILLISECOND = "millisecond"
-    SECOND = "second"
-    MINUTE = "minute"
-    HOUR = "hour"
 
 
 class BinaryDataTypeAccession(StrEnum):
@@ -53,7 +20,7 @@ class BinaryDataTypeAccession(StrEnum):
     ASCII_STRING = "MS:1001479"
 
 
-class CompressionTypeAccessions(StrEnum):
+class CompressionTypeAccession(StrEnum):
     """Enumeration of compression type accessions used in mzML binary data arrays."""
 
     BYTE_SHUFFLED_ZSTD = "MS:1003781"
@@ -77,36 +44,7 @@ class CompressionTypeAccessions(StrEnum):
     MS_NUMPRESS_POSITIVE_INTEGER_ZSTD = "MS:1003784"
 
 
-class XMLAttribute(StrEnum):
-    """Enumeration of common XML attribute names."""
-
-    ACCESSION = "accession"
-    NAME = "name"
-    DEFAULT_ARRAY_LENGTH = "defaultArrayLength"
-
-
-class XMLElement(StrEnum):
-    """Enumeration of common XML element names."""
-
-    BINARY_DATA_ARRAY_LIST = "binaryDataArrayList"
-    BINARY_DATA_ARRAY = "binaryDataArray"
-    CV_PARAM = "cvParam"
-    BINARY = "binary"
-    SCAN_LIST = "scanList"
-    SCAN = "scan"
-    SCAN_WINDOW_LIST = "scanWindowList"
-    SCAN_WINDOW = "scanWindow"
-
-
-class EncodingFormat(StrEnum):
-    """Enumeration of encoding formats."""
-
-    LATIN1 = "latin-1"
-    UTF8 = "utf-8"
-    XML = "xml"
-
-
-class SpectrumType(StrEnum):
+class SpectrumTypeAccession(StrEnum):
     """Enumeration of spectrum types."""
 
     PROFILE = "MS:1000128"
@@ -123,7 +61,7 @@ class SpectrumCombinationAccession(StrEnum):
 
 
 class ScanPolarity(StrEnum):
-    """Enumeration of MS accessions for chromatogram properties."""
+    """Scan polarity accessions."""
 
     POSITIVE = "MS:1000130"
     NEGATIVE = "MS:1000129"
@@ -199,23 +137,19 @@ class BinaryDataArrayAccession(StrEnum):
     SAMPLED_NOISE_MZ = "MS:1002743"
 
 
-ION_MOBILITIES = {
-    BinaryDataArrayAccession.RAW_ION_MOBILITY,
-    BinaryDataArrayAccession.MEAN_ION_MOBILITY_DRIFT_TIME,
-    BinaryDataArrayAccession.DECONVOLUTED_ION_MOBILITY_DRIFT_TIME,
-    BinaryDataArrayAccession.MEAN_INVERSE_REDUCED_ION_MOBILITY,
-    BinaryDataArrayAccession.MEAN_ION_MOBILITY,
-    BinaryDataArrayAccession.DECONVOLUTED_INVERSE_REDUCED_ION_MOBILITY,
-    BinaryDataArrayAccession.RAW_ION_MOBILITY_DRIFT_TIME,
-    BinaryDataArrayAccession.RAW_INVERSE_REDUCED_ION_MOBILITY,
-    BinaryDataArrayAccession.ION_MOBILITY,
-}
-
-
-class XMLNamespace(StrEnum):
-    """Enumeration of XML namespace identifiers."""
-
-    SCHEMA_LOCATION = "{http://www.w3.org/2001/XMLSchema-instance}schemaLocation"
+ION_MOBILITIES: frozenset[BinaryDataArrayAccession] = frozenset(
+    {
+        BinaryDataArrayAccession.RAW_ION_MOBILITY,
+        BinaryDataArrayAccession.MEAN_ION_MOBILITY_DRIFT_TIME,
+        BinaryDataArrayAccession.DECONVOLUTED_ION_MOBILITY_DRIFT_TIME,
+        BinaryDataArrayAccession.MEAN_INVERSE_REDUCED_ION_MOBILITY,
+        BinaryDataArrayAccession.MEAN_ION_MOBILITY,
+        BinaryDataArrayAccession.DECONVOLUTED_INVERSE_REDUCED_ION_MOBILITY,
+        BinaryDataArrayAccession.RAW_ION_MOBILITY_DRIFT_TIME,
+        BinaryDataArrayAccession.RAW_INVERSE_REDUCED_ION_MOBILITY,
+        BinaryDataArrayAccession.ION_MOBILITY,
+    }
+)
 
 
 class MzMLElement(StrEnum):
@@ -266,13 +200,17 @@ class MzMLElement(StrEnum):
     INSTRUMENT_CONFIGURATION = "instrumentConfiguration"
     SCAN_SETTINGS = "scanSettings"
     DATA_PROCESSING = "dataProcessing"
+    BINARY_DATA_ARRAY_LIST = "binaryDataArrayList"
+    BINARY_DATA_ARRAY = "binaryDataArray"
+    BINARY = "binary"
+    SCAN_LIST = "scanList"
+    SCAN = "scan"
+    SCAN_WINDOW_LIST = "scanWindowList"
+    SCAN_WINDOW = "scanWindow"
 
-
-PROTON_MASS = 1.00727646677
-ISOTOPE_AVERAGE_DIFFERENCE = 1.002
 
 # Data type to numpy dtype mapping
-BINARY_DECODE_DTYPES: dict[BinaryDataTypeAccession, str] = {
+_BINARY_DECODE_DTYPES: dict[BinaryDataTypeAccession, str] = {
     # mzML binary arrays are always little-endian; pin byte order so decoding is correct on
     # big-endian hosts too (native "float64" etc. would silently byte-swap there).
     BinaryDataTypeAccession.FLOAT_32: "<f4",
@@ -285,7 +223,7 @@ BINARY_DECODE_DTYPES: dict[BinaryDataTypeAccession, str] = {
 class ChromatogramTypeAccession(StrEnum):
     """Enumeration of chromatogram type accessions."""
 
-    EMMISION = "MS:1000813"
+    EMISSION = "MS:1000813"
     SELECTED_ION_MONITORING = "MS:1001472"
     BASEPEAK = "MS:1000628"
     PRECURSOR_ION_CURRENT = "MS:4000025"
@@ -293,9 +231,6 @@ class ChromatogramTypeAccession(StrEnum):
     ABSORPTION = "MS:1000812"
     SELECTED_REACTION_MONITORING = "MS:1001473"
     SELECTED_ION_CURRENT = "MS:1000627"
-
-
-ISOLATION_WINDOW_TARGET_MZ = "MS:1000827"
 
 
 class ChecksumTypeAccession(StrEnum):
@@ -393,3 +328,25 @@ class ActivationAccession(StrEnum):
     SUPPLEMENTAL_COLLISION_ENERGY = "MS:1002680"
     COLLISION_GAS = "MS:1000419"
     COLLISION_GAS_PRESSURE = "MS:1000869"
+
+
+__all__ = [
+    "ION_MOBILITIES",
+    "ActivationAccession",
+    "BinaryDataArrayAccession",
+    "BinaryDataTypeAccession",
+    "ChecksumTypeAccession",
+    "ChromatogramTypeAccession",
+    "CollisionDissociationTypeAccession",
+    "CompressionTypeAccession",
+    "ContactAccession",
+    "DIAAcquisitionAccession",
+    "IsolationWindowAccession",
+    "MzMLElement",
+    "ScanPolarity",
+    "SelectedIonAccession",
+    "SpectrumCombinationAccession",
+    "SpectrumMSAccession",
+    "SpectrumTypeAccession",
+    "TimeUnitAccession",
+]

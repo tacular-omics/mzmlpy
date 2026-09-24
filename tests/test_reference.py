@@ -12,13 +12,12 @@ values to the declared type reproduces pyteomics exactly.
 
 import hashlib
 import json
-from datetime import timedelta
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-from mzmlpy import Mzml
+from mzmlpy import BinaryDataArrayAccession, Mzml
 
 REF = Path(__file__).parent / "reference"
 DATA = Path(__file__).parent / "data"
@@ -57,7 +56,7 @@ def test_spectra_match_pyteomics(name):
             _digest(spec.mz, ref["m/z array"], numpress)
             _digest(spec.intensity, ref["intensity array"], numpress)
             rt = ref.get("scan_start_time_s")
-            assert spec.scan_start_time == (None if rt is None else timedelta(seconds=rt))
+            assert spec.rt == (None if rt is None else pytest.approx(rt))
             assert spec.spectrum_type == ("centroid" if ref["centroid"] else "profile" if ref["profile"] else None)
             for cv_name, value in ref["cv"].items():
                 assert spec.cv_float(cv_name) == value, cv_name
@@ -65,13 +64,10 @@ def test_spectra_match_pyteomics(name):
             for prec, pref in zip(spec.precursors, ref["precursors"], strict=True):
                 assert prec.spectrum_ref == pref["spectrum_ref"]
                 iw = prec.isolation_window
-                got_iw = [None, None, None] if iw is None else [iw.target_mz, iw.lower_offset, iw.upper_offset]
+                got_iw = [None, None, None] if iw is None else [iw.isolation_mz, iw.lower_offset, iw.upper_offset]
                 assert got_iw == pref["isolation_window"]
-                assert (prec.activation.ce if prec.activation else None) == pref["collision_energy"]
-                got_ions = [
-                    {"mz": si.selected_ion_mz, "charge": si.charge_state, "intensity": si.peak_intensity}
-                    for si in prec.selected_ions
-                ]
+                assert (prec.activation.collision_energy if prec.activation else None) == pref["collision_energy"]
+                got_ions = [{"mz": si.mz, "charge": si.charge, "intensity": si.intensity} for si in prec.selected_ions]
                 assert got_ions == pref["selected_ions"]
 
 
@@ -84,7 +80,11 @@ def test_chromatograms_match_pyteomics(name):
         chroms = list(reader.chromatograms)
         assert [c.id for c in chroms] == [c["id"] for c in expected]
         for chrom, ref in zip(chroms, expected, strict=True):
-            _digest(chrom.time, ref["time array"], numpress)
+            # The digest is of the stored time array; ``rt`` is the same values in float64 seconds.
+            raw = chrom.get_binary_array(BinaryDataArrayAccession.TIME)
+            assert raw is not None and chrom.rt is not None
+            _digest(raw.data, ref["time array"], numpress)
+            assert chrom.rt.dtype == np.float64 and chrom.rt.shape == raw.data.shape
             _digest(chrom.intensity, ref["intensity array"], numpress)
 
 
@@ -106,7 +106,7 @@ def test_zstd_family_matches_zlib_source(name):
             np.testing.assert_array_equal(spec.mz, ref.mz)
             np.testing.assert_array_equal(spec.intensity, ref.intensity)
         for ref, chrom in zip(zlib_reader.chromatograms, reader.chromatograms, strict=True):
-            np.testing.assert_array_equal(chrom.time, ref.time)
+            np.testing.assert_array_equal(chrom.rt, ref.rt)
             np.testing.assert_array_equal(chrom.intensity, ref.intensity)
 
 
@@ -117,7 +117,7 @@ def test_psims_written_file():
         assert [s.id for s in spectra] == [s["id"] for s in PSIMS]
         for spec, ref in zip(spectra, PSIMS, strict=True):
             assert spec.ms_level == ref["ms_level"]
-            assert spec.scan_start_time == timedelta(minutes=ref["rt_min"])
+            assert spec.rt == pytest.approx(ref["rt_min"] * 60)
             numpress = ref["compression"].startswith("MS-Numpress")
             for values, key, dtype in (
                 (spec.mz, "mz", ref["mz_dtype"]),
@@ -135,15 +135,16 @@ def test_psims_written_file():
                 pref = ref["precursor"]
                 (prec,) = spec.precursors
                 (ion,) = prec.selected_ions
-                assert (ion.selected_ion_mz, ion.charge_state, ion.peak_intensity) == (
+                assert (ion.mz, ion.charge, ion.intensity) == (
                     pref["mz"],
                     pref["charge"],
                     pref["intensity"],
                 )
                 assert prec.spectrum_ref == pref["scan_id"]
-                assert prec.activation is not None and prec.activation.ce == pref["activation"][1]["collision energy"]
+                assert prec.activation is not None
+                assert prec.activation.collision_energy == pref["activation"][1]["collision energy"]
                 lower, target, upper = pref["isolation_window"]
                 iw = prec.isolation_window
-                assert iw is not None and (iw.target_mz, iw.lower_offset, iw.upper_offset) == (target, lower, upper)
+                assert iw is not None and (iw.isolation_mz, iw.lower_offset, iw.upper_offset) == (target, lower, upper)
             else:
-                assert spec.precursors == []
+                assert spec.precursors == ()

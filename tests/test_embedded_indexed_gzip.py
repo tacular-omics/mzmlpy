@@ -54,7 +54,7 @@ def test_embedded_index_has_native_and_pymzml_aliases(embedded_file: Path) -> No
     assert entries["Head"] < entries["s:scan=19"] < entries["tail"]
 
 
-@pytest.mark.parametrize("gzip_mode", ["extract", "indexed", "stream"])
+@pytest.mark.parametrize("gzip_mode", ["auto", "indexed", "stream"])
 def test_reader_auto_detects_embedded_index(embedded_file: Path, gzip_mode: str) -> None:
     with Mzml(embedded_file, gzip_mode=gzip_mode, in_memory=False) as reader:
         assert isinstance(reader._file_object.file_handler, EmbeddedIndexedGzip)
@@ -78,7 +78,7 @@ def test_reader_matches_plain_mzml(embedded_file: Path) -> None:
             expected = reference.spectra[position]
             assert actual.id == expected.id
             assert actual.ms_level == expected.ms_level
-            assert actual.TIC == expected.TIC
+            assert actual.total_ion_current == expected.total_ion_current
 
 
 def test_fast_sequential_stream_reconstructs_mzml(embedded_file: Path) -> None:
@@ -116,14 +116,9 @@ def test_invalid_embedded_offset_is_rejected(embedded_file: Path) -> None:
     with pytest.raises(ValueError, match="invalid offset"):
         read_embedded_index(embedded_file)
 
-    with Mzml(
-        embedded_file,
-        gzip_mode="extract",
-        in_memory=False,
-        extract_dir=embedded_file.parent / "extract",
-    ) as reader:
-        assert reader.access_strategy is AccessStrategy.EXTRACTED
-        assert reader.spectra[0].id == "scan=19"
+    with Mzml(embedded_file, gzip_mode="stream", in_memory=False) as reader:
+        assert reader.access_strategy is AccessStrategy.STREAM
+        assert next(iter(reader.spectra)).id == "scan=19"
 
 
 def test_failed_write_keeps_existing_output(tmp_path: Path) -> None:

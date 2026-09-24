@@ -1,26 +1,28 @@
 #!/usr/bin/env python3
 """Interface for different mzML file formats."""
 
+import atexit
 import gzip
-import hashlib
 import logging
 import os
-import shutil
-import tempfile
 import warnings
+import weakref
 from collections.abc import Iterator
 from enum import StrEnum
 from functools import cached_property
 from io import BytesIO
+from itertools import islice
 from pathlib import Path
 from re import Pattern
-from typing import BinaryIO, Literal, overload
+from typing import Any, BinaryIO, Literal, NoReturn, cast, overload
 from xml.etree import ElementTree as ET
 
 from ._xml import iter_records
 from .constants import ChromatogramTypeAccession
 from .embedded_indexed_gzip import is_embedded_indexed_gzip
+from .errors import MzmlError, _parse_errors
 from .file_classes import (
+    AbstractRandomAccessMzml,
     BytesMzml,
     ChromatogramElement,
     EmbeddedIndexedGzip,
@@ -30,18 +32,13 @@ from .file_classes import (
     SpectrumElement,
     StandardGzip,
     StandardMzml,
-    has_cached_indexes,
 )
 from .spectra import Chromatogram, Spectrum
 from .util import (
-    atomic_write_path,
-    cache_is_current,
+    _HAS_RAPIDGZIP,
     expand_param_group_refs,
     get_tag,
     gzip_decompress,
-    gzip_open_binary,
-    source_signature,
-    write_cache_signature,
 )
 
 logger = logging.getLogger(__name__)
@@ -53,24 +50,23 @@ class AccessStrategy(StrEnum):
     MEMORY = "memory"
     PLAIN = "plain"
     EMBEDDED = "embedded"
-    EXTRACTED = "extracted"
     RAPIDGZIP = "rapidgzip"
     STREAM = "stream"
 
 
 @overload
-def convert_mzml_element_to_object(
+def _convert_mzml_element_to_object(
     mzml_element: SpectrumElement,
 ) -> Spectrum: ...
 
 
 @overload
-def convert_mzml_element_to_object(
+def _convert_mzml_element_to_object(
     mzml_element: ChromatogramElement,
 ) -> Chromatogram: ...
 
 
-def convert_mzml_element_to_object(
+def _convert_mzml_element_to_object(
     mzml_element: SpectrumElement | ChromatogramElement,
 ) -> Spectrum | Chromatogram:
     """Convert MzmlXMLElement to Spectrum or Chromatogram object."""
@@ -79,7 +75,94 @@ def convert_mzml_element_to_object(
     elif mzml_element.element_type == "chromatogram":
         return Chromatogram(mzml_element.element)
     else:
-        raise ValueError(f"Unknown element_type: {mzml_element.element_type}")
+        raise MzmlError(f"Unknown element_type: {mzml_element.element_type}")
+
+
+class _ClosedBackend:
+    """Stands in for the backend after close(): every use raises instead of reopening the file."""
+
+    def close(self) -> None:
+        """Closing again is a no-op."""
+
+    def __getattr__(self, name: str) -> NoReturn:
+        raise MzmlError("This mzML reader is closed; open a new Mzml to read the file again.")
+
+
+class _TrackedIterator[T]:
+    """An iterator its reader can stop: after close() the next item raises MzmlError.
+
+    Closing the wrapped generator runs its ``finally`` blocks, which close the file handle it
+    holds. Without this a suspended iterator keeps a rapidgzip handle, whose worker threads
+    abort the interpreter at exit (``terminate called``) when the handle is finalized too late.
+    """
+
+    __slots__ = ("__weakref__", "_closed", "_generator", "_pid")
+
+    def __init__(self, generator: Iterator[T]) -> None:
+        self._generator = generator
+        self._closed = False
+        self._pid = os.getpid()
+        _LIVE_ITERATORS.add(self)
+
+    def __iter__(self) -> "_TrackedIterator[T]":
+        return self
+
+    def __next__(self) -> T:
+        if self._closed:
+            raise MzmlError("This mzML reader is closed; open a new Mzml to read the file again.")
+        return next(self._generator)
+
+    def close(self) -> None:
+        self._closed = True
+        close = getattr(self._generator, "close", None)
+        if close is not None:
+            try:
+                close()
+            except ValueError:  # closed from inside its own iteration; it finishes on return
+                pass
+
+
+_LIVE_ITERATORS: "weakref.WeakSet[_TrackedIterator[Any]]" = weakref.WeakSet()
+_LIVE_READERS: "weakref.WeakSet[FileInterface]" = weakref.WeakSet()
+
+
+@atexit.register
+def _close_at_exit() -> None:
+    """Close handles of readers and iterators still open at exit, before interpreter teardown.
+
+    rapidgzip aborts the process when one of its handles is finalized after its worker threads
+    see the interpreter shutting down, so unclosed readers must be closed while it still runs.
+    Iterators are closed before readers. Readers and iterators inherited by a forked child
+    belong to the parent and are left alone: closing an inherited rapidgzip handle can hang.
+    """
+    pid = os.getpid()
+    for iterator in list(_LIVE_ITERATORS):
+        if iterator._pid == pid:
+            iterator.close()
+    for reader in list(_LIVE_READERS):
+        if reader._pid != pid:
+            continue
+        try:
+            reader.close()
+        except Exception as error:  # never let one reader stop the others being closed
+            logger.debug("Closing an mzML reader at exit failed: %s", error)
+
+
+_warned_gzip_in_memory = False
+
+
+def _note_gzip_read_into_memory(path: str | os.PathLike[str]) -> None:
+    """Log once per process that a gzip file without an index is read into memory."""
+    global _warned_gzip_in_memory
+    if _warned_gzip_in_memory:
+        return
+    _warned_gzip_in_memory = True
+    logger.warning(
+        "Decompressing %s into memory: it has no embedded index and rapidgzip is not installed. "
+        "For random access without holding the file in RAM, run mzmlpy.write_indexed_gzip on it once "
+        "or install mzmlpy[rapidgzip]. (Logged once per process.)",
+        path,
+    )
 
 
 class FileInterface:
@@ -91,25 +174,41 @@ class FileInterface:
         encoding: str,
         build_index_from_scratch: bool = False,
         index_regex: Pattern[bytes] | None = None,
-        gzip_mode: Literal["auto", "extract", "indexed", "stream"] = "auto",
+        gzip_mode: Literal["auto", "indexed", "stream"] = "auto",
         in_memory: bool = False,
-        extract_dir: str | None = None,
     ) -> None:
         """Initialize FileInterface with path and encoding options."""
         self.build_index_from_scratch: bool = build_index_from_scratch
         self.encoding: str = encoding
         self.index_regex: Pattern[bytes] | None = index_regex
-        if gzip_mode not in {"auto", "extract", "indexed", "stream"}:
-            raise ValueError(f"Unsupported gzip_mode: {gzip_mode}")
-        self.gzip_mode: Literal["auto", "extract", "indexed", "stream"] = gzip_mode
+        if gzip_mode not in {"auto", "indexed", "stream"}:
+            removed = " gzip_mode='extract' was removed in 0.10." if gzip_mode == "extract" else ""
+            raise MzmlError(
+                f"Unsupported gzip_mode: {gzip_mode!r}.{removed} Use 'auto', 'indexed' or 'stream'; "
+                "for fast random access to a .gz, run write_indexed_gzip() on it once."
+            )
+        self.gzip_mode: Literal["auto", "indexed", "stream"] = gzip_mode
         self.in_memory: bool = in_memory
-        self._extract_dir: str | None = extract_dir
+        self._iterators: weakref.WeakSet[_TrackedIterator[Any]] = weakref.WeakSet()
+        self._pid = os.getpid()
         self.access_strategy: AccessStrategy
         self.file_handler: MzmlInterface = self._open(path)
+        _LIVE_READERS.add(self)
 
     def close(self) -> None:
-        """Close the internal file handler."""
-        self.file_handler.close()
+        """Close the internal file handler and any iterators still holding a file handle."""
+        try:
+            for iterator in list(self._iterators):
+                iterator.close()
+            self.file_handler.close()
+        finally:
+            self.file_handler = _ClosedBackend()  # ty: ignore[invalid-assignment]
+
+    def _track[T](self, generator: Iterator[T]) -> Iterator[T]:
+        """Register an iterator that holds a file handle so close() can release it."""
+        iterator = _TrackedIterator(generator)
+        self._iterators.add(iterator)
+        return iterator
 
     def _open(self, path_or_file: str | Path | BinaryIO) -> MzmlInterface:
         """Open appropriate file handler based on file type and format."""
@@ -141,7 +240,7 @@ class FileInterface:
         # Handle in_memory mode - load entire file into memory
         if self.in_memory:
             if path.endswith((".gz", ".igz")):
-                if self.gzip_mode not in {"auto", "extract"}:
+                if self.gzip_mode != "auto":
                     # "indexed"/"stream" exist to avoid holding the whole file in memory; in_memory
                     # (the default) decompresses it all anyway, so the mode is a no-op here.
                     warnings.warn(
@@ -173,24 +272,6 @@ class FileInterface:
                 else:
                     self.access_strategy = AccessStrategy.EMBEDDED
                     return embedded
-            if self.gzip_mode == "auto":
-                extracted_path = self._get_extract_path(path)
-                if cache_is_current(extracted_path, path):
-                    self.access_strategy = AccessStrategy.EXTRACTED
-                    return self._open_extracted(path, extracted_path)
-                if has_cached_indexes(path):
-                    self.access_strategy = AccessStrategy.RAPIDGZIP
-                    return IndexedGzip(
-                        path,
-                        self.encoding,
-                        self.build_index_from_scratch,
-                        index_regex=self.index_regex,
-                    )
-                self.access_strategy = AccessStrategy.EXTRACTED
-                return self._open_extracted(path, extracted_path)
-            if self.gzip_mode == "extract":
-                self.access_strategy = AccessStrategy.EXTRACTED
-                return self._open_extracted(path)
             if self.gzip_mode == "indexed":
                 self.access_strategy = AccessStrategy.RAPIDGZIP
                 return IndexedGzip(
@@ -199,6 +280,23 @@ class FileInterface:
                     self.build_index_from_scratch,
                     index_regex=self.index_regex,
                 )
+            if self.gzip_mode == "auto":
+                if _HAS_RAPIDGZIP:
+                    # rapidgzip reads the compressed file in place. auto never writes next to the
+                    # user's file: it reads current sidecars (from gzip_mode="indexed") if present
+                    # and otherwise builds the indexes in memory.
+                    self.access_strategy = AccessStrategy.RAPIDGZIP
+                    return IndexedGzip(
+                        path,
+                        self.encoding,
+                        self.build_index_from_scratch,
+                        index_regex=self.index_regex,
+                        write_sidecars=False,
+                    )
+                # No embedded index and no rapidgzip: decompress into memory.
+                _note_gzip_read_into_memory(path)
+                self.access_strategy = AccessStrategy.MEMORY
+                return BytesMzml(BytesIO(gzip_decompress(path)), self.encoding, self.build_index_from_scratch)
             self.access_strategy = AccessStrategy.STREAM
             return StandardGzip(path, self.encoding)
 
@@ -210,35 +308,6 @@ class FileInterface:
             self.build_index_from_scratch,
             index_regex=self.index_regex,
         )
-
-    def _open_extracted(self, gz_path: str, extracted_path: str | None = None) -> StandardMzml:
-        """Open a current extracted cache, creating it atomically when needed."""
-        target = extracted_path or self._get_extract_path(gz_path)
-        if cache_is_current(target, gz_path):
-            logger.debug("Using cached extraction: %s", target)
-        else:
-            logger.debug("Extracting %s to %s", gz_path, target)
-            signature = source_signature(gz_path)
-            with atomic_write_path(target) as temporary_path:
-                with open(temporary_path, "wb") as output, gzip_open_binary(gz_path) as source:
-                    shutil.copyfileobj(source, output, length=1024 * 1024)
-                if source_signature(gz_path) != signature:
-                    raise OSError("Source changed during extraction. Reopen the reader to retry.")
-            write_cache_signature(target, gz_path, signature)
-        return StandardMzml(
-            target,
-            self.encoding,
-            self.build_index_from_scratch,
-            index_regex=self.index_regex,
-        )
-
-    def _get_extract_path(self, gz_path: str) -> str:
-        """Use a source-specific, revision-specific filename in either cache directory."""
-        cache_dir = self._extract_dir or os.path.join(tempfile.gettempdir(), "mzmlpy")
-        os.makedirs(cache_dir, exist_ok=True)
-        path_hash = hashlib.sha256(source_signature(gz_path).encode()).hexdigest()[:24]
-        filename = Path(gz_path).stem + f"_{path_hash}.mzML"
-        return os.path.join(cache_dir, filename)
 
     def read(self, size: int = -1) -> bytes | str:
         """Read binary data from file handler (size=-1 reads to end)."""
@@ -286,24 +355,28 @@ class FileInterface:
         return expand_param_group_refs(element, self._param_group_templates)
 
     def get_chromatogram_by_id(self, identifier: str) -> Chromatogram:
-        mzml_element = self.file_handler.get_chromatogram_by_id(identifier)
-        self._expand_param_group_refs(mzml_element.element)
-        return convert_mzml_element_to_object(mzml_element)
+        with _parse_errors():
+            mzml_element = self.file_handler.get_chromatogram_by_id(identifier)
+            self._expand_param_group_refs(mzml_element.element)
+        return _convert_mzml_element_to_object(mzml_element)
 
     def get_chromatogram_by_index(self, index: int) -> Chromatogram:
-        mzml_element = self.file_handler.get_chromatogram_by_index(index)
-        self._expand_param_group_refs(mzml_element.element)
-        return convert_mzml_element_to_object(mzml_element)
+        with _parse_errors():
+            mzml_element = self.file_handler.get_chromatogram_by_index(index)
+            self._expand_param_group_refs(mzml_element.element)
+        return _convert_mzml_element_to_object(mzml_element)
 
     def get_spectrum_by_id(self, identifier: str) -> Spectrum:
-        mzml_element = self.file_handler.get_spectrum_by_id(identifier)
-        self._expand_param_group_refs(mzml_element.element)
-        return convert_mzml_element_to_object(mzml_element)
+        with _parse_errors():
+            mzml_element = self.file_handler.get_spectrum_by_id(identifier)
+            self._expand_param_group_refs(mzml_element.element)
+        return _convert_mzml_element_to_object(mzml_element)
 
     def get_spectrum_by_index(self, index: int) -> Spectrum:
-        mzml_element = self.file_handler.get_spectrum_by_index(index)
-        self._expand_param_group_refs(mzml_element.element)
-        return convert_mzml_element_to_object(mzml_element)
+        with _parse_errors():
+            mzml_element = self.file_handler.get_spectrum_by_index(index)
+            self._expand_param_group_refs(mzml_element.element)
+        return _convert_mzml_element_to_object(mzml_element)
 
     @overload
     def _iter_xml_elements(self, tag_suffix: Literal["spectrum"]) -> Iterator[SpectrumElement]: ...
@@ -314,9 +387,34 @@ class FileInterface:
     def _iter_xml_elements(
         self, tag_suffix: Literal["spectrum", "chromatogram"]
     ) -> Iterator[SpectrumElement] | Iterator[ChromatogramElement]:
-        """Iterate with a private handle and bounded memory for either record kind."""
-        with self.file_handler.get_file_handler(self.encoding) as handle:
-            for element in iter_records(handle, tag_suffix):
+        """Iterate the records of one kind; close() stops the iterator and releases its handle."""
+        iterator = self._track(self._iter_xml_elements_untracked(tag_suffix))
+        return cast("Iterator[SpectrumElement] | Iterator[ChromatogramElement]", iterator)
+
+    def _iter_xml_elements_untracked(
+        self, tag_suffix: Literal["spectrum", "chromatogram"]
+    ) -> Iterator[SpectrumElement] | Iterator[ChromatogramElement]:
+        """Iterate with a private handle and bounded memory for either record kind.
+
+        Indexed backends parse each record's byte span in one C-level call. At the first span
+        that is not exactly the indexed record, iteration continues with the streaming parser
+        from the same position, which also reports any error in context.
+        """
+        skip = 0
+        backend = self.file_handler
+        if isinstance(backend, AbstractRandomAccessMzml) and backend.can_iterate_indexed(tag_suffix):
+            for indexed in backend.iter_indexed(tag_suffix):
+                if indexed is None:
+                    break
+                skip += 1
+                if tag_suffix == "spectrum":
+                    yield MzmlXMLElement(element=indexed, element_type="spectrum")
+                else:
+                    yield MzmlXMLElement(element=indexed, element_type="chromatogram")
+            else:
+                return
+        with _parse_errors(), self.file_handler.get_file_handler(self.encoding) as handle:
+            for element in islice(iter_records(handle, tag_suffix), skip, None):
                 if tag_suffix == "spectrum":
                     yield MzmlXMLElement(element=element, element_type="spectrum")
                 else:
@@ -327,44 +425,67 @@ class FileInterface:
         for mzml_element in self._iter_xml_elements("spectrum"):
             yield Spectrum(self._expand_param_group_refs(mzml_element.element))
 
+    def can_read_spectrum_heads(self) -> bool:
+        """Whether :meth:`iter_spectrum_heads` is supported: an indexed, ASCII-compatible file
+        whose index lists every spectrum (plain, rapidgzip and in-memory readers)."""
+        backend = self.file_handler
+        return isinstance(backend, AbstractRandomAccessMzml) and backend.can_iterate_indexed("spectrum")
+
+    def iter_spectrum_heads(self) -> Iterator[bytes | None] | None:
+        """Each spectrum's bytes before its binary arrays, in index order, or None if unsupported.
+
+        Only indexed, ASCII-compatible files whose index lists every spectrum support this. An
+        item is None where a record's head could not be cut out; read that record in full.
+        """
+        backend = self.file_handler
+        if not (self.can_read_spectrum_heads() and isinstance(backend, AbstractRandomAccessMzml)):
+            return None
+        return self._track(backend.iter_spectrum_heads())
+
     def iter_chromatograms(self) -> Iterator[Chromatogram]:
         """Iterate over all chromatograms in the file."""
         for mzml_element in self._iter_xml_elements("chromatogram"):
             yield Chromatogram(self._expand_param_group_refs(mzml_element.element))
 
-    @property
-    def TIC(self) -> Chromatogram:
-        """Retrieve the Total Ion Chromatogram (TIC).
+    def total_ion_chromatogram(self) -> Chromatogram | None:
+        """Return the total ion chromatogram, or None if the file has none.
 
         The conventional id ``"TIC"`` is tried first; if that is absent, chromatograms are searched
         for the one carrying the "total ion current chromatogram" CV term (MS:1000235), since the
-        id spelling varies by writer (e.g. ``"tic"``). Raises ``KeyError`` if no TIC is present.
+        id spelling varies by writer (e.g. ``"tic"``).
         """
         try:
             return self.get_chromatogram_by_id("TIC")
         except KeyError:
             for cid in self.chromatogram_ids:
                 chromatogram = self.get_chromatogram_by_id(cid)
-                if chromatogram.has_cvparm(ChromatogramTypeAccession.TOTAL_ION_CURRENT):
+                if chromatogram.has_cv_param(ChromatogramTypeAccession.TOTAL_ION_CURRENT):
                     return chromatogram
-            raise
+            return None
 
     @property
     def spectrum_ids(self) -> list[str]:
         """All spectrum IDs from the file index."""
-        return self.file_handler.spectrum_ids
+        with _parse_errors():
+            return self.file_handler.spectrum_ids
 
     @property
     def chromatogram_ids(self) -> list[str]:
         """All chromatogram IDs from the file index."""
-        return self.file_handler.chromatogram_ids
+        with _parse_errors():
+            return self.file_handler.chromatogram_ids
 
     @property
     def spectrum_count(self) -> int | None:
         """Count of spectra in the file, if determinable."""
-        return self.file_handler.spectrum_count
+        with _parse_errors():
+            return self.file_handler.spectrum_count
 
     @property
     def chromatogram_count(self) -> int | None:
         """Count of chromatograms in the file, if determinable."""
-        return self.file_handler.chromatogram_count
+        with _parse_errors():
+            return self.file_handler.chromatogram_count
+
+
+__all__ = ["AccessStrategy"]

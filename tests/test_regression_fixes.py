@@ -24,7 +24,7 @@ EXAMPLE_GZ = "tests/data/example.mzML.gz"
 
 
 # --------------------------------------------------------------------------------------------
-# 1. Stable lookup / cursor persistence
+# 1. Stable lookup identity
 # --------------------------------------------------------------------------------------------
 
 
@@ -40,36 +40,13 @@ def test_chromatograms_lookup_is_cached_across_accesses() -> None:
         assert reader.chromatograms is reader.chromatograms
 
 
-def test_repeated_spectra_access_shares_one_cursor() -> None:
-    """Calling `.spectra` fresh each time must not reset the `next()` cursor.
-
-    Against the old (non-cached) property, `reader.spectra.next()` restarted at index 0 on
-    every call because each `.spectra` access built a brand-new `SpectrumLookup`.
-    """
-    with Mzml(EXAMPLE) as reader:
-        first = reader.spectra.next()
-        second = reader.spectra.next()
-        third = reader.spectra.next()
-        assert [first.id, second.id, third.id] == ["scan=19", "scan=20", "scan=21"]
-
-
-def test_next_advances_through_all_spectra_by_index() -> None:
-    """`next()` called repeatedly must walk forward 0, 1, 2, ... rather than restarting at 0."""
+def test_iteration_walks_spectra_in_index_order() -> None:
+    """Iterating the lookup yields spectra 0, 1, 2, ... and each new iterator starts over."""
     with Mzml(EXAMPLE) as reader:
         lookup = reader.spectra
-        seen = [lookup.next() for _ in range(len(lookup))]
-        assert [s.id for s in seen] == [reader.spectra[i].id for i in range(len(lookup))]
-
-
-def test_next_reset_restarts_at_first_spectrum() -> None:
-    """`reset()` rewinds the cursor so the following `next()` yields the first spectrum again."""
-    with Mzml(EXAMPLE) as reader:
-        lookup = reader.spectra
-        first = lookup.next()
-        lookup.next()
-        lookup.next()
-        lookup.reset()
-        assert lookup.next().id == first.id == "scan=19"
+        seen = list(lookup)
+        assert [s.id for s in seen] == [lookup[i].id for i in range(len(lookup))]
+        assert next(iter(lookup)).id == "scan=19"
 
 
 # --------------------------------------------------------------------------------------------
@@ -135,24 +112,24 @@ def test_file_interface_rejects_unsupported_type_directly() -> None:
 # --------------------------------------------------------------------------------------------
 
 
-def test_gzip_mode_indexed_warns_when_in_memory_default() -> None:
-    """`in_memory=True` (the default) makes `gzip_mode='indexed'` a no-op; that must be flagged."""
+def test_gzip_mode_indexed_warns_when_in_memory() -> None:
+    """`in_memory=True` makes `gzip_mode='indexed'` a no-op; that must be flagged."""
     with pytest.warns(UserWarning, match="ignored because in_memory"):
-        reader = Mzml(EXAMPLE_GZ, gzip_mode="indexed")
+        reader = Mzml(EXAMPLE_GZ, gzip_mode="indexed", in_memory=True)
     reader.close()
 
 
-def test_gzip_mode_stream_warns_when_in_memory_default() -> None:
+def test_gzip_mode_stream_warns_when_in_memory() -> None:
     with pytest.warns(UserWarning, match="ignored because in_memory"):
-        reader = Mzml(EXAMPLE_GZ, gzip_mode="stream")
+        reader = Mzml(EXAMPLE_GZ, gzip_mode="stream", in_memory=True)
     reader.close()
 
 
-def test_gzip_mode_extract_default_does_not_warn() -> None:
-    """The default `gzip_mode='extract'` is compatible with `in_memory=True` and warns about nothing."""
+def test_gzip_mode_auto_does_not_warn_when_in_memory() -> None:
+    """The default `gzip_mode='auto'` is compatible with `in_memory=True` and warns about nothing."""
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        reader = Mzml(EXAMPLE_GZ, gzip_mode="extract")
+        reader = Mzml(EXAMPLE_GZ, gzip_mode="auto", in_memory=True)
         reader.close()
     assert not any("ignored because in_memory" in str(w.message) for w in caught)
 

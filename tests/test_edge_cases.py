@@ -62,7 +62,7 @@ def test_chromatogram_only_file(tmp_path):
     with Mzml(path) as r:
         assert len(r.spectra) == 0
         assert len(r.chromatograms) == 1
-        assert r.TIC is not None and r.TIC.id == "tic"
+        assert r.total_ion_chromatogram is not None and r.total_ion_chromatogram.id == "tic"
 
 
 # --------------------------------------------------------------------- indexing / slicing
@@ -138,8 +138,8 @@ def test_empty_scan_and_precursor_lists(tmp_path):
     path = _write(tmp_path, "emptylists.mzML", body)
     with Mzml(path) as r:
         s = r.spectra[0]
-        assert s.scan_start_time is None
-        assert s.precursors == [] or s.precursors is None
+        assert s.rt is None
+        assert s.precursors == ()
 
 
 def test_duplicate_spectrum_ids(tmp_path):
