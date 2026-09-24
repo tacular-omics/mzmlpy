@@ -18,6 +18,11 @@ just install
 
 `just --list` shows the other recipes.
 
+Install the commit hooks once per clone with `uvx pre-commit install`. On every
+commit they run `ruff check`, `ruff format --check` and a few file checks
+(`uvx pre-commit run --all-files` runs them on everything). Type checks and
+tests are not in the hooks; run `just check` for those.
+
 ## Running checks
 
 CI runs these on every pull request. Run them before you push:
