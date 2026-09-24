@@ -134,12 +134,11 @@ def test_wrapper_tolerates_params_without_name() -> None:
 
 
 # ---------------------------------------------------------------- TIC and vocabulary
-def test_total_ion_chromatogram_on_reader_and_lookup() -> None:
+def test_total_ion_chromatogram_on_reader() -> None:
     with Mzml(EXAMPLE) as reader:
         tic = reader.total_ion_chromatogram
         assert tic is not None
-        assert reader.chromatograms.total_ion_chromatogram is not None
-        assert reader.chromatograms.total_ion_chromatogram.id == tic.id
+        assert tic.id == "tic"
 
 
 def test_selected_ion_and_activation_vocabulary() -> None:
@@ -147,11 +146,14 @@ def test_selected_ion_and_activation_vocabulary() -> None:
         ms2 = next(s for s in reader.spectra if s.ms_level == 2)
         (precursor,) = ms2.precursors
         ion = precursor.selected_ions[0]
-        assert isinstance(ion.mz, float)
-        assert ion.charge is None or isinstance(ion.charge, int)
+        assert ms2.id == "scan=20"
+        assert ion.mz == 445.34
+        assert ion.charge == 2
         assert precursor.activation is not None
-        energy = precursor.activation.collision_energy
-        assert energy is None or isinstance(energy, float)
+        assert precursor.activation.collision_energy == 35.0
+        assert precursor.activation.activation_energy is None
+        assert precursor.isolation_window is not None
+        assert precursor.isolation_window.mz_range == pytest.approx((444.8, 445.8))
 
 
 def test_mobility_vocabulary_on_bruker() -> None:
@@ -218,7 +220,7 @@ REMOVED_ATTRIBUTES = {
     "SelectedIon": ["selected_ion_mz", "peak_intensity", "charge_state", "ir_im", "im_drift_time"],
     "Activation": ["ce", "supplemental_ce"],
     "SpectrumLookup": ["next", "reset", "file_object"],
-    "ChromatogramLookup": ["TIC", "next", "reset", "file_object"],
+    "ChromatogramLookup": ["TIC", "total_ion_chromatogram", "next", "reset", "file_object"],
     "Mzml": ["TIC", "iter"],
 }
 
@@ -286,3 +288,221 @@ def test_all_names_resolve(module: str) -> None:
     assert isinstance(mod.__all__, list)
     for name in mod.__all__:
         assert hasattr(mod, name), f"{module}.{name}"
+
+
+# ---------------------------------------------------------------- 0.10 review follow-ups
+def _spectrum_file(tmp_path: Path, body: str, name: str = "s.mzML") -> Path:
+    path = tmp_path / name
+    path.write_text(
+        _HEADER + '<spectrum index="0" id="scan=1" defaultArrayLength="0">'
+        '<cvParam cvRef="MS" accession="MS:1000511" name="ms level" value="2"/>' + body + "</spectrum>" + _FOOTER,
+        encoding="utf-8",
+    )
+    return path
+
+
+def _window(lower: float | None, upper: float | None) -> str:
+    params = ""
+    if lower is not None:
+        params += f'<cvParam cvRef="MS" accession="MS:1000501" name="scan window lower limit" value="{lower}"/>'
+    if upper is not None:
+        params += f'<cvParam cvRef="MS" accession="MS:1000500" name="scan window upper limit" value="{upper}"/>'
+    return f"<scanWindow>{params}</scanWindow>"
+
+
+def _scan_with_windows(*windows: str) -> str:
+    inner = f'<scanWindowList count="{len(windows)}">{"".join(windows)}</scanWindowList>' if windows else ""
+    return f'<scanList count="1"><scan>{inner}</scan></scanList>'
+
+
+def test_scan_window_mz_range_and_multi_window_envelope(tmp_path: Path) -> None:
+    body = _scan_with_windows(_window(400.0, 600.0), _window(350.0, 500.0), _window(None, 2000.0))
+    with Mzml(_spectrum_file(tmp_path, body)) as reader:
+        scan = reader.spectra[0].scans[0]
+        assert [w.mz_range for w in scan.scan_windows] == [(400.0, 600.0), (350.0, 500.0), None]
+        # The incomplete third window is ignored; the envelope spans the two complete ones.
+        assert scan.mz_range == (350.0, 600.0)
+        assert reader.spectra[0].mz_range == (350.0, 600.0)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        _scan_with_windows(),  # no scanWindowList
+        _scan_with_windows(_window(100.0, None)),  # only a lower limit
+        _scan_with_windows(_window(None, 900.0), _window(None, None)),  # no complete window
+    ],
+)
+def test_scan_mz_range_is_none_without_a_complete_window(tmp_path: Path, body: str) -> None:
+    with Mzml(_spectrum_file(tmp_path, body)) as reader:
+        assert reader.spectra[0].scans[0].mz_range is None
+        assert reader.spectra[0].mz_range is None
+
+
+def _precursor(isolation: str = "", activation: str = "") -> str:
+    return (
+        '<precursorList count="1"><precursor>'
+        f"<isolationWindow>{isolation}</isolationWindow>"
+        '<selectedIonList count="1"><selectedIon>'
+        '<cvParam cvRef="MS" accession="MS:1000744" name="selected ion m/z" value="500.0"/>'
+        "</selectedIon></selectedIonList>"
+        f"<activation>{activation}</activation>"
+        "</precursor></precursorList>"
+    )
+
+
+_TARGET = '<cvParam cvRef="MS" accession="MS:1000827" name="isolation window target m/z" value="500.0"/>'
+_LOWER = '<cvParam cvRef="MS" accession="MS:1000828" name="isolation window lower offset" value="1.5"/>'
+_UPPER = '<cvParam cvRef="MS" accession="MS:1000829" name="isolation window upper offset" value="0.5"/>'
+
+
+@pytest.mark.parametrize(
+    ("isolation", "expected"),
+    [
+        (_TARGET + _LOWER + _UPPER, (498.5, 500.5)),
+        (_LOWER + _UPPER, None),
+        (_TARGET + _UPPER, None),
+        (_TARGET + _LOWER, None),
+    ],
+)
+def test_isolation_window_mz_range(tmp_path: Path, isolation: str, expected: tuple[float, float] | None) -> None:
+    with Mzml(_spectrum_file(tmp_path, _precursor(isolation=isolation))) as reader:
+        window = reader.spectra[0].precursors[0].isolation_window
+        assert window is not None
+        assert window.mz_range == expected
+
+
+def _cv(accession: str, name: str, value: str, unit: str = "") -> str:
+    return f'<cvParam cvRef="MS" accession="{accession}" name="{name}" value="{value}"{unit}/>'
+
+
+def test_activation_energy_alone_is_not_a_collision_energy(tmp_path: Path) -> None:
+    activation = _cv("MS:1000509", "activation energy", "12.5")
+    with Mzml(_spectrum_file(tmp_path, _precursor(activation=activation))) as reader:
+        act = reader.spectra[0].precursors[0].activation
+        assert act is not None
+        assert act.collision_energy is None
+        assert act.activation_energy == 12.5
+        assert act.supplemental_collision_energy is None
+
+
+def test_supplemental_collision_energy(tmp_path: Path) -> None:
+    activation = _cv("MS:1000045", "collision energy", "28") + _cv("MS:1002680", "supplemental collision energy", "25")
+    with Mzml(_spectrum_file(tmp_path, _precursor(activation=activation))) as reader:
+        act = reader.spectra[0].precursors[0].activation
+        assert act is not None
+        assert act.collision_energy == 28.0
+        assert act.supplemental_collision_energy == 25.0
+        assert act.activation_energy is None
+
+
+def _rt_param(value: str, unit: str = "") -> str:
+    return _cv("MS:1000016", "scan start time", value, unit)
+
+
+@pytest.fixture
+def fresh_time_warnings() -> None:
+    import mzmlpy.spectra
+
+    mzmlpy.spectra._warned_time_units.clear()
+
+
+@pytest.mark.usefixtures("fresh_time_warnings")
+def test_rt_without_a_unit_warns_once_and_is_taken_as_seconds(tmp_path: Path) -> None:
+    with Mzml(_spectrum_file(tmp_path, _one_scan(_rt_param("12.5")))) as reader:
+        with pytest.warns(UserWarning, match=r"retention time .*no unit.*assuming seconds"):
+            assert reader.spectra[0].rt == 12.5
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            assert reader.spectra[0].rt == 12.5  # second read does not warn again
+
+
+@pytest.mark.usefixtures("fresh_time_warnings")
+def test_rt_with_a_non_time_unit_warns_and_is_taken_as_seconds(tmp_path: Path) -> None:
+    unit = ' unitCvRef="UO" unitAccession="UO:0000187" unitName="percent"'
+    with Mzml(_spectrum_file(tmp_path, _one_scan(_rt_param("3", unit)))) as reader:
+        with pytest.warns(UserWarning, match=r"percent.*assuming seconds"):
+            assert reader.spectra[0].rt == 3.0
+
+
+def test_rt_unit_name_without_accession_is_honoured(tmp_path: Path) -> None:
+    unit = ' unitName="minute"'
+    with Mzml(_spectrum_file(tmp_path, _one_scan(_rt_param("2", unit)))) as reader:
+        assert reader.spectra[0].rt == 120.0
+
+
+def test_non_numeric_rt_raises_mzml_error(tmp_path: Path) -> None:
+    unit = ' unitCvRef="UO" unitAccession="UO:0000010" unitName="second"'
+    with Mzml(_spectrum_file(tmp_path, _one_scan(_rt_param("soon", unit)))) as reader:
+        with pytest.raises(MzmlError):
+            _ = reader.spectra[0].rt
+
+
+@pytest.mark.parametrize(
+    ("value", "unit", "expected_ms"),
+    [
+        ("25", ' unitCvRef="UO" unitAccession="UO:0000028" unitName="millisecond"', 25.0),
+        ("0.025", ' unitCvRef="UO" unitAccession="UO:0000010" unitName="second"', 25.0),
+    ],
+)
+def test_ion_injection_time_is_float_milliseconds(tmp_path: Path, value: str, unit: str, expected_ms: float) -> None:
+    param = _cv("MS:1000927", "ion injection time", value, unit)
+    with Mzml(_spectrum_file(tmp_path, _one_scan(param))) as reader:
+        spectrum = reader.spectra[0]
+        assert spectrum.ion_injection_time == pytest.approx(expected_ms)
+        assert isinstance(spectrum.ion_injection_time, float)
+        assert spectrum.scans[0].ion_injection_time == spectrum.ion_injection_time
+
+
+def _one_scan(params: str) -> str:
+    return f'<scanList count="1"><scan>{params}</scan></scanList>'
+
+
+def test_non_mzml_root_raises_parse_error(tmp_path: Path) -> None:
+    path = tmp_path / "foo.mzML"
+    path.write_text('<?xml version="1.0"?>\n<foo/>\n', encoding="utf-8")
+    with pytest.raises(MzmlParseError, match="foo"):
+        Mzml(path)
+
+
+@pytest.mark.parametrize("key", [1.0, None, b"scan=19", ("scan=19",)])
+def test_lookup_rejects_unsupported_key_types(key: object) -> None:
+    with Mzml(EXAMPLE) as reader:
+        with pytest.raises(TypeError):
+            _ = reader.spectra[key]  # ty: ignore[invalid-argument-type]
+        assert key not in reader.spectra
+
+
+def test_get_by_id_rejects_non_strings() -> None:
+    with Mzml(EXAMPLE) as reader, pytest.raises(TypeError):
+        reader.spectra.get_by_id(1)  # ty: ignore[invalid-argument-type]
+
+
+def test_negative_index_error_names_the_valid_range() -> None:
+    with Mzml(EXAMPLE) as reader:
+        assert reader.spectra[-4].id == reader.spectra[0].id
+        with pytest.raises(IndexError, match=r"index -5 out of range: valid indices are -4 to 3"):
+            _ = reader.spectra[-5]
+
+
+def test_sequence_properties_are_tuples() -> None:
+    with Mzml(EXAMPLE) as reader:
+        ms2 = next(s for s in reader.spectra if s.ms_level == 2)
+        (precursor,) = ms2.precursors
+        description = reader.file_description
+        assert description is not None
+        values = [
+            ms2.scans,
+            ms2.precursors,
+            ms2.products,
+            ms2.binary_arrays,
+            ms2.scans[0].scan_windows,
+            precursor.selected_ions,
+            description.source_files,
+            description.contact,
+        ]
+        assert all(isinstance(v, tuple) for v in values)
+        chromatogram = reader.chromatograms[0]
+        assert isinstance(chromatogram.binary_arrays, tuple)

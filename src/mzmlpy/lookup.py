@@ -43,15 +43,29 @@ class BaseLookup[T: (Spectrum, Chromatogram)](ABC):
         if index < 0:
             # Normalize against the count so lookup[-1] mirrors slice behavior (lookup[-1:]).
             count = self.count
-            if count is not None:
-                index += count
-            if index < 0:
-                raise IndexError("Index out of range")
+            if count is None:
+                raise IndexError(f"index {index} out of range: negative indices need a known count")
+            if index + count < 0:
+                valid = f"valid indices are -{count} to {count - 1}" if count else "the lookup is empty"
+                raise IndexError(f"index {index} out of range: {valid}")
+            index += count
         return self._get_by_index_impl(index)
 
     def get_by_id(self, identifier: str) -> T:
-        """Get item by ID."""
-        return self._get_by_id_impl(identifier)
+        """Get item by native id, or by the ``id_regex`` key when the reader was given one.
+
+        Raises:
+            MzmlRecordNotFoundError: No record has this id (also a ``KeyError``).
+            TypeError: ``identifier`` is not a string.
+        """
+        if not isinstance(identifier, str):
+            raise TypeError(f"id must be a str, got {type(identifier).__name__}")
+        try:
+            return self._get_by_exact_id(identifier)
+        except KeyError:
+            if self._id_regex is not None and (mapped := self._id_map.get(identifier)):
+                return self._get_by_exact_id(mapped)
+            raise
 
     def get_by_slice(self, slice_obj: slice) -> list[T]:
         """Get items by slice notation."""
@@ -86,7 +100,9 @@ class BaseLookup[T: (Spectrum, Chromatogram)](ABC):
             return self.get_by_slice(index)
         if isinstance(index, int):
             return self.get_by_index(index)
-        return self.get_by_id(index)
+        if isinstance(index, str):
+            return self.get_by_id(index)
+        raise TypeError(f"lookup key must be an int, str or slice, got {type(index).__name__}")
 
     # Abstract methods to be implemented by subclasses
     @abstractmethod
@@ -95,8 +111,8 @@ class BaseLookup[T: (Spectrum, Chromatogram)](ABC):
         ...
 
     @abstractmethod
-    def _get_by_id_impl(self, identifier: str) -> T:
-        """Get item by ID implementation."""
+    def _get_by_exact_id(self, identifier: str) -> T:
+        """Get item by its full native id; raises MzmlRecordNotFoundError if absent."""
         ...
 
     @abstractmethod
@@ -126,8 +142,10 @@ class BaseLookup[T: (Spectrum, Chromatogram)](ABC):
         """String representation."""
         return self.__repr__()
 
-    def __contains__(self, identifier: str) -> bool:
+    def __contains__(self, identifier: object) -> bool:
         """Check if item with given ID exists."""
+        if not isinstance(identifier, str):
+            return False
         try:
             self.get_by_id(identifier)
             return True
@@ -171,13 +189,8 @@ class SpectrumLookup(BaseLookup[Spectrum]):
     def _get_by_index_impl(self, index: int) -> Spectrum:
         return self._file_object.get_spectrum_by_index(index)
 
-    def _get_by_id_impl(self, identifier: str) -> Spectrum:
-        try:
-            return self._file_object.get_spectrum_by_id(identifier)
-        except KeyError:
-            if self._id_regex is not None and (mapped := self._id_map.get(identifier)):
-                return self._file_object.get_spectrum_by_id(mapped)
-            raise
+    def _get_by_exact_id(self, identifier: str) -> Spectrum:
+        return self._file_object.get_spectrum_by_id(identifier)
 
     def _get_ids_for_map(self) -> list[str]:
         return self._file_object.spectrum_ids
@@ -197,13 +210,8 @@ class ChromatogramLookup(BaseLookup[Chromatogram]):
     def _get_by_index_impl(self, index: int) -> Chromatogram:
         return self._file_object.get_chromatogram_by_index(index)
 
-    def _get_by_id_impl(self, identifier: str) -> Chromatogram:
-        try:
-            return self._file_object.get_chromatogram_by_id(identifier)
-        except KeyError:
-            if self._id_regex is not None and (mapped := self._id_map.get(identifier)):
-                return self._file_object.get_chromatogram_by_id(mapped)
-            raise
+    def _get_by_exact_id(self, identifier: str) -> Chromatogram:
+        return self._file_object.get_chromatogram_by_id(identifier)
 
     def _get_ids_for_map(self) -> list[str]:
         return self._file_object.chromatogram_ids
@@ -215,11 +223,6 @@ class ChromatogramLookup(BaseLookup[Chromatogram]):
 
     def _iter_impl(self) -> Iterator[Chromatogram]:
         return self._file_object.iter_chromatograms()
-
-    @property
-    def total_ion_chromatogram(self) -> Chromatogram | None:
-        """The total ion chromatogram, or None if the file has none."""
-        return self._file_object.total_ion_chromatogram()
 
 
 __all__ = ["BaseLookup", "SpectrumLookup", "ChromatogramLookup"]

@@ -82,7 +82,7 @@ def test_ms1_has_no_precursors(tmp_path):
 
 def s_precursors_empty(spectrum):
     p = spectrum.precursors
-    return p == [] or p is None
+    return p == ()
 
 
 def test_precursor_missing_charge_is_none(tmp_path):

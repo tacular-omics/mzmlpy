@@ -11,7 +11,8 @@ Breaking API cleanup. Renamed names have no aliases. See the
 
 ### Removed
 
-- `Spectrum.TIC` (use `total_ion_current`), `Mzml.TIC` and `ChromatogramLookup.TIC` (use `total_ion_chromatogram`).
+- `Spectrum.TIC` (use `total_ion_current`), `Mzml.TIC` and `ChromatogramLookup.TIC` (use
+  `Mzml.total_ion_chromatogram`; the lookup has no TIC property).
 - The stateful lookup cursor `SpectrumLookup.next()` / `reset()` (and on `ChromatogramLookup`); iterate instead.
 - `get_cvparm` / `has_cvparm` (use `get_cv_param` / `has_cv_param`).
 - `Spectrum.lower_mz` / `upper_mz` and `Scan.lower_mz` / `upper_mz` (use `mz_range`); `ScanWindow.lower_mz` /
@@ -28,8 +29,19 @@ Breaking API cleanup. Renamed names have no aliases. See the
   `drift_time`; `SelectedIon.selected_ion_mz` -> `mz`, `peak_intensity` -> `intensity`, `charge_state` -> `charge`,
   `ir_im` -> `ook0`, `im_drift_time` -> `drift_time`; `Activation.ce` -> `collision_energy`, `supplemental_ce` ->
   `supplemental_collision_energy`; `Spectrum.charge` (per-point array) -> `charge_array`.
-- `Activation.collision_energy` reads only MS:1000045; it no longer falls back to the activation-energy term
-  (still available as `activation_energy`).
+- Every public sequence property is a tuple (empty tuple when absent): `Spectrum.scans`, `precursors`, `products`,
+  `binary_arrays` (also on `Chromatogram`), `Scan.scan_windows`, `Precursor.selected_ions`,
+  `FileDescription.source_files` and `contact`. Lookup slices still return lists.
+- `ion_injection_time` on `Spectrum` and `Scan` is a float in milliseconds (was a `timedelta`), converted from
+  whatever time unit the file records.
+- `rt` and `ion_injection_time` with no unit, or a non-time unit, take the value as seconds (milliseconds for
+  injection time) and warn once per unit. A non-numeric value raises `MzmlError`.
+- `Spectrum.total_ion_current` returns `None` when the file has no TIC term instead of raising `KeyError`.
+- A `userParam` with no `name` and a `referenceableParamGroupRef` with no `ref` give `""` instead of `None`.
+- `user_params` and `ref_params` are cached like `cv_params`.
+- A lookup key that is not an int, str or slice raises `TypeError` (`spectra[1.0]`); `x in spectra` is `False`
+  for a non-str. A negative index past the start names the valid range.
+- A well-formed XML file whose root is not `<mzML>` or `<indexedmzML>` raises `MzmlParseError` on open.
 - `spectra.filter(retention_time=...)` and `SpectrumFilter(retention_time=...)` -> `rt=...`. `SpectrumFilter` is
   keyword-only.
 - Errors: bad data and bad arguments raise `MzmlError` (a `ValueError`) or a subclass: `MzmlParseError`
@@ -51,11 +63,13 @@ Breaking API cleanup. Renamed names have no aliases. See the
 - The error classes and the accession enums used in return types (`BinaryDataArrayAccession`,
   `BinaryDataTypeAccession`, `ChromatogramTypeAccession`, `CollisionDissociationTypeAccession`,
   `CompressionTypeAccession`, `DIAAcquisitionAccession`, `SpectrumCombinationAccession`) are exported from `mzmlpy`.
+- `ScanWindow.mz_range` and `IsolationWindow.mz_range` (`(target - lower offset, target + upper offset)`).
 - `Spectrum.ook0`; docs pages "Migrating to 0.10" and "Errors".
 
 ### Fixed
 
-- `rt` returns `None` for a scan start time with no value or no unit instead of raising `AttributeError`.
+- `rt` returns `None` for a scan start time with no value, and reads a value with no unit as seconds (with a
+  warning), instead of raising `AttributeError`.
 
 ## [0.9.3] (2026-09-23)
 

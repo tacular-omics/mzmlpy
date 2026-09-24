@@ -179,12 +179,12 @@ class FileDescription(_DataTreeWrapper):
         return None
 
     @property
-    def source_files(self) -> list[SourceFile]:
+    def source_files(self) -> tuple[SourceFile, ...]:
         """return source files as tuple of SourceFile objects"""
         source_file_list = self.element.find(f"./{self.ns}{MzMLElement.SOURCE_FILE_LIST}")
         if source_file_list is not None:
-            return [SourceFile(element=sf) for sf in source_file_list if get_tag(sf) == MzMLElement.SOURCE_FILE]
-        return []
+            return tuple(SourceFile(element=sf) for sf in source_file_list if get_tag(sf) == MzMLElement.SOURCE_FILE)
+        return ()
 
     def get_source_file(self, id: str) -> SourceFile | None:
         """Get a source file by its ``id`` attribute."""
@@ -194,10 +194,10 @@ class FileDescription(_DataTreeWrapper):
         return None
 
     @property
-    def contact(self) -> list[Contact]:
-        """return a list of contacts if present"""
+    def contact(self) -> tuple[Contact, ...]:
+        """Return the contacts, in document order (empty if none)."""
         contact_elements = self.element.findall(f"./{self.ns}{MzMLElement.CONTACT}")
-        return [Contact(element=ce) for ce in contact_elements]
+        return tuple(Contact(element=ce) for ce in contact_elements)
 
     def __repr__(self) -> str:
         return f"FileDescription(file_content={self.file_content}, \

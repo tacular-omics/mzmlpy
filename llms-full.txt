@@ -51,6 +51,7 @@ n = peek_spectrum_count("run.mzML.gz")   # int | None; reads only up to <spectru
 ```python
 Mzml(
     file: str | Path | BinaryIO,          # path, or a readable binary file-like object (e.g. BytesIO)
+    *,                                    # everything else is keyword-only
     build_index_from_scratch: bool = False,  # ignore the file's <indexList> and rebuild offsets
     gzip_mode: Literal["auto", "extract", "indexed", "stream"] = "auto",
     in_memory: bool = True,               # load the whole (decompressed) file into memory
@@ -120,7 +121,6 @@ Methods (both lookups):
 - `get_by_id(identifier: str) -> T`: same as `lookup["id"]`.
 - `get_by_slice(slice_obj: slice) -> list[T]`
 - `count -> int | None`: declared record count.
-- `ChromatogramLookup.total_ion_chromatogram -> Chromatogram | None`: the TIC chromatogram.
 - `SpectrumLookup.filter(*, ms_level=None, rt=None, polarity=None, precursor_mz=None,
   spectrum_type=None, mobility_type=None, ion_mobility=None, faims_voltage=None) -> Iterator[Spectrum]`:
   lazy metadata selection (see Filtering).
@@ -137,7 +137,7 @@ with Mzml("run.mzML", spectrum_id_regex=r"scan=(\d+)") as reader:
 
 ## `Spectrum`
 
-All properties are lazy and return `None` (or `[]` for lists) when the term is absent.
+All properties are lazy and return `None` (or `()` for sequences) when the term is absent.
 
 | property | type | notes |
 |---|---|---|
@@ -153,7 +153,7 @@ All properties are lazy and return `None` (or `[]` for lists) when the term is a
 | `spectrum_type` | `Literal["centroid", "profile"] \| None` | |
 | `spectra_combination` | `Literal["no_combination", "median", "sum", "mean"] \| None` | scanList combination term |
 | `rt` | `float \| None` | retention time in seconds, from the first scan (warns if there are several) |
-| `ion_injection_time` | `timedelta \| None` | from the first scan (warns if there are several) |
+| `ion_injection_time` | `float \| None` | milliseconds, from the first scan (warns if there are several) |
 | `mz_range` | `tuple[float, float] \| None` | scan-window envelope (min lower, max upper) of the first scan |
 | `filter_string` | `str \| None` | instrument filter string (e.g. Thermo) |
 | `ook0` | `float \| None` | scan-level 1/K0 (MS:1002815) of the first scan |
@@ -163,11 +163,11 @@ All properties are lazy and return `None` (or `[]` for lists) when the term is a
 | `total_ion_current` | `float \| None` | total ion current of this spectrum (MS:1000285) |
 | `base_peak_mz` / `base_peak_intensity` | `float \| None` | MS:1000504 / MS:1000505 |
 | `lowest_observed_mz` / `highest_observed_mz` | `float \| None` | MS:1000528 / MS:1000527 |
-| `scans` | `list[Scan]` | scan list |
+| `scans` | `tuple[Scan, ...]` | scan list |
 | `is_single_scan` | `bool` | exactly one scan |
-| `precursors` | `list[Precursor]` | MSn precursor info; `has_precursors: bool` |
-| `products` | `list[Product]` | product list; `has_products: bool` |
-| `binary_arrays` | `list[BinaryDataArray]` | all arrays |
+| `precursors` | `tuple[Precursor, ...]` | MSn precursor info; `has_precursors: bool` |
+| `products` | `tuple[Product, ...]` | product list; `has_products: bool` |
+| `binary_arrays` | `tuple[BinaryDataArray, ...]` | all arrays |
 | `data_processing_ref`, `source_file_ref`, `spot_id` | `str \| None` | XML attributes |
 
 Methods: `get_binary_array(id: str) -> BinaryDataArray | None` and `has_binary_array(id: str) -> bool`
@@ -180,7 +180,7 @@ for prec in spectrum.precursors:
     win = prec.isolation_window           # IsolationWindow | None
     if win is not None:
         win.target_mz, win.lower_offset, win.upper_offset   # float | None
-    for ion in prec.selected_ions:        # list[SelectedIon]
+    for ion in prec.selected_ions:        # tuple[SelectedIon, ...]
         ion.mz, ion.charge, ion.intensity
     act = prec.activation                 # Activation | None
     if act is not None:
@@ -198,10 +198,10 @@ for prod in spectrum.products:
   `drift_time`, `ccs`, `faims_voltage_start`, `faims_voltage_end`.
 - `Activation`: `activation_type`, `collision_energy`, `supplemental_collision_energy`, `activation_energy`, `collision_gas`,
   `collision_gas_pressure`.
-- `IsolationWindow`: `target_mz`, `lower_offset`, `upper_offset`, `no_isolation` (MS:1003159).
+- `IsolationWindow`: `target_mz`, `lower_offset`, `upper_offset`, `mz_range`, `no_isolation` (MS:1003159).
 - `Product`: `isolation_window`.
-- `Scan`: `rt` (float seconds), `ion_injection_time` (`timedelta | None`), `filter_string`,
-  `scan_windows: list[ScanWindow]`, `is_single_windowed_scan`, `mz_range` (envelope of all windows),
+- `Scan`: `rt` (float seconds), `ion_injection_time` (float ms), `filter_string`,
+  `scan_windows: tuple[ScanWindow, ...]`, `is_single_windowed_scan`, `mz_range` (envelope of all windows),
   `ook0` (MS:1002815), `drift_time` (MS:1002476),
   `faims_compensation_voltage` (MS:1001581), `selexion_separation_voltage` (MS:1003394),
   `selexion_compensation_voltage` (MS:1003371).
@@ -266,8 +266,8 @@ spec.has_cv_param("centroid spectrum")
 
 ## Header metadata classes
 
-- `FileDescription`: `file_content: FileContent | None`, `source_files: list[SourceFile]`,
-  `get_source_file(id) -> SourceFile | None`, `contact: list[Contact]`.
+- `FileDescription`: `file_content: FileContent | None`, `source_files: tuple[SourceFile, ...]`,
+  `get_source_file(id) -> SourceFile | None`, `contact: tuple[Contact, ...]`.
 - `FileContent`: CV terms for the file's content; `is_dia: bool` (a merged DIA method term is
   declared), `dia_acquisition: DIAAcquisitionAccession | None`.
 - `SourceFile`: `id`, `name`, `location`, `checksum`, `checksum_type` (`"MD5" | "SHA1" | "SHA256" | None`).
@@ -440,8 +440,9 @@ arr = spectrum.get_binary_array(BinaryDataArrayAccession.MZ)   # same as "MS:100
 - Numpress arrays reconstruct as float64; no further narrowing.
 - Arrays are writable and freshly decoded on each access. Convert explicitly when you need a
   type: `spectrum.mz.astype(np.float64)`. Integer arithmetic on int32 arrays can overflow.
-- `rt` is a float in seconds and `ion_injection_time` a `timedelta`, both converted from the
-  recorded unit; `chrom.time` is the raw array in its recorded unit.
+- `rt` is a float in seconds and `ion_injection_time` a float in milliseconds, both converted from
+  the recorded unit. A missing or non-time unit is taken as seconds (ms for injection time) and
+  warns once per unit; a non-numeric value raises `MzmlError`. `chrom.time` is the raw array in its recorded unit.
 
 ## Worked examples
 

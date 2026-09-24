@@ -10,7 +10,6 @@ import base64
 import contextlib
 import warnings
 from dataclasses import dataclass
-from datetime import timedelta
 from functools import cached_property
 from typing import Literal
 
@@ -32,6 +31,7 @@ from .constants import (
     SpectrumCombinationAccession,
     SpectrumMSAccession,
     SpectrumTypeAccession,
+    TimeUnitAccession,
 )
 from .decoder import MSDecoder
 from .elems.dtree_wrapper import _DataTreeWrapper, _DataTreeWrapperProtocol, _ParamGroup
@@ -280,6 +280,40 @@ class BinaryDataArray(_ParamGroup):
         return self._decode()
 
 
+_SECONDS_PER_UNIT: dict[str, float] = {
+    TimeUnitAccession.MILLISECOND: 0.001,
+    TimeUnitAccession.SECOND: 1.0,
+    TimeUnitAccession.MINUTE: 60.0,
+    TimeUnitAccession.HOUR: 3600.0,
+    "millisecond": 0.001,
+    "second": 1.0,
+    "minute": 60.0,
+    "hour": 3600.0,
+}
+_warned_time_units: set[tuple[str, str | None]] = set()
+
+
+def _time(group: _ParamGroup, accession: str, quantity: str, unit: Literal["second", "millisecond"]) -> float | None:
+    """Read a time-valued cvParam and return it in ``unit``.
+
+    A missing or non-time unit is taken to be ``unit`` and warns once per (quantity, unit) pair.
+    """
+    cv = group.get_cv_param(accession)
+    value = group.cv_float(accession)
+    if cv is None or value is None:
+        return None
+    recorded = " ".join(part for part in (cv.unit_accession, cv.unit_name) if part) or None
+    factor = _SECONDS_PER_UNIT.get(cv.unit_accession or "") or _SECONDS_PER_UNIT.get((cv.unit_name or "").lower())
+    if factor is None:
+        key = (quantity, recorded)
+        if key not in _warned_time_units:
+            _warned_time_units.add(key)
+            what = "has no unit" if recorded is None else f"has non-time unit {recorded!r}"
+            warnings.warn(f"The {quantity} ({accession}) {what}; assuming {unit}s.", UserWarning, stacklevel=3)
+        return value
+    return value * factor / _SECONDS_PER_UNIT[unit]
+
+
 @dataclass(frozen=True)
 class _BinaryDataArrayList(_ParamGroup):
     """Internal wrapper for a `binaryDataArrayList` XML element.
@@ -288,9 +322,11 @@ class _BinaryDataArrayList(_ParamGroup):
     """
 
     @property
-    def binary_arrays(self) -> list[BinaryDataArray]:
-        """Get a list of BinaryDataConverter objects for each binary data array."""
-        return [BinaryDataArray(elem) for elem in self.element.findall(f"./{self.ns}{MzMLElement.BINARY_DATA_ARRAY}")]
+    def binary_arrays(self) -> tuple[BinaryDataArray, ...]:
+        """The binary data arrays, in document order."""
+        return tuple(
+            BinaryDataArray(elem) for elem in self.element.findall(f"./{self.ns}{MzMLElement.BINARY_DATA_ARRAY}")
+        )
 
     def get_binary_array(self, id: str) -> BinaryDataArray | None:
         """Get a BinaryDataConverter object for the binary data array with the specified id."""
@@ -321,11 +357,11 @@ class _BinaryDataArrayMixin(_DataTreeWrapperProtocol):
         return None
 
     @property
-    def binary_arrays(self) -> list[BinaryDataArray]:
-        """Get a list of BinaryDataConverter objects for each binary data array."""
+    def binary_arrays(self) -> tuple[BinaryDataArray, ...]:
+        """The binary data arrays, in document order."""
         if self._binary_array_list is not None:
             return self._binary_array_list.binary_arrays
-        return []
+        return ()
 
     def get_binary_array(self, id: str) -> BinaryDataArray | None:
         """Get a BinaryDataConverter object for the binary data array with the specified id."""
@@ -370,9 +406,9 @@ class _ScanWindowList(_ParamGroup):
     """A list of scan windows for a single scan event."""
 
     @property
-    def scan_windows(self) -> list[ScanWindow]:
+    def scan_windows(self) -> tuple[ScanWindow, ...]:
         """Get a list of ScanWindow objects for each scan window in the scan window list."""
-        return [ScanWindow(elem) for elem in self.element.findall(f"./{self.ns}{MzMLElement.SCAN_WINDOW}")]
+        return tuple(ScanWindow(elem) for elem in self.element.findall(f"./{self.ns}{MzMLElement.SCAN_WINDOW}"))
 
     @property
     def has_scan_windows(self) -> bool:
@@ -398,12 +434,12 @@ class Scan(_ParamGroup):
         return None
 
     @property
-    def scan_windows(self) -> list[ScanWindow]:
+    def scan_windows(self) -> tuple[ScanWindow, ...]:
         """Get a list of ScanWindow objects for the scan window list of this scan."""
         return (
             self._scan_window_list.scan_windows
             if self._has_scan_windows_list and self._scan_window_list is not None
-            else []
+            else ()
         )
 
     @property
@@ -432,17 +468,21 @@ class Scan(_ParamGroup):
     def rt(self) -> float | None:
         """Retention time (scan start time, MS:1000016) of this scan in seconds, or None if absent.
 
-        Values stored in minutes, milliseconds or hours are converted to seconds.
+        Values recorded in milliseconds, minutes or hours are converted to seconds. A value with no
+        unit, or a unit that is not a time unit, is taken as seconds and warns once per unit. A
+        non-numeric value raises :class:`MzmlError`.
         """
-        cv = self.get_cv_param(SpectrumMSAccession.SCAN_START_TIME)
-        elapsed = cv.to_timedelta if cv is not None else None
-        return elapsed.total_seconds() if elapsed is not None else None
+        return _time(self, SpectrumMSAccession.SCAN_START_TIME, "retention time", "second")
 
     @property
-    def ion_injection_time(self) -> timedelta | None:
-        """Get ion injection time for this scan."""
-        cv = self.get_cv_param(SpectrumMSAccession.ION_INJECTION_TIME)
-        return cv.to_timedelta if cv is not None else None
+    def ion_injection_time(self) -> float | None:
+        """Ion injection time (MS:1000927) of this scan in milliseconds, or None if absent.
+
+        Milliseconds is the unit instruments and search engines report. Values recorded in other
+        time units are converted. A value with no unit, or a unit that is not a time unit, is taken
+        as milliseconds and warns once per unit. A non-numeric value raises :class:`MzmlError`.
+        """
+        return _time(self, SpectrumMSAccession.ION_INJECTION_TIME, "ion injection time", "millisecond")
 
     @property
     def ook0(self) -> float | None:
@@ -488,9 +528,9 @@ class _ScanList(_ParamGroup):
     """
 
     @property
-    def scans(self) -> list[Scan]:
+    def scans(self) -> tuple[Scan, ...]:
         """Get a list of Scan objects for each scan in the scan list."""
-        return [Scan(elem) for elem in self.element.findall(f"./{self.ns}{MzMLElement.SCAN}")]
+        return tuple(Scan(elem) for elem in self.element.findall(f"./{self.ns}{MzMLElement.SCAN}"))
 
     @property
     def spectra_combination(self) -> SpectrumCombinationAccession | None:
@@ -539,11 +579,11 @@ class _ScanListMixin(_DataTreeWrapperProtocol):
         return None
 
     @property
-    def scans(self) -> list[Scan]:
+    def scans(self) -> tuple[Scan, ...]:
         """Get a list of Scan objects for the scan list of this spectrum, or None if no scan list is present."""
         if self._has_scan_list and self._scan_list is not None:
             return self._scan_list.scans
-        return []
+        return ()
 
     @property
     def is_single_scan(self) -> bool:
@@ -587,8 +627,8 @@ class _ScanListMixin(_DataTreeWrapperProtocol):
         return scan.rt if scan is not None else None
 
     @property
-    def ion_injection_time(self) -> timedelta | None:
-        """Get ion injection time for this spectrum, if it has a single scan."""
+    def ion_injection_time(self) -> float | None:
+        """Ion injection time in milliseconds (see :attr:`Scan.ion_injection_time`), from the first scan."""
         scan = self._first_scan("ion injection time")
         return scan.ion_injection_time if scan is not None else None
 
@@ -732,15 +772,17 @@ class Activation(_ParamGroup):
 
     @property
     def collision_energy(self) -> float | None:
-        """Collision energy in eV (MS:1000045), or None.
+        """Collision energy (MS:1000045) as recorded, or None.
 
-        Does not fall back to :attr:`activation_energy` (MS:1000509), which is a separate term.
+        The term's unit is electronvolt, but some writers (notably Thermo converters) record the
+        normalized collision energy (NCE, percent) under this term, so the number is returned as
+        written without conversion. :attr:`activation_energy` (MS:1000509) is a separate term.
         """
         return self.cv_float(ActivationAccession.COLLISION_ENERGY)
 
     @property
     def supplemental_collision_energy(self) -> float | None:
-        """Supplemental collision energy in eV (MS:1002680), or None."""
+        """Supplemental collision energy (MS:1002680) as recorded, or None (e.g. EThcD supplemental activation)."""
         return self.cv_float(ActivationAccession.SUPPLEMENTAL_COLLISION_ENERGY)
 
     @property
@@ -778,11 +820,11 @@ class Precursor(_DataTreeWrapper):
         return None
 
     @property
-    def selected_ions(self) -> list[SelectedIon]:
+    def selected_ions(self) -> tuple[SelectedIon, ...]:
         sel_ion_list = self.element.find(f"./{self.ns}{MzMLElement.SELECTED_ION_LIST}")
         if sel_ion_list is not None:
-            return [SelectedIon(elem) for elem in sel_ion_list.findall(f"./{self.ns}{MzMLElement.SELECTED_ION}")]
-        return []
+            return tuple(SelectedIon(elem) for elem in sel_ion_list.findall(f"./{self.ns}{MzMLElement.SELECTED_ION}"))
+        return ()
 
     @property
     def activation(self) -> Activation | None:
@@ -835,12 +877,14 @@ class _PrecursorListMixin(_DataTreeWrapperProtocol):
         return self.element.find(f"./{self.ns}{MzMLElement.PRECURSOR_LIST}") is not None
 
     @property
-    def precursors(self) -> list[Precursor]:
+    def precursors(self) -> tuple[Precursor, ...]:
         """Get a list of Precursor objects for the precursor list of this spectrum, or None ."""
         precursor_list_element = self.element.find(f"./{self.ns}{MzMLElement.PRECURSOR_LIST}")
         if precursor_list_element is not None:
-            return [Precursor(elem) for elem in precursor_list_element.findall(f"./{self.ns}{MzMLElement.PRECURSOR}")]
-        return []
+            return tuple(
+                Precursor(elem) for elem in precursor_list_element.findall(f"./{self.ns}{MzMLElement.PRECURSOR}")
+            )
+        return ()
 
 
 @dataclass(frozen=True, repr=False)
@@ -866,12 +910,12 @@ class _ProductListMixin(_DataTreeWrapperProtocol):
         return self.element.find(f"./{self.ns}productList") is not None
 
     @property
-    def products(self) -> list[Product]:
+    def products(self) -> tuple[Product, ...]:
         """Get a list of Product objects for the product list of this spectrum, or None"""
         product_list_element = self.element.find(f"./{self.ns}{MzMLElement.PRODUCT_LIST}")
         if product_list_element is not None:
-            return [Product(elem) for elem in product_list_element.findall(f"./{self.ns}{MzMLElement.PRODUCT}")]
-        return []
+            return tuple(Product(elem) for elem in product_list_element.findall(f"./{self.ns}{MzMLElement.PRODUCT}"))
+        return ()
 
 
 @dataclass(frozen=True)

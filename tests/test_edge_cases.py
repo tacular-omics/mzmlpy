@@ -139,7 +139,7 @@ def test_empty_scan_and_precursor_lists(tmp_path):
     with Mzml(path) as r:
         s = r.spectra[0]
         assert s.rt is None
-        assert s.precursors == [] or s.precursors is None
+        assert s.precursors == ()
 
 
 def test_duplicate_spectrum_ids(tmp_path):

@@ -133,7 +133,7 @@ Full signatures and examples: `llms-full.txt`.
   `inherited_members: true` (mixin members appear on class pages), `merge_init_into_class: true`.
 - `StrEnum` for all CV accessions: never hardcode an accession string outside `constants.py`.
 - `Literal[...]` return types for known-set values (`polarity`, `spectrum_type`, `chromatogram_type`).
-- Absent CV terms return `None` (or `[]` for lists); ambiguous cases warn and return the first value.
+- Absent CV terms return `None` (or `()` for sequences); ambiguous cases warn and return the first value.
 - Runtime deps: `numpy>=1.26.0` only. Extras: `numpress` (`pynumpress>=0.1.5`), `zstd`,
   `rapidgzip` (for `gzip_mode="indexed"`), `mcp` (`mcp>=2.1.1,<3`). Extras import lazily; the
   base install must work without them.

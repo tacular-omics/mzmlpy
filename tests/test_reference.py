@@ -143,4 +143,4 @@ def test_psims_written_file():
                 iw = prec.isolation_window
                 assert iw is not None and (iw.target_mz, iw.lower_offset, iw.upper_offset) == (target, lower, upper)
             else:
-                assert spec.precursors == []
+                assert spec.precursors == ()

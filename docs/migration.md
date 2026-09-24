@@ -20,25 +20,34 @@ exception hierarchy. Renamed names have no aliases: the old name raises `Attribu
 | `SelectedIon.charge_state` | `SelectedIon.charge` | |
 | `SelectedIon.ir_im` | `SelectedIon.ook0` | |
 | `SelectedIon.im_drift_time` | `SelectedIon.drift_time` | |
-| `Activation.ce` | `Activation.collision_energy` | MS:1000045 only; no longer falls back to `activation_energy` |
+| `Activation.ce` | `Activation.collision_energy` | value as recorded; Thermo files store NCE here |
 | `Activation.supplemental_ce` | `Activation.supplemental_collision_energy` | |
 | `get_cvparm(id)` / `has_cvparm(id)` | `get_cv_param(id)` / `has_cv_param(id)` | |
 | `cv_params`, `user_params`, `ref_params` (`list`) | same names, `tuple` | |
 | `accessions`, `names` (`set`) | same names, `frozenset` | |
+| `Spectrum.scans`, `precursors`, `products`, `binary_arrays`, `Scan.scan_windows`, `Precursor.selected_ions`, `FileDescription.source_files`, `contact` (`list`) | same names, `tuple` | empty tuple when absent; `== []` checks become `== ()` or `not x` |
+| `Spectrum.ion_injection_time`, `Scan.ion_injection_time` (`timedelta`) | same names, float milliseconds | was `.total_seconds() * 1000` |
+| `Spectrum.total_ion_current` raising `KeyError` when absent | returns `None` | |
+| `UserParam.name`, `ReferenceableParamGroupRef.ref` `None` when the attribute is missing | `""` | |
 
 ## Reader and lookups
 
 | 0.9 | 0.10 | notes |
 |---|---|---|
-| `Mzml.TIC`, `ChromatogramLookup.TIC` | `Mzml.total_ion_chromatogram`, `ChromatogramLookup.total_ion_chromatogram` | |
+| `Mzml.TIC`, `ChromatogramLookup.TIC` | `Mzml.total_ion_chromatogram` | the lookup has no TIC property |
 | `reader.spectra.next()` / `reset()` | `it = iter(reader.spectra)`; `next(it)` | the stateful cursor is removed |
 | `lookup.file_object` | removed | internal |
 | `Mzml.iter` | removed | internal |
 | `Mzml.obo_version = ...` | read-only property | |
 | `Mzml.referenceable_param_groups`, `instrument_configurations`, `data_processes`, `scan_settings` | same | now return a new dict on each call |
 | `lookup.get_by_index("3")` | `lookup.get_by_index(3)` | a non-int raises `TypeError` |
+| `spectra[1.0]`, `spectra.get_by_id(1)` | `spectra[1]`, `spectra.get_by_id("scan=1")` | other key types raise `TypeError` |
 | `spectra.filter(retention_time=...)`, `SpectrumFilter(retention_time=...)` | `rt=...` | seconds |
 | `SpectrumFilter(2, ...)` (positional) | `SpectrumFilter(ms_level=2, ...)` | keyword-only |
+
+A scan start time or ion injection time with no unit, or a non-time unit, is read as seconds
+(milliseconds for injection time) and warns once per unit. Set the unit in the file, or silence
+the warning with `warnings.filterwarnings`, if the default is right for your data.
 
 ## Errors
 
@@ -49,6 +58,8 @@ exception hierarchy. Renamed names have no aliases: the old name raises `Attribu
 | `ValueError` for an inconsistent offset index | `MzmlOffsetIndexError` |
 | `ValueError` for undecodable binary data | `MzmlDecodeError` |
 | `KeyError` for a missing id | `MzmlRecordNotFoundError` (still a `KeyError`) |
+| a non-numeric `rt` value | `MzmlError` |
+| a well-formed file whose root is not `<mzML>` / `<indexedmzML>` | `MzmlParseError` on open |
 
 ## Constants (`mzmlpy.constants`)
 

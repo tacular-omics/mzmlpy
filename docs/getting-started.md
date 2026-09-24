@@ -173,7 +173,7 @@ with Mzml("tests/data/example.mzML") as reader:
 
 ## Working with Scan Timing
 
-Retention time is a float in seconds (`rt`), ion injection time is a `timedelta`, and `mz_range` is the scan window envelope. The spectrum delegates each to its first scan:
+Retention time is a float in seconds (`rt`), ion injection time is a float in milliseconds (`ion_injection_time`), and `mz_range` is the scan window envelope. The spectrum delegates each to its first scan:
 
 ```python
 from mzmlpy import Mzml
@@ -186,8 +186,7 @@ with Mzml("tests/data/example.mzML") as reader:
         print(f"RT: {rt_minutes:.4f} min")
 
     if spec.ion_injection_time is not None:
-        iit_ms = spec.ion_injection_time.total_seconds() * 1000
-        print(f"Ion injection time: {iit_ms:.2f} ms")
+        print(f"Ion injection time: {spec.ion_injection_time:.2f} ms")
 
     if spec.mz_range is not None:
         lower, upper = spec.mz_range

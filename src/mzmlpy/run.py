@@ -162,7 +162,7 @@ class Mzml:
 
     def __init__(
         self,
-        file: str | Path | Any,
+        file: str | Path | BinaryIO,
         *,
         build_index_from_scratch: bool = False,
         gzip_mode: Literal["auto", "extract", "indexed", "stream"] = "auto",
@@ -236,6 +236,8 @@ class Mzml:
                 _, root = next(mzml_iter)
             except StopIteration:
                 raise MzmlParseError("File contains no XML elements") from None
+            if get_tag(root) not in ("mzML", "indexedmzML"):
+                raise MzmlParseError(f"Root element is <{get_tag(root)}>, not <mzML> or <indexedmzML>")
 
             # Build metadata
             builder = _MzMLContentBuilder()
