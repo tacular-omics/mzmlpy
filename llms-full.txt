@@ -120,7 +120,7 @@ Methods (both lookups):
 - `get_by_slice(slice_obj: slice) -> list[T]`
 - `count -> int | None`: declared record count.
 - `SpectrumLookup.filter(*, ms_level=None, rt=None, rt_range=None, rt_tolerance=30.0, polarity=None,
-  precursor_mz=None, precursor_mz_range=None, mz_tolerance=20.0, mz_tolerance_type="ppm",
+  precursor_mz=None, precursor_mz_range=None, mz_tolerance=20.0, mz_tolerance_unit="ppm",
   spectrum_type=None, ook0_range=None, drift_time_range=None, faims_voltage_range=None) -> Iterator[Spectrum]`:
   lazy metadata selection (see Filtering).
 
@@ -148,7 +148,7 @@ All properties are lazy and return `None` (or `()` for sequences) when the term 
 | `intensity` | `np.ndarray \| None` | decoded intensity array |
 | `charge_array` | `np.ndarray \| None` | per-point charge array, if present |
 | `ms_level` | `int \| None` | 1, 2, ... |
-| `polarity` | `Literal["positive", "negative"] \| None` | |
+| `polarity` | `Polarity \| None` (`Literal["positive", "negative"]`) | |
 | `spectrum_type` | `Literal["centroid", "profile"] \| None` | |
 | `spectra_combination` | `Literal["no_combination", "median", "sum", "mean"] \| None` | scanList combination term |
 | `rt` | `float \| None` | retention time in seconds, from the first scan (warns if there are several) |
@@ -309,7 +309,7 @@ with Mzml("run.mzML") as reader:
     for s in reader.spectra.filter(ms_level=2, rt_range=(60, 180), polarity="positive"):
         print(s.id)
     near = reader.spectra.filter(rt=600.0, rt_tolerance=30.0)                 # point query, seconds
-    same = reader.spectra.filter(precursor_mz=500.25, mz_tolerance=10)         # ppm; mz_tolerance_type="da" for Da
+    same = reader.spectra.filter(precursor_mz=500.25, mz_tolerance=10)         # ppm; mz_tolerance_unit="da" for Da
 ```
 
 `SpectrumFilter(*, ms_level=None, rt_range=None, polarity=None, precursor_mz_range=None,
@@ -445,6 +445,10 @@ CV accessions are `StrEnum`s (compare with the enum or with the accession string
 `DIAAcquisitionAccession`, `SpectrumCombinationAccession`, `ChecksumTypeAccession`,
 `ContactAccession`, `TimeUnitAccession`, `SpectrumTypeAccession`, `ScanPolarity`, plus `ION_MOBILITIES`
 (frozenset of ion-mobility array accessions).
+
+Two `Literal` aliases, also exported from `mzmlpy`, share their values and order with
+`tacular.types`: `ToleranceUnit = Literal["da", "ppm"]` (the `mz_tolerance_unit` of
+`spectra.filter`) and `Polarity = Literal["positive", "negative"]` (`Spectrum.polarity`, filter `polarity=`).
 
 ```python
 from mzmlpy.constants import BinaryDataArrayAccession
@@ -607,7 +611,7 @@ tables are copied from the migration guide (https://tacular-omics.github.io/mzml
 | `spectra.filter(retention_time=(lo, hi))`, `SpectrumFilter(retention_time=...)` | `rt_range=(lo, hi)` | seconds |
 | (no point query) | `spectra.filter(rt=600.0, rt_tolerance=30.0)` | tdfpy convention; any real number, numpy scalars included; `rt=(lo, hi)` raises `MzmlError` pointing at `rt_range` |
 | `filter(precursor_mz=(lo, hi))`, `SpectrumFilter(precursor_mz=...)` | `precursor_mz_range=(lo, hi)` | |
-| (no point query) | `spectra.filter(precursor_mz=500.25, mz_tolerance=20, mz_tolerance_type="ppm")` | `"da"` for Dalton tolerance |
+| (no point query) | `spectra.filter(precursor_mz=500.25, mz_tolerance=20, mz_tolerance_unit="ppm")` | `"da"` for Dalton tolerance |
 | `mobility_type="inverse_reduced", ion_mobility=(lo, hi)` | `ook0_range=(lo, hi)` | `(None, None)` selects spectra that record 1/K0 |
 | `mobility_type="drift_time", ion_mobility=(lo, hi)` | `drift_time_range=(lo, hi)` | |
 | `faims_voltage=(lo, hi)` | `faims_voltage_range=(lo, hi)` | signed volts |

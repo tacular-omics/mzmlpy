@@ -7,7 +7,7 @@ from collections.abc import Iterator
 from functools import cached_property
 from typing import Literal, overload
 
-from .constants import SpectrumMSAccession, TimeUnitAccession
+from .constants import Polarity, SpectrumMSAccession, TimeUnitAccession, ToleranceUnit
 from .errors import MzmlError
 from .file_interface import FileInterface
 from .filtering import SpectrumFilter, _within, check_point, mz_tolerance_range, tolerance_range
@@ -290,11 +290,11 @@ class SpectrumLookup(BaseLookup[Spectrum]):
         rt: float | None = None,
         rt_range: tuple[float | None, float | None] | None = None,
         rt_tolerance: float = 30.0,
-        polarity: Literal["positive", "negative"] | None = None,
+        polarity: Polarity | None = None,
         precursor_mz: float | None = None,
         precursor_mz_range: tuple[float | None, float | None] | None = None,
         mz_tolerance: float = 20.0,
-        mz_tolerance_type: Literal["ppm", "da"] = "ppm",
+        mz_tolerance_unit: ToleranceUnit = "ppm",
         spectrum_type: Literal["centroid", "profile"] | None = None,
         ook0_range: tuple[float | None, float | None] | None = None,
         drift_time_range: tuple[float | None, float | None] | None = None,
@@ -305,7 +305,7 @@ class SpectrumLookup(BaseLookup[Spectrum]):
         Criteria are combined with AND. Tuples are inclusive ``*_range`` bounds, either end None
         for open. Point queries follow tdfpy's ``query``: ``rt`` matches within ``rt_tolerance``
         seconds and ``precursor_mz`` within ``mz_tolerance`` ppm (or Da with
-        ``mz_tolerance_type="da"``). Pass a point or its range, not both. See
+        ``mz_tolerance_unit="da"``). Pass a point or its range, not both. See
         :class:`SpectrumFilter` for how each criterion matches. Keep the reader open while
         iterating.
 
@@ -321,7 +321,7 @@ class SpectrumLookup(BaseLookup[Spectrum]):
         check_point("rt", rt)
         check_point("precursor_mz", precursor_mz)
         tolerance_range(None, rt_tolerance, "rt_tolerance")
-        mz_tolerance_range(None, mz_tolerance, mz_tolerance_type)
+        mz_tolerance_range(None, mz_tolerance, mz_tolerance_unit)
         if rt is not None:
             if rt_range is not None:
                 raise MzmlError("pass rt or rt_range, not both")
@@ -329,7 +329,7 @@ class SpectrumLookup(BaseLookup[Spectrum]):
         if precursor_mz is not None:
             if precursor_mz_range is not None:
                 raise MzmlError("pass precursor_mz or precursor_mz_range, not both")
-            precursor_mz_range = mz_tolerance_range(precursor_mz, mz_tolerance, mz_tolerance_type)
+            precursor_mz_range = mz_tolerance_range(precursor_mz, mz_tolerance, mz_tolerance_unit)
         predicate = SpectrumFilter(
             ms_level=ms_level,
             rt_range=rt_range,

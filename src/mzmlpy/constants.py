@@ -1,4 +1,11 @@
 from enum import StrEnum
+from typing import Literal
+
+ToleranceUnit = Literal["da", "ppm"]
+"""Unit of an m/z tolerance: Daltons or parts per million (same values as ``tacular.types.ToleranceUnit``)."""
+
+Polarity = Literal["positive", "negative"]
+"""Scan polarity (same values as ``tacular.types.Polarity``)."""
 
 
 class TimeUnitAccession(StrEnum):
@@ -343,10 +350,12 @@ __all__ = [
     "DIAAcquisitionAccession",
     "IsolationWindowAccession",
     "MzMLElement",
+    "Polarity",
     "ScanPolarity",
     "SelectedIonAccession",
     "SpectrumCombinationAccession",
     "SpectrumMSAccession",
     "SpectrumTypeAccession",
     "TimeUnitAccession",
+    "ToleranceUnit",
 ]

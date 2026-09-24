@@ -31,6 +31,9 @@ Breaking API cleanup. Renamed names have no aliases. See the
 
 ### Changed
 
+- `spectra.filter(mz_tolerance_type=...)` is renamed `mz_tolerance_unit` (no alias; the old keyword raises
+  `TypeError`), following the tacular-omics rule that the Da/ppm switch next to a tolerance is `*_tolerance_unit`.
+  It was only on `main`, never released.
 - Reader vocabulary shared with tdfpy and spxtacular: `scan_start_time` (`timedelta`) -> `rt` (float, seconds) on
   `Spectrum` and `Scan`; `Scan.inverse_reduced_ion_mobility` -> `ook0`, `Scan.ion_mobility_drift_time` ->
   `drift_time`; `SelectedIon.selected_ion_mz` -> `mz`, `peak_intensity` -> `intensity`, `charge_state` -> `charge`,
@@ -100,10 +103,13 @@ Breaking API cleanup. Renamed names have no aliases. See the
   and `IsolationWindow.isolation_width`.
 - `Spectrum.precursor_mz`, `precursor_charge`, `collision_energy` and `isolation_mz_range`, from the first precursor.
 - Point queries in `spectra.filter`, following tdfpy: `rt=` with `rt_tolerance` (seconds, default 30) and
-  `precursor_mz=` with `mz_tolerance` (default 20) and `mz_tolerance_type` (`"ppm"` or `"da"`). Passing a point
+  `precursor_mz=` with `mz_tolerance` (default 20) and `mz_tolerance_unit` (`"da"` or `"ppm"`). Passing a point
   and its range raises `MzmlError`. Points, tolerances and range bounds accept any real number, numpy scalars
   included (not `bool`).
 - `SpectrumFilter(ook0_range=..., drift_time_range=...)`.
+- `ToleranceUnit = Literal["da", "ppm"]` and `Polarity = Literal["positive", "negative"]`, exported from `mzmlpy`
+  (defined in `mzmlpy.constants`) with the same values and order as `tacular.types`. `Spectrum.polarity`,
+  `spectra.filter`, `SpectrumFilter` and the MCP `find_spectra` tool use them.
 - `Spectrum.ook0`; docs pages "Migrating to 0.10" and "Errors".
 
 ### Performance

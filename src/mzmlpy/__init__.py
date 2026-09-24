@@ -7,7 +7,9 @@ from .constants import (
     CollisionDissociationTypeAccession,
     CompressionTypeAccession,
     DIAAcquisitionAccession,
+    Polarity,
     SpectrumCombinationAccession,
+    ToleranceUnit,
 )
 from .content import CVElement
 from .elems import (
@@ -121,4 +123,6 @@ __all__ = [
     "CompressionTypeAccession",
     "DIAAcquisitionAccession",
     "SpectrumCombinationAccession",
+    "Polarity",
+    "ToleranceUnit",
 ]

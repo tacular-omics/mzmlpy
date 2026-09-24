@@ -56,7 +56,7 @@ exception hierarchy. Renamed names have no aliases: the old name raises `Attribu
 | `spectra.filter(retention_time=(lo, hi))`, `SpectrumFilter(retention_time=...)` | `rt_range=(lo, hi)` | seconds |
 | (no point query) | `spectra.filter(rt=600.0, rt_tolerance=30.0)` | tdfpy convention; any real number, numpy scalars included; `rt=(lo, hi)` raises `MzmlError` pointing at `rt_range` |
 | `filter(precursor_mz=(lo, hi))`, `SpectrumFilter(precursor_mz=...)` | `precursor_mz_range=(lo, hi)` | |
-| (no point query) | `spectra.filter(precursor_mz=500.25, mz_tolerance=20, mz_tolerance_type="ppm")` | `"da"` for Dalton tolerance |
+| (no point query) | `spectra.filter(precursor_mz=500.25, mz_tolerance=20, mz_tolerance_unit="ppm")` | `"da"` for Dalton tolerance |
 | `mobility_type="inverse_reduced", ion_mobility=(lo, hi)` | `ook0_range=(lo, hi)` | `(None, None)` selects spectra that record 1/K0 |
 | `mobility_type="drift_time", ion_mobility=(lo, hi)` | `drift_time_range=(lo, hi)` | |
 | `faims_voltage=(lo, hi)` | `faims_voltage_range=(lo, hi)` | signed volts |
@@ -98,7 +98,9 @@ the warning with `warnings.filterwarnings`, if the default is right for your dat
 
 The accession enums used in return types (`BinaryDataArrayAccession`, `BinaryDataTypeAccession`,
 `ChromatogramTypeAccession`, `CollisionDissociationTypeAccession`, `CompressionTypeAccession`,
-`DIAAcquisitionAccession`, `SpectrumCombinationAccession`) are now also importable from `mzmlpy`.
+`DIAAcquisitionAccession`, `SpectrumCombinationAccession`) are now also importable from `mzmlpy`, as are
+the `Literal` aliases `ToleranceUnit` (`"da"`, `"ppm"`) and `Polarity` (`"positive"`, `"negative"`), which match
+`tacular.types`.
 
 ## Internal names made private
 

@@ -37,7 +37,7 @@ from ._mcp_types import (
     ValidationData,
 )
 from ._progress import checkpoint
-from .constants import BinaryDataArrayAccession, TimeUnitAccession
+from .constants import BinaryDataArrayAccession, Polarity, TimeUnitAccession
 from .elems.dtree_wrapper import _ParamGroup
 from .errors import MzmlError, MzmlRecordNotFoundError
 
@@ -245,7 +245,7 @@ class MzmlTools:
         ms_level: int | None = None,
         retention_time_min_seconds: float | None = None,
         retention_time_max_seconds: float | None = None,
-        polarity: Literal["positive", "negative"] | None = None,
+        polarity: Polarity | None = None,
         precursor_mz_min: float | None = None,
         precursor_mz_max: float | None = None,
         start_index: int = 0,
