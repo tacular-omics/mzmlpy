@@ -77,8 +77,9 @@ with Mzml("data.mzML") as reader:
 ```
 
 Gzipped files get the same lazy, indexable access as plain mzML — `gzip_mode="auto"` uses an
-embedded index, then rapidgzip if installed, then decompression into memory, and self-indexed
-files (via `write_indexed_gzip`) support random access with no extra files at all. Ion
+embedded index, then rapidgzip if installed, then decompression into memory, and never writes
+files next to yours. For fast re-opens, convert once with `write_indexed_gzip` (random access with
+no extra files) or open once with `gzip_mode="indexed"` to save reusable sidecar indexes. Ion
 mobility data (e.g. Bruker timsTOF PASEF) is exposed on the spectrum whether it's stored
 as a binary array or a scan-level parameter.
 

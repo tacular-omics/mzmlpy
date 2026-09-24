@@ -81,13 +81,17 @@ class IndexedGzip(AbstractRandomAccessMzml):
     decompressed content of a ``.mzML.gz`` file without extracting to disk.
     Rapidgzip supports parallel decompression for faster index building.
 
-    Two index files are cached alongside the ``.gz`` file:
+    With ``write_sidecars=True`` (``gzip_mode="indexed"``) two index files are cached alongside the
+    ``.gz`` file:
 
     - ``.gzidx`` — the gzip seek-point index (for seeking in compressed data)
     - ``.mzidx`` — the mzML spectrum/chromatogram byte-offset index
 
     On first open both indices are built and saved. On subsequent opens they
     are loaded directly, making startup nearly instant with no file parsing.
+
+    With ``write_sidecars=False`` (``gzip_mode="auto"``) nothing is written: current sidecars are
+    read if they exist, and any missing index is built in memory for this reader only.
 
     A persistent binary file handle is reused for all random-access
     operations to avoid the overhead of repeatedly opening handles.
@@ -98,6 +102,7 @@ class IndexedGzip(AbstractRandomAccessMzml):
         build_index_from_scratch: Build the mzML index by scanning the file
             instead of reading the footer index section.
         index_regex: Optional regex for custom index building.
+        write_sidecars: Save built indexes next to the file. When False, never write any file.
     """
 
     def __init__(
@@ -106,12 +111,16 @@ class IndexedGzip(AbstractRandomAccessMzml):
         encoding: str,
         build_index_from_scratch: bool = False,
         index_regex: Pattern[bytes] | None = None,
+        write_sidecars: bool = True,
     ) -> None:
         if RapidgzipFile is None:
             raise ImportError(
                 "rapidgzip is required for gzip_mode='indexed'. Install it with: pip install mzmlpy[rapidgzip]"
             )
         self.path: str = path
+        self._write_sidecars: bool = write_sidecars
+        # Seek-point index kept in memory when sidecars are not written (None: use the file).
+        self._gzip_index_bytes: bytes | None = None
         self._gzip_index_path: str = path + "idx"  # e.g. data.mzML.gzidx
         self._mzml_index_path: str = str(Path(path).with_suffix("")) + "idx"  # e.g. data.mzMLidx
 
@@ -137,6 +146,13 @@ class IndexedGzip(AbstractRandomAccessMzml):
             return
 
         logger.debug("Building gzip index for: %s", self.path)
+        if not self._write_sidecars:
+            with RapidgzipFile(self.path, parallelization=rapidgzip_threads()) as f:
+                f.seek(0, 2)
+                buffer = io.BytesIO()
+                f.export_index(buffer)
+            self._gzip_index_bytes = buffer.getvalue()
+            return
         # Atomic write so an interrupted build never leaves a truncated index that the currency
         # check would later trust.
         signature = source_signature(self.path)
@@ -148,17 +164,23 @@ class IndexedGzip(AbstractRandomAccessMzml):
         write_cache_signature(self._gzip_index_path, self.path, signature)
         logger.debug("Saved gzip index to: %s", self._gzip_index_path)
 
+    def _import_index(self, fh: RapidgzipFile) -> None:
+        if self._gzip_index_bytes is not None:
+            fh.import_index(io.BytesIO(self._gzip_index_bytes))
+        else:
+            fh.import_index(self._gzip_index_path)
+
     def _open_indexed(self) -> RapidgzipFile:
-        """Open a new RapidgzipFile with the cached seek index."""
+        """Open a new RapidgzipFile with the seek index (sidecar or in memory)."""
         fh = RapidgzipFile(self.path, parallelization=rapidgzip_threads())
         try:
-            fh.import_index(self._gzip_index_path)
+            self._import_index(fh)
         except Exception:
             fh.close()
             self._ensure_gzip_index(force=True)
             fh = RapidgzipFile(self.path, parallelization=rapidgzip_threads())
             try:
-                fh.import_index(self._gzip_index_path)
+                self._import_index(fh)
             except BaseException:
                 fh.close()
                 raise
@@ -186,7 +208,8 @@ class IndexedGzip(AbstractRandomAccessMzml):
         # Delegate to base class to parse offsets from the file
         signature = source_signature(self.path)
         super()._build_index(from_scratch=from_scratch)
-        self._save_mzml_index(signature)
+        if self._write_sidecars:
+            self._save_mzml_index(signature)
 
     def _load_mzml_index(self) -> None:
         """Load cached mzML offsets from the .mzidx JSON file."""

@@ -99,6 +99,20 @@ def gzip_decompress(path: str) -> bytes:
         return f.read()
 
 
+def _current_umask() -> int:
+    """Return the process umask, without changing it where the platform allows."""
+    try:  # Linux: read it, so other threads never see a temporary umask of 0
+        with open("/proc/self/status") as status:
+            for line in status:
+                if line.startswith("Umask:"):
+                    return int(line.split()[1], 8)
+    except (OSError, ValueError, IndexError):
+        pass
+    mask = os.umask(0o022)
+    os.umask(mask)
+    return mask
+
+
 @contextlib.contextmanager
 def atomic_write_path(final_path: str) -> Iterator[str]:
     """Yield a temporary path in the same directory, then atomically move it into place.
@@ -115,6 +129,8 @@ def atomic_write_path(final_path: str) -> Iterator[str]:
     os.close(fd)
     try:
         yield tmp_path
+        # mkstemp creates 0600 files; give the cache the mode a normal open() would.
+        os.chmod(tmp_path, 0o666 & ~_current_umask())
         os.replace(tmp_path, final_path)
     except BaseException:
         with contextlib.suppress(OSError):

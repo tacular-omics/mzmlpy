@@ -282,28 +282,19 @@ class FileInterface:
                 )
             if self.gzip_mode == "auto":
                 if _HAS_RAPIDGZIP:
-                    # rapidgzip reads the compressed file in place, building sidecar indexes next
-                    # to it on first use (or reusing current ones).
-                    try:
-                        handler = IndexedGzip(
-                            path,
-                            self.encoding,
-                            self.build_index_from_scratch,
-                            index_regex=self.index_regex,
-                        )
-                    except OSError as error:  # e.g. no write access for the sidecars
-                        logger.warning(
-                            "Reading %s into memory: could not write rapidgzip sidecar indexes in %s (%s)",
-                            path,
-                            Path(path).resolve().parent,
-                            error,
-                        )
-                    else:
-                        self.access_strategy = AccessStrategy.RAPIDGZIP
-                        return handler
-                # No embedded index and no usable rapidgzip: decompress into memory.
-                if not _HAS_RAPIDGZIP:
-                    _note_gzip_read_into_memory(path)
+                    # rapidgzip reads the compressed file in place. auto never writes next to the
+                    # user's file: it reads current sidecars (from gzip_mode="indexed") if present
+                    # and otherwise builds the indexes in memory.
+                    self.access_strategy = AccessStrategy.RAPIDGZIP
+                    return IndexedGzip(
+                        path,
+                        self.encoding,
+                        self.build_index_from_scratch,
+                        index_regex=self.index_regex,
+                        write_sidecars=False,
+                    )
+                # No embedded index and no rapidgzip: decompress into memory.
+                _note_gzip_read_into_memory(path)
                 self.access_strategy = AccessStrategy.MEMORY
                 return BytesMzml(BytesIO(gzip_decompress(path)), self.encoding, self.build_index_from_scratch)
             self.access_strategy = AccessStrategy.STREAM

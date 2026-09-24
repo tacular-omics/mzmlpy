@@ -127,7 +127,7 @@ way to get fast random access without rapidgzip.
 
 Full *sequential* decode is ~20 s regardless of mode — the mode differences live entirely in
 startup and random access. Before each mode the harness removes the `.gzidx`/`.mzidx` (+`.src`)
-index sidecars written next to the `.gz` file, so every startup figure is a genuine cold build,
+index sidecars written next to the `.gz` file by `"indexed"`, so every startup figure is a genuine cold build,
 not a re-used index.
 
 ## Notes on fairness

@@ -41,7 +41,7 @@ DEFAULT_CORPUS = REPO_ROOT / "tests" / "data"
 def purge_mzmlpy_caches(gz: Path) -> None:
     """Remove *all* mzmlpy on-disk caches so a 'cold start' is genuinely cold.
 
-    The ``indexed`` mode (and ``auto`` with rapidgzip) writes ``.gzidx`` / ``.mzidx`` seek/offset
+    The ``indexed`` mode writes (and ``auto`` then reuses) ``.gzidx`` / ``.mzidx`` seek/offset
     indices (and their ``.src`` signature sidecars) next to the ``.gz`` file, which would otherwise
     make a re-run's "cold" startup actually warm.
     """

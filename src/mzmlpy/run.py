@@ -137,12 +137,13 @@ class Mzml:
             this setting.
 
             - ``"auto"`` (default): Use the embedded index if the file has one. Otherwise use
-              ``rapidgzip`` if it is installed, building sidecar indexes next to the file on
-              first use. Otherwise decompress the whole file into memory. For large files,
-              run :func:`mzmlpy.write_indexed_gzip` once or ``pip install mzmlpy[rapidgzip]``.
+              ``rapidgzip`` if it is installed, reading current sidecar indexes if present and
+              otherwise indexing in memory. Otherwise decompress the whole file into memory.
+              Never writes files. For fast re-opens of large files, run
+              :func:`mzmlpy.write_indexed_gzip` once or open once with ``"indexed"``.
             - ``"indexed"``: Use the ``rapidgzip`` library for seekable access to the
-              compressed file without decompressing it all. Requires
-              ``pip install mzmlpy[rapidgzip]``.
+              compressed file without decompressing it all, saving sidecar indexes next to it
+              for fast re-opens. Requires ``pip install mzmlpy[rapidgzip]``.
             - ``"stream"``: Stream the file sequentially without building an index.
               Individual spectrum access re-scans the file from the beginning each time.
 

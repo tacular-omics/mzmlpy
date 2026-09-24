@@ -51,11 +51,14 @@ Breaking API cleanup. Renamed names have no aliases. See the
 - A well-formed XML file whose root is not `<mzML>` or `<indexedmzML>` raises `MzmlParseError` on open.
 - `Mzml(..., in_memory=False)` is the default; pass `in_memory=True` to load the whole file as before.
   For a `.mzML.gz`, `gzip_mode="auto"` (the default) uses the embedded index if the file has one (written by
-  `write_indexed_gzip`), else rapidgzip if it is installed (building sidecar indexes next to the file, and falling
-  back to memory if it cannot write them, and subject to the fork caveat below), else decompresses the file into
+  `write_indexed_gzip`), else rapidgzip if it is installed (reading current sidecars from `gzip_mode="indexed"`,
+  otherwise indexing in memory; subject to the fork caveat below), else decompresses the file into
   memory and logs a one-time warning suggesting `write_indexed_gzip` or `mzmlpy[rapidgzip]`. In 0.9,
   `in_memory=False` on a `.gz` extracted it to a temporary folder on disk; in 0.10 without rapidgzip it reads into
   RAM (`access_strategy == "memory"`).
+- `gzip_mode="auto"` never writes files next to the source. Only `gzip_mode="indexed"` writes sidecar indexes; use
+  it (or `write_indexed_gzip`) once for fast re-opens. Sidecars now get normal file permissions (`0o666 & ~umask`)
+  instead of `0600`.
 - Reading through a closed reader, including an iterator started before `close()`, raises `MzmlError` instead of
   silently reopening the file. Readers and iterators left open are closed at interpreter exit, so an unclosed
   rapidgzip reader no longer aborts the interpreter. A child forked while holding a rapidgzip reader can still abort

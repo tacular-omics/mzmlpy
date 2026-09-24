@@ -43,15 +43,80 @@ def test_auto_prefers_the_embedded_index(tmp_path: Path) -> None:
     assert not Path(f"{embedded}idx").exists()
 
 
-def test_auto_uses_rapidgzip_with_sidecars_when_installed(tmp_path: Path) -> None:
+def test_auto_uses_rapidgzip_in_memory_and_writes_nothing(tmp_path: Path) -> None:
     pytest.importorskip("rapidgzip")
     path = _gzip_copy(tmp_path)
     with Mzml(path, in_memory=False) as reader:
         assert reader.access_strategy is AccessStrategy.RAPIDGZIP
         assert reader.spectra[1].id == "scan=20"
-    assert Path(f"{path}idx").exists()  # the gzip seek index sidecar is kept for next time
+        assert len(reader.spectra) == 4
+        with reader._file_object.file_handler.get_file_handler("utf-8") as fh:  # noqa: SLF001
+            assert fh.read(5) == "<?xml"  # extra handles reuse the in-memory seek index
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["example.mzML.gz"]  # nothing written
+
+
+def test_auto_writes_nothing_next_to_test_data() -> None:
+    before = sorted(p.name for p in GZ_FILE.parent.iterdir())
+    with Mzml(GZ_FILE, in_memory=False) as reader:
+        assert len(reader.spectra) == 4
+    assert sorted(p.name for p in GZ_FILE.parent.iterdir()) == before
+
+
+def test_auto_reuses_sidecars_from_indexed_mode_read_only(tmp_path: Path) -> None:
+    pytest.importorskip("rapidgzip")
+    path = _gzip_copy(tmp_path)
+    with Mzml(path, gzip_mode="indexed", in_memory=False) as reader:
+        assert reader.access_strategy is AccessStrategy.RAPIDGZIP
+    written = {p.name: p.stat().st_mtime_ns for p in tmp_path.iterdir()}
+    assert "example.mzML.gzidx" in written and "example.mzMLidx" in written
     with Mzml(path, in_memory=False) as reader:
         assert reader.access_strategy is AccessStrategy.RAPIDGZIP
+        assert reader.spectra[1].id == "scan=20"
+    assert {p.name: p.stat().st_mtime_ns for p in tmp_path.iterdir()} == written  # read, not rewritten
+
+
+def test_auto_ignores_stale_sidecars_without_rewriting_them(tmp_path: Path) -> None:
+    pytest.importorskip("rapidgzip")
+    path = _gzip_copy(tmp_path)
+    with Mzml(path, gzip_mode="indexed", in_memory=False):
+        pass
+    stale = tmp_path / "example.mzMLidx"
+    stale.write_text("not json")  # size/mtime change makes it stale
+    written = {p.name: p.read_bytes() for p in tmp_path.iterdir()}
+    with Mzml(path, in_memory=False) as reader:
+        assert reader.spectra[1].id == "scan=20"
+    assert {p.name: p.read_bytes() for p in tmp_path.iterdir()} == written
+
+
+@pytest.mark.skipif(not hasattr(os, "geteuid") or os.geteuid() == 0, reason="root ignores directory permissions")
+def test_auto_reads_from_a_read_only_directory(tmp_path: Path) -> None:
+    pytest.importorskip("rapidgzip")
+    folder = tmp_path / "ro"
+    folder.mkdir()
+    path = _gzip_copy(folder)
+    folder.chmod(0o555)
+    try:
+        with Mzml(path, in_memory=False) as reader:
+            assert reader.access_strategy is AccessStrategy.RAPIDGZIP
+            assert len(reader.spectra) == 4
+        with pytest.raises(OSError):  # indexed mode is asked to write sidecars, so it fails loudly
+            Mzml(path, gzip_mode="indexed", in_memory=False)
+        assert sorted(p.name for p in folder.iterdir()) == ["example.mzML.gz"]
+    finally:
+        folder.chmod(0o755)
+
+
+def test_indexed_sidecars_get_normal_file_permissions(tmp_path: Path) -> None:
+    pytest.importorskip("rapidgzip")
+    path = _gzip_copy(tmp_path)
+    old = os.umask(0o022)
+    try:
+        with Mzml(path, gzip_mode="indexed", in_memory=False):
+            pass
+    finally:
+        os.umask(old)
+    for name in ("example.mzML.gzidx", "example.mzML.gzidx.src", "example.mzMLidx", "example.mzMLidx.src"):
+        assert (tmp_path / name).stat().st_mode & 0o777 == 0o644, name
 
 
 def test_auto_reads_into_memory_without_rapidgzip(
@@ -69,39 +134,6 @@ def test_auto_reads_into_memory_without_rapidgzip(
     notes = [r.getMessage() for r in caplog.records if "write_indexed_gzip" in r.getMessage()]
     assert len(notes) == 1  # logged once per process, not per reader
     assert sorted(p.name for p in tmp_path.iterdir()) == ["example.mzML.gz"]  # nothing written
-
-
-def test_auto_falls_back_to_memory_when_sidecars_cannot_be_written(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    pytest.importorskip("rapidgzip")
-
-    def unwritable(*args: object, **kwargs: object) -> None:
-        raise PermissionError("read-only directory")
-
-    monkeypatch.setattr(file_interface, "IndexedGzip", unwritable)
-    path = _gzip_copy(tmp_path)
-    with Mzml(path, in_memory=False) as reader:
-        assert reader.access_strategy is AccessStrategy.MEMORY
-        assert len(reader.spectra) == 4
-
-
-@pytest.mark.skipif(not hasattr(os, "geteuid") or os.geteuid() == 0, reason="root ignores directory permissions")
-def test_auto_falls_back_to_memory_in_a_read_only_directory(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    pytest.importorskip("rapidgzip")
-    folder = tmp_path / "ro"
-    folder.mkdir()
-    path = _gzip_copy(folder)
-    folder.chmod(0o555)
-    try:
-        with caplog.at_level(logging.WARNING, logger="mzmlpy.file_interface"):
-            with Mzml(path, in_memory=False) as reader:
-                assert reader.access_strategy is AccessStrategy.MEMORY
-                assert len(reader.spectra) == 4
-        assert any(str(folder.resolve()) in r.getMessage() for r in caplog.records)  # names the directory
-        assert sorted(p.name for p in folder.iterdir()) == ["example.mzML.gz"]
-    finally:
-        folder.chmod(0o755)
 
 
 def test_invalid_gzip_mode_is_rejected() -> None:

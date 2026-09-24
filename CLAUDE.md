@@ -180,10 +180,11 @@ Full signatures and examples: `llms-full.txt`.
   (`iter_spectrum_heads` + `lookup._head_scan_rts`, which defers anything unusual to a full parse).
   It never assumes rt order. Indexed iteration parses each record's
   byte span (`iter_indexed`) and falls back to the streaming parser at the first anomaly.
-- **`gzip_mode="indexed"` writes sidecars next to the source** (`X.mzML.gzidx`, `X.mzMLidx` and
-  their `.src` signature files), so the source directory must be writable. Running the tests
-  would create these next to `tests/data/` files, so `tests/test_docs.py` runs the doc examples
-  against a copy in `tmp_path`; the sidecars and their `.src` files are gitignored.
+- **Only `gzip_mode="indexed"` writes sidecars next to the source** (`X.mzML.gzidx`, `X.mzMLidx`
+  and their `.src` signature files), so the source directory must be writable. `"auto"` reads
+  current ones read-only and otherwise indexes in memory (`IndexedGzip(write_sidecars=False)`);
+  never make auto write (user decision, 2026-09-24). Tests that use `"indexed"` work on a copy in
+  `tmp_path`; the sidecars and their `.src` files are gitignored.
 - **`gzip_mode="stream"` random access rescans the file** from the start each time and warns. Use
   `indexed`, `in_memory=True` or a self-indexed gzip (`write_indexed_gzip`) for random access.
 - **Cache currency uses source signatures** (`util.source_signature`: realpath, size, mtime_ns,

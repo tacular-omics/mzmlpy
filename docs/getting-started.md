@@ -45,13 +45,15 @@ When working with `.mzML.gz` files, the `gzip_mode` parameter controls how the c
 
 1. The embedded index, if the file has one (written by `write_indexed_gzip`, below).
 2. `rapidgzip`, if it is installed (`pip install mzmlpy[rapidgzip]`). It reads the compressed
-   file in place and keeps two small sidecar indexes next to it, so later opens start fast. If
-   the sidecars cannot be written (for example, a read-only directory), it falls back to step 3.
-3. Otherwise it decompresses the whole file into memory, as 0.9 did.
+   file in place. If current sidecar indexes from `gzip_mode="indexed"` exist next to the file,
+   it reads them; otherwise it builds the indexes in memory for this reader.
+3. Otherwise it decompresses the whole file into memory and logs a one-time warning.
 
-Inspect `reader.access_strategy` to see the route taken (`"embedded"`, `"rapidgzip"` or
-`"memory"`). For a large `.mzML.gz`, step 3 needs memory about the size of the decompressed
-file, so run `write_indexed_gzip` on it once or install the rapidgzip extra.
+`"auto"` never writes files next to your `.gz`. Inspect `reader.access_strategy` to see the
+route taken (`"embedded"`, `"rapidgzip"` or `"memory"`). For a large `.mzML.gz`, step 3 needs
+memory about the size of the decompressed file, and step 2 rescans the file on every open.
+For fast re-opens, run `write_indexed_gzip` on it once, or open it once with
+`gzip_mode="indexed"` to save sidecar indexes that later `"auto"` opens reuse.
 
 For fast random access with no extra files, create a self-indexed gzip file once:
 
@@ -73,7 +75,7 @@ mzmlpy detects this pyMZML-compatible embedded format automatically. The file re
 concatenated gzip stream, and decompressing it reconstructs the original mzML bytes exactly.
 
 - **`"auto"`** (default) takes the first of the routes above that is available.
-- **`"indexed"`** — Use the `rapidgzip` library for seekable access to the compressed file without decompressing it all. Requires `pip install mzmlpy[rapidgzip]`. Builds a gzip seek index (`.gzidx`) and mzML offset index (`.mzMLidx`) on first open, cached alongside the file for instant startup on subsequent opens.
+- **`"indexed"`** — Use the `rapidgzip` library for seekable access to the compressed file without decompressing it all. Requires `pip install mzmlpy[rapidgzip]`. Builds a gzip seek index (`.gzidx`) and mzML offset index (`.mzMLidx`) on first open, cached alongside the file for instant startup on subsequent opens (including `"auto"` opens). This is the only mode that writes files next to the source, so its directory must be writable.
 - **`"stream"`** — Stream the file sequentially with no index. Lowest startup cost, but random access (e.g. `reader.spectra[0]`) scans from the beginning each time — a warning is emitted.
 
 `gzip_mode="extract"` and `extract_dir` were removed in 0.10; see the [migration notes](migration.md).

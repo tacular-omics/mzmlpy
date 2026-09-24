@@ -99,7 +99,7 @@ only when accessed.
 | `memory` | `in_memory=True`, any input; also `BytesIO` input; `.gz` in `"auto"` with no embedded index and no usable rapidgzip |
 | `plain` | uncompressed file with `in_memory=False` (the default) |
 | `embedded` | self-indexed gzip written by `write_indexed_gzip`, `in_memory=False` |
-| `rapidgzip` | `gzip_mode="indexed"`, or `"auto"` when the `rapidgzip` extra is installed |
+| `rapidgzip` | `gzip_mode="indexed"` (writes sidecars), or `"auto"` when the `rapidgzip` extra is installed (reads current sidecars, else indexes in memory) |
 | `stream` | `gzip_mode="stream"`: sequential only |
 
 ## Lookups: `SpectrumLookup`, `ChromatogramLookup`
@@ -366,14 +366,15 @@ Mzml("run.mzML.gz", gzip_mode="stream")                      # lowest startup; r
 
 - `gzip_mode` only matters with `in_memory=False` (the default). With `in_memory=True` the whole
   decompressed file is buffered and every mode behaves the same.
-- `"auto"` uses, in order: the embedded index (self-indexed gzip); rapidgzip if installed, with
-  sidecars next to the file (falls back to memory if they cannot be written); otherwise it
-  decompresses into memory, as 0.9 did. For a large file, run `write_indexed_gzip` once or
-  install `mzmlpy[rapidgzip]`.
+- `"auto"` uses, in order: the embedded index (self-indexed gzip); rapidgzip if installed, reading
+  current sidecars from `"indexed"` if present and otherwise indexing in memory; otherwise it
+  decompresses into memory with a one-time warning. `"auto"` never writes files. For fast
+  re-opens of a large file, run `write_indexed_gzip` once or open it once with `gzip_mode="indexed"`.
 - `gzip_mode="extract"` raises `MzmlError` and `extract_dir=` raises `TypeError` (removed in 0.10).
   mzmlpy writes nothing to the temp directory; `clear_cache()` is gone.
-- `"indexed"` writes index sidecars next to the source (`run.mzML.gzidx`, `run.mzMLidx` and
-  `.src` signature files), so that directory must be writable.
+- `"indexed"` is the only mode that writes: index sidecars next to the source (`run.mzML.gzidx`,
+  `run.mzMLidx` and `.src` signature files), so that directory must be writable. Later `"auto"`
+  opens reuse them read-only.
 - Open readers inside each worker process. A child forked while holding a rapidgzip reader can
   abort at exit (`terminate called`, status 134), an upstream rapidgzip limitation; use the
   `spawn` start method if workers must inherit readers.
@@ -599,7 +600,7 @@ tables are copied from the migration guide (https://tacular-omics.github.io/mzml
 | `lookup.get_by_index("3")` | `lookup.get_by_index(3)` | a non-int raises `TypeError` |
 | `spectra[1.0]`, `spectra.get_by_id(1)` | `spectra[1]`, `spectra.get_by_id("scan=1")` | other key types raise `TypeError` |
 | `Mzml(path)` loads the whole file (`in_memory=True` default) | `Mzml(path)` reads from disk (`in_memory=False` default) | pass `in_memory=True` for the old behaviour |
-| `Mzml("x.mzML.gz")` decompresses into memory | embedded index if present, else rapidgzip if installed (sidecars next to the file), else into memory as before | for fast random access to a large `.gz`, run `write_indexed_gzip` once or install `mzmlpy[rapidgzip]` |
+| `Mzml("x.mzML.gz")` decompresses into memory | embedded index if present, else rapidgzip if installed (indexes in memory; never writes files), else into memory as before | for fast random access to a large `.gz`, run `write_indexed_gzip` once or install `mzmlpy[rapidgzip]` |
 | `gzip_mode="extract"`, `Mzml(extract_dir=...)` | removed | use `write_indexed_gzip` once for fast random access to a .gz |
 | `clear_cache()` | removed | mzmlpy no longer writes to the temp directory; delete an old `<tmpdir>/mzmlpy/` by hand |
 | reading through a closed reader silently reopened the file | raises `MzmlError` | also for an iterator started before `close()` |
