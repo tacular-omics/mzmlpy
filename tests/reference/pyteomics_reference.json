@@ -1,0 +1,2932 @@
+{
+ "example.mzML": {
+  "spectra": [
+   {
+    "id": "scan=19",
+    "index": 0,
+    "ms_level": 1,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 15,
+     "sha256": "834648ceae9c31873542b1adbc0668fb21039ad43c50a7d45318910db18c1dce"
+    },
+    "intensity array": {
+     "dtype": "<f8",
+     "length": 15,
+     "sha256": "a45984858876081b6ccc30a0c6cc2cc3d250e64c31ad9f365ad5e07069d522fe"
+    },
+    "scan_start_time_s": 353.43,
+    "precursors": [],
+    "cv": {
+     "base peak m/z": 445.347,
+     "base peak intensity": 120053.0,
+     "total ion current": 16675500.0,
+     "lowest observed m/z": 400.39,
+     "highest observed m/z": 1795.56,
+     "ms level": 1.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "scan=20",
+    "index": 1,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 10,
+     "sha256": "f4bfecef8a2a062da5231b165518a2f3d15dfbbde37d5bf11e14d4dba7c3877c"
+    },
+    "intensity array": {
+     "dtype": "<f8",
+     "length": 10,
+     "sha256": "984b770b675f8210b8a8cfb88e94ee8f6d9229b56f89c39b1768d2bb8d6cc3f1"
+    },
+    "scan_start_time_s": 359.43,
+    "precursors": [
+     {
+      "spectrum_ref": "scan=19",
+      "isolation_window": [
+       445.3,
+       0.5,
+       0.5
+      ],
+      "collision_energy": 35.0,
+      "selected_ions": [
+       {
+        "mz": 445.34,
+        "charge": 2,
+        "intensity": 120053.0
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 456.347,
+     "base peak intensity": 23433.0,
+     "total ion current": 16675500.0,
+     "lowest observed m/z": 320.39,
+     "highest observed m/z": 1003.56,
+     "ms level": 2.0
+    },
+    "centroid": false,
+    "profile": true
+   },
+   {
+    "id": "scan=21",
+    "index": 2,
+    "ms_level": 1,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "intensity array": {
+     "dtype": "<f8",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "precursors": [],
+    "cv": {
+     "ms level": 1.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "sample=1 period=1 cycle=22 experiment=1",
+    "index": 3,
+    "ms_level": 1,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 15,
+     "sha256": "834648ceae9c31873542b1adbc0668fb21039ad43c50a7d45318910db18c1dce"
+    },
+    "intensity array": {
+     "dtype": "<f8",
+     "length": 15,
+     "sha256": "a45984858876081b6ccc30a0c6cc2cc3d250e64c31ad9f365ad5e07069d522fe"
+    },
+    "scan_start_time_s": 42.05,
+    "precursors": [],
+    "cv": {
+     "base peak m/z": 422.42,
+     "base peak intensity": 42.0,
+     "total ion current": 4200.0,
+     "lowest observed m/z": 142.39,
+     "highest observed m/z": 942.56,
+     "ms level": 1.0
+    },
+    "centroid": true,
+    "profile": false
+   }
+  ],
+  "chromatograms": [
+   {
+    "id": "tic",
+    "time array": {
+     "dtype": "<f8",
+     "length": 15,
+     "sha256": "834648ceae9c31873542b1adbc0668fb21039ad43c50a7d45318910db18c1dce"
+    },
+    "intensity array": {
+     "dtype": "<f8",
+     "length": 15,
+     "sha256": "a45984858876081b6ccc30a0c6cc2cc3d250e64c31ad9f365ad5e07069d522fe"
+    }
+   },
+   {
+    "id": "sic",
+    "time array": {
+     "dtype": "<f8",
+     "length": 10,
+     "sha256": "c29605eb4e50fbb653a19f1a28c4f0955721419f989f1ffd8cb2ed6f4914bbea"
+    },
+    "intensity array": {
+     "dtype": "<f8",
+     "length": 10,
+     "sha256": "9583fdb2a9af7d9d53ac6f6261c677b78e812c257be1333954c1d643c5baf95f"
+    }
+   }
+  ]
+ },
+ "example.mzML.gz": {
+  "spectra": [
+   {
+    "id": "scan=19",
+    "index": 0,
+    "ms_level": 1,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 15,
+     "sha256": "834648ceae9c31873542b1adbc0668fb21039ad43c50a7d45318910db18c1dce"
+    },
+    "intensity array": {
+     "dtype": "<f8",
+     "length": 15,
+     "sha256": "a45984858876081b6ccc30a0c6cc2cc3d250e64c31ad9f365ad5e07069d522fe"
+    },
+    "scan_start_time_s": 353.43,
+    "precursors": [],
+    "cv": {
+     "base peak m/z": 445.347,
+     "base peak intensity": 120053.0,
+     "total ion current": 16675500.0,
+     "lowest observed m/z": 400.39,
+     "highest observed m/z": 1795.56,
+     "ms level": 1.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "scan=20",
+    "index": 1,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 10,
+     "sha256": "f4bfecef8a2a062da5231b165518a2f3d15dfbbde37d5bf11e14d4dba7c3877c"
+    },
+    "intensity array": {
+     "dtype": "<f8",
+     "length": 10,
+     "sha256": "984b770b675f8210b8a8cfb88e94ee8f6d9229b56f89c39b1768d2bb8d6cc3f1"
+    },
+    "scan_start_time_s": 359.43,
+    "precursors": [
+     {
+      "spectrum_ref": "scan=19",
+      "isolation_window": [
+       445.3,
+       0.5,
+       0.5
+      ],
+      "collision_energy": 35.0,
+      "selected_ions": [
+       {
+        "mz": 445.34,
+        "charge": 2,
+        "intensity": 120053.0
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 456.347,
+     "base peak intensity": 23433.0,
+     "total ion current": 16675500.0,
+     "lowest observed m/z": 320.39,
+     "highest observed m/z": 1003.56,
+     "ms level": 2.0
+    },
+    "centroid": false,
+    "profile": true
+   },
+   {
+    "id": "scan=21",
+    "index": 2,
+    "ms_level": 1,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "intensity array": {
+     "dtype": "<f8",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "precursors": [],
+    "cv": {
+     "ms level": 1.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "sample=1 period=1 cycle=22 experiment=1",
+    "index": 3,
+    "ms_level": 1,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 15,
+     "sha256": "834648ceae9c31873542b1adbc0668fb21039ad43c50a7d45318910db18c1dce"
+    },
+    "intensity array": {
+     "dtype": "<f8",
+     "length": 15,
+     "sha256": "a45984858876081b6ccc30a0c6cc2cc3d250e64c31ad9f365ad5e07069d522fe"
+    },
+    "scan_start_time_s": 42.05,
+    "precursors": [],
+    "cv": {
+     "base peak m/z": 422.42,
+     "base peak intensity": 42.0,
+     "total ion current": 4200.0,
+     "lowest observed m/z": 142.39,
+     "highest observed m/z": 942.56,
+     "ms level": 1.0
+    },
+    "centroid": true,
+    "profile": false
+   }
+  ],
+  "chromatograms": [
+   {
+    "id": "tic",
+    "time array": {
+     "dtype": "<f8",
+     "length": 15,
+     "sha256": "834648ceae9c31873542b1adbc0668fb21039ad43c50a7d45318910db18c1dce"
+    },
+    "intensity array": {
+     "dtype": "<f8",
+     "length": 15,
+     "sha256": "a45984858876081b6ccc30a0c6cc2cc3d250e64c31ad9f365ad5e07069d522fe"
+    }
+   },
+   {
+    "id": "sic",
+    "time array": {
+     "dtype": "<f8",
+     "length": 10,
+     "sha256": "c29605eb4e50fbb653a19f1a28c4f0955721419f989f1ffd8cb2ed6f4914bbea"
+    },
+    "intensity array": {
+     "dtype": "<f8",
+     "length": 10,
+     "sha256": "9583fdb2a9af7d9d53ac6f6261c677b78e812c257be1333954c1d643c5baf95f"
+    }
+   }
+  ]
+ },
+ "bruker_ms2_im.mzML": {
+  "spectra": [
+   {
+    "id": "frame=1016 scan=1",
+    "index": 0,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "scan_start_time_s": 124.958506,
+    "precursors": [],
+    "cv": {
+     "base peak intensity": 71.0,
+     "total ion current": 3186.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "frame=1016 scan=2",
+    "index": 1,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "scan_start_time_s": 124.958506,
+    "precursors": [],
+    "cv": {
+     "base peak intensity": 71.0,
+     "total ion current": 3186.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "frame=1016 scan=3",
+    "index": 2,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "scan_start_time_s": 124.958506,
+    "precursors": [],
+    "cv": {
+     "base peak intensity": 71.0,
+     "total ion current": 3186.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "frame=1016 scan=4",
+    "index": 3,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "scan_start_time_s": 124.958506,
+    "precursors": [],
+    "cv": {
+     "base peak intensity": 71.0,
+     "total ion current": 3186.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "frame=1016 scan=5",
+    "index": 4,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "scan_start_time_s": 124.958506,
+    "precursors": [],
+    "cv": {
+     "base peak intensity": 71.0,
+     "total ion current": 3186.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "frame=1016 scan=6",
+    "index": 5,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "scan_start_time_s": 124.958506,
+    "precursors": [],
+    "cv": {
+     "base peak intensity": 71.0,
+     "total ion current": 3186.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "frame=1016 scan=7",
+    "index": 6,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "scan_start_time_s": 124.958506,
+    "precursors": [],
+    "cv": {
+     "base peak intensity": 71.0,
+     "total ion current": 3186.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "frame=1016 scan=8",
+    "index": 7,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "scan_start_time_s": 124.958506,
+    "precursors": [],
+    "cv": {
+     "base peak intensity": 71.0,
+     "total ion current": 3186.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "frame=1016 scan=9",
+    "index": 8,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "scan_start_time_s": 124.958506,
+    "precursors": [],
+    "cv": {
+     "base peak intensity": 71.0,
+     "total ion current": 3186.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "frame=1016 scan=10",
+    "index": 9,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 0,
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "scan_start_time_s": 124.958506,
+    "precursors": [],
+    "cv": {
+     "base peak intensity": 71.0,
+     "total ion current": 3186.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   }
+  ],
+  "chromatograms": [
+   {
+    "id": "TIC",
+    "time array": {
+     "dtype": "<f8",
+     "length": 143403,
+     "sha256": "631587994c82e359b12ede24ff066b7f06c52a7a9dcab8337951d2716f27b474"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 143403,
+     "sha256": "c03f6384e3f11450e6d2ca2dd3937be2cf1df0aedd2e63732074017d723f9c25"
+    }
+   },
+   {
+    "id": "BPC",
+    "time array": {
+     "dtype": "<f8",
+     "length": 143403,
+     "sha256": "631587994c82e359b12ede24ff066b7f06c52a7a9dcab8337951d2716f27b474"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 143403,
+     "sha256": "ce904b2d96602bd6d86a7919a9dcc18ea89f749862cd0ae9a98b6846e332679c"
+    }
+   },
+   {
+    "id": "BPC,\u00b1MS",
+    "time array": {
+     "dtype": "<f8",
+     "length": 143403,
+     "sha256": "631587994c82e359b12ede24ff066b7f06c52a7a9dcab8337951d2716f27b474"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 143403,
+     "sha256": "ce904b2d96602bd6d86a7919a9dcc18ea89f749862cd0ae9a98b6846e332679c"
+    }
+   },
+   {
+    "id": "TIC,\u00b1AllMS/MS",
+    "time array": {
+     "dtype": "<f8",
+     "length": 143403,
+     "sha256": "631587994c82e359b12ede24ff066b7f06c52a7a9dcab8337951d2716f27b474"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 143403,
+     "sha256": "c03f6384e3f11450e6d2ca2dd3937be2cf1df0aedd2e63732074017d723f9c25"
+    }
+   },
+   {
+    "id": "TIC,\u00b1MS",
+    "time array": {
+     "dtype": "<f8",
+     "length": 143403,
+     "sha256": "631587994c82e359b12ede24ff066b7f06c52a7a9dcab8337951d2716f27b474"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 143403,
+     "sha256": "c03f6384e3f11450e6d2ca2dd3937be2cf1df0aedd2e63732074017d723f9c25"
+    }
+   }
+  ]
+ },
+ "bruker_ms2_im_combined_im.mzML": {
+  "spectra": [
+   {
+    "id": "merged=1015 frame=1016 scanStart=655 scanEnd=679",
+    "index": 0,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 113,
+     "sha256": "90b11dc3aca955e4766835c983505acd8e6d670c557ce36aafb4e922374e280f"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 113,
+     "sha256": "be9cc84e847514760eed5aff1a0c83a1c8f0904ef5d61d7992adb5d3f7f1e894"
+    },
+    "scan_start_time_s": 124.958506,
+    "precursors": [
+     {
+      "spectrum_ref": null,
+      "isolation_window": [
+       577.050745983777,
+       1.0,
+       1.0
+      ],
+      "collision_energy": 30.617136659436,
+      "selected_ions": [
+       {
+        "mz": 576.762738803541,
+        "charge": 2,
+        "intensity": 2614.0
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak intensity": 71.0,
+     "total ion current": 3186.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "merged=1016 frame=1017 scanStart=655 scanEnd=679",
+    "index": 1,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 129,
+     "sha256": "959cec009706dcc5045a0f2300dd148ec776caa8a31da4beaa984df804060f21"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 129,
+     "sha256": "7ad02cacc48e798b1769ff6166f4f08376d3bb57239b8f1db5cb1ce2909660b9"
+    },
+    "scan_start_time_s": 125.064078,
+    "precursors": [
+     {
+      "spectrum_ref": null,
+      "isolation_window": [
+       577.050745983777,
+       1.0,
+       1.0
+      ],
+      "collision_energy": 30.617136659436,
+      "selected_ions": [
+       {
+        "mz": 576.762738803541,
+        "charge": 2,
+        "intensity": 2614.0
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak intensity": 73.0,
+     "total ion current": 3517.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "merged=1017 frame=1018 scanStart=655 scanEnd=679",
+    "index": 2,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 109,
+     "sha256": "649cc4a02c2c92139cbcdfb4be0f6c9ab4d68c53d6c7f3de0806478c4098d888"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 109,
+     "sha256": "88c981ad58de13ac6525f18d84e23c229d4538d72aec5e4455baabb98f767d9b"
+    },
+    "scan_start_time_s": 125.171242,
+    "precursors": [
+     {
+      "spectrum_ref": null,
+      "isolation_window": [
+       577.050745983777,
+       1.0,
+       1.0
+      ],
+      "collision_energy": 30.617136659436,
+      "selected_ions": [
+       {
+        "mz": 576.762738803541,
+        "charge": 2,
+        "intensity": 2614.0
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak intensity": 101.0,
+     "total ion current": 3401.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "merged=1018 frame=1019 scanStart=655 scanEnd=679",
+    "index": 3,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 135,
+     "sha256": "f7103d5c6ff9104989feb90339df1a9283cbef8427c6fa02aa722475f6365369"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 135,
+     "sha256": "613e9108cd1a04226438edbbed97484ac814002f402b0f72977c0820f98792c8"
+    },
+    "scan_start_time_s": 125.277076,
+    "precursors": [
+     {
+      "spectrum_ref": null,
+      "isolation_window": [
+       577.050745983777,
+       1.0,
+       1.0
+      ],
+      "collision_energy": 30.617136659436,
+      "selected_ions": [
+       {
+        "mz": 576.762738803541,
+        "charge": 2,
+        "intensity": 2614.0
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak intensity": 91.0,
+     "total ion current": 4168.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "merged=1020 frame=1021 scanStart=655 scanEnd=679",
+    "index": 4,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 117,
+     "sha256": "c72ab4ec2dc66bb94cb3f4401a6fd6f551d96eee05143246e92225b589930779"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 117,
+     "sha256": "206f1a03669db60c1aae01b8a10b082251e056b905926bacd1776a7be84a9b29"
+    },
+    "scan_start_time_s": 125.488946,
+    "precursors": [
+     {
+      "spectrum_ref": null,
+      "isolation_window": [
+       577.050745983777,
+       1.0,
+       1.0
+      ],
+      "collision_energy": 30.617136659436,
+      "selected_ions": [
+       {
+        "mz": 576.762738803541,
+        "charge": 2,
+        "intensity": 2614.0
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak intensity": 74.0,
+     "total ion current": 3431.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "merged=1021 frame=1022 scanStart=655 scanEnd=679",
+    "index": 5,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 119,
+     "sha256": "4e7d79d0111f7dd8a0cae63d0e399df8e4329e8839ba677967caff64a60cbf09"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 119,
+     "sha256": "b81cc32dcfc8d550bdbb7291ef9dc892152b5bc57346ca00490b9b0ff9a74f33"
+    },
+    "scan_start_time_s": 125.594663,
+    "precursors": [
+     {
+      "spectrum_ref": null,
+      "isolation_window": [
+       577.050745983777,
+       1.0,
+       1.0
+      ],
+      "collision_energy": 30.617136659436,
+      "selected_ions": [
+       {
+        "mz": 576.762738803541,
+        "charge": 2,
+        "intensity": 2614.0
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak intensity": 83.0,
+     "total ion current": 3399.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "merged=1022 frame=1023 scanStart=655 scanEnd=679",
+    "index": 6,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 151,
+     "sha256": "445e3367fbe4694090bd8e0f21a52b09e20a77ec21f9dd1d160621da6682f5ed"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 151,
+     "sha256": "ede978851d08d179347abb3f548294aa38cbe4fefaaa2758ae8c58784dae9ff4"
+    },
+    "scan_start_time_s": 125.700143,
+    "precursors": [
+     {
+      "spectrum_ref": null,
+      "isolation_window": [
+       577.050745983777,
+       1.0,
+       1.0
+      ],
+      "collision_energy": 30.617136659436,
+      "selected_ions": [
+       {
+        "mz": 576.762738803541,
+        "charge": 2,
+        "intensity": 2614.0
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak intensity": 88.0,
+     "total ion current": 4541.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "merged=1023 frame=1024 scanStart=655 scanEnd=679",
+    "index": 7,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 162,
+     "sha256": "cf416313a9cdefec8c51376add1cd089dd206215be43c45c9f435e0870604132"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 162,
+     "sha256": "440ae6d8469a84cc1652579139ebba15c1f721f1a4685e6c68442d1ebf58c7cc"
+    },
+    "scan_start_time_s": 125.808211,
+    "precursors": [
+     {
+      "spectrum_ref": null,
+      "isolation_window": [
+       577.050745983777,
+       1.0,
+       1.0
+      ],
+      "collision_energy": 30.617136659436,
+      "selected_ions": [
+       {
+        "mz": 576.762738803541,
+        "charge": 2,
+        "intensity": 2614.0
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak intensity": 126.0,
+     "total ion current": 4843.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "merged=1209 frame=1210 scanStart=713 scanEnd=737",
+    "index": 8,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 92,
+     "sha256": "c33fa88fcd650cb68823ae4addfd423279c88c6402a7156ad1d7fce0ac5bc8a0"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 92,
+     "sha256": "c0d31af851d3c31a0555dc594af58da4e043010fa4895baf34a873de70b83526"
+    },
+    "scan_start_time_s": 148.929629,
+    "precursors": [
+     {
+      "spectrum_ref": null,
+      "isolation_window": [
+       481.453427815914,
+       1.0,
+       1.0
+      ],
+      "collision_energy": 28.163774403471,
+      "selected_ions": [
+       {
+        "mz": 481.206592357192,
+        "charge": 2,
+        "intensity": 2631.0
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak intensity": 87.0,
+     "total ion current": 2484.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "merged=1210 frame=1211 scanStart=713 scanEnd=737",
+    "index": 9,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 91,
+     "sha256": "6ec0604af2fb380b3366e801c8d6b83e7c14e5da858c95ae777a3b037ff19fed"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 91,
+     "sha256": "19207f5b3dea9d082cb523ca117898d2ee87e39af06dab901ce51c09dd450ab8"
+    },
+    "scan_start_time_s": 149.035838,
+    "precursors": [
+     {
+      "spectrum_ref": null,
+      "isolation_window": [
+       481.453427815914,
+       1.0,
+       1.0
+      ],
+      "collision_energy": 28.163774403471,
+      "selected_ions": [
+       {
+        "mz": 481.206592357192,
+        "charge": 2,
+        "intensity": 2631.0
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak intensity": 73.0,
+     "total ion current": 2385.0,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   }
+  ],
+  "chromatograms": [
+   {
+    "id": "TIC",
+    "time array": {
+     "dtype": "<f8",
+     "length": 143403,
+     "sha256": "631587994c82e359b12ede24ff066b7f06c52a7a9dcab8337951d2716f27b474"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 143403,
+     "sha256": "c03f6384e3f11450e6d2ca2dd3937be2cf1df0aedd2e63732074017d723f9c25"
+    }
+   },
+   {
+    "id": "BPC",
+    "time array": {
+     "dtype": "<f8",
+     "length": 143403,
+     "sha256": "631587994c82e359b12ede24ff066b7f06c52a7a9dcab8337951d2716f27b474"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 143403,
+     "sha256": "ce904b2d96602bd6d86a7919a9dcc18ea89f749862cd0ae9a98b6846e332679c"
+    }
+   },
+   {
+    "id": "BPC,\u00b1MS",
+    "time array": {
+     "dtype": "<f8",
+     "length": 143403,
+     "sha256": "631587994c82e359b12ede24ff066b7f06c52a7a9dcab8337951d2716f27b474"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 143403,
+     "sha256": "ce904b2d96602bd6d86a7919a9dcc18ea89f749862cd0ae9a98b6846e332679c"
+    }
+   },
+   {
+    "id": "TIC,\u00b1AllMS/MS",
+    "time array": {
+     "dtype": "<f8",
+     "length": 143403,
+     "sha256": "631587994c82e359b12ede24ff066b7f06c52a7a9dcab8337951d2716f27b474"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 143403,
+     "sha256": "c03f6384e3f11450e6d2ca2dd3937be2cf1df0aedd2e63732074017d723f9c25"
+    }
+   },
+   {
+    "id": "TIC,\u00b1MS",
+    "time array": {
+     "dtype": "<f8",
+     "length": 143403,
+     "sha256": "631587994c82e359b12ede24ff066b7f06c52a7a9dcab8337951d2716f27b474"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 143403,
+     "sha256": "c03f6384e3f11450e6d2ca2dd3937be2cf1df0aedd2e63732074017d723f9c25"
+    }
+   }
+  ]
+ },
+ "zlib_20250806_ArgC_DDA_HCD-FT_01.mzML": {
+  "spectra": [
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=339",
+    "index": 0,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 112,
+     "sha256": "18db9580c22b79651180adf174146d64aa58b06197ff55074b18192d2081523b"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 112,
+     "sha256": "4b00a2eb31f6f5142cbbee4cd87f94125277ffc48648adbf96644739f78fcaa8"
+    },
+    "scan_start_time_s": 141.44036649702,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=337",
+      "isolation_window": [
+       511.142333984375,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 510.808349609375,
+        "charge": 6,
+        "intensity": 1218410.810745
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 567.7509765625,
+     "base peak intensity": 71649.75,
+     "total ion current": 1241250.0,
+     "lowest observed m/z": 114.95743560791,
+     "highest observed m/z": 794.501342773438,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=340",
+    "index": 1,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 95,
+     "sha256": "bbfb3444f5b715f5c386525767b5865e6d58f062288a64a80b4aa52ee50760b4"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 95,
+     "sha256": "cbfc02f89805b0ad0d3b4f3644ab02070f7242b402074827bc4c52034d980808"
+    },
+    "scan_start_time_s": 141.70861945698002,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=337",
+      "isolation_window": [
+       612.968933105469,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 612.7685546875,
+        "charge": 5,
+        "intensity": 1117927.582062
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 613.173217773438,
+     "base peak intensity": 109904.1796875,
+     "total ion current": 1309295.0,
+     "lowest observed m/z": 129.101181030273,
+     "highest observed m/z": 1753.01708984375,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=342",
+    "index": 2,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 232,
+     "sha256": "a73eef1ad6a251e967d05ad0fdf2af2aefe5ae2a64d162fdacd91049a26d5ce9"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 232,
+     "sha256": "faf9fed396acc7b55024c0667d2d21e64c963ebdee950af7b2782c50a66edbbc"
+    },
+    "scan_start_time_s": 141.955711569,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=338",
+      "isolation_window": [
+       438.122863769531,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 437.979736328125,
+        "charge": 7,
+        "intensity": 3499175.217133
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 129.100967407227,
+     "base peak intensity": 174912.640625,
+     "total ion current": 3056718.0,
+     "lowest observed m/z": 115.085411071777,
+     "highest observed m/z": 1058.640991210938,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=344",
+    "index": 3,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 63,
+     "sha256": "0774ea762a81ce73cbd6acac2e14b40ce5f81077c137ee6b7fdaaa799ce30513"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 63,
+     "sha256": "09cd964edb6b94c03e6d2406a93e53aebbf01596b6cd8b1ddb57ffb4dba8b258"
+    },
+    "scan_start_time_s": 142.38370244898,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=341",
+      "isolation_window": [
+       765.960205078125,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 765.709716796875,
+        "charge": 4,
+        "intensity": 1763956.823532
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 765.961120605469,
+     "base peak intensity": 251637.015625,
+     "total ion current": 1403006.875,
+     "lowest observed m/z": 113.218620300293,
+     "highest observed m/z": 1190.1689453125,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=347",
+    "index": 4,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 81,
+     "sha256": "6e54cf99f1d42ebe15cb105a133a7f272282978e0fa7223442357a68b30bcb62"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 81,
+     "sha256": "0ea0da796bd502cbad4002fad52c73fccb0221baa380da2105cf3652c4131b3b"
+    },
+    "scan_start_time_s": 143.18793315198002,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=345",
+      "isolation_window": [
+       513.640441894531,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 513.640441894531,
+        "charge": 6,
+        "intensity": 360559.972168
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 570.95068359375,
+     "base peak intensity": 37093.6015625,
+     "total ion current": 720080.1875,
+     "lowest observed m/z": 119.590682983398,
+     "highest observed m/z": 766.4814453125,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=351",
+    "index": 5,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 103,
+     "sha256": "b2008deda4e42f1de32779cd4a3d80193c506d2d5babe70bd4103a1c0f664bd6"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 103,
+     "sha256": "f0837691c785e77eebbcb1bf5ba2c22d46a0c866ea27a71ed64a5cd2d2fb6412"
+    },
+    "scan_start_time_s": 144.46190214402,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=349",
+      "isolation_window": [
+       619.368347167969,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 619.16796875,
+        "charge": 5,
+        "intensity": 1540661.637268
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 618.969543457031,
+     "base peak intensity": 46217.97265625,
+     "total ion current": 920946.0625,
+     "lowest observed m/z": 111.156661987305,
+     "highest observed m/z": 1377.1162109375,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=355",
+    "index": 6,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 141,
+     "sha256": "2e5986970cb63d91969e2b52a6b9ebb947dfece11df84d7efb9cdb7d1cbed493"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 141,
+     "sha256": "5acf83b6711b76dedd72864e705ca96b8702cd19b6425f49e39e90484aaa3c3b"
+    },
+    "scan_start_time_s": 145.66836780798,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=353",
+      "isolation_window": [
+       442.694091796875,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 442.550933837891,
+        "charge": 7,
+        "intensity": 3307706.29248
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 129.100982666016,
+     "base peak intensity": 112160.21875,
+     "total ion current": 1464117.0,
+     "lowest observed m/z": 115.086074829102,
+     "highest observed m/z": 859.548828125,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=358",
+    "index": 7,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 272,
+     "sha256": "84af4d4b764cc901edb0a3b00a1afd5f29a782cfdce5975d4945d301a484a756"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 272,
+     "sha256": "68061133e0ed110f5ea72e54fb6de4ba9cb03a9c5a477d602469c1e92859ca6b"
+    },
+    "scan_start_time_s": 146.48958921701998,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=356",
+      "isolation_window": [
+       510.976379394531,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 510.809356689453,
+        "charge": 6,
+        "intensity": 16047211.36264
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 567.752624511719,
+     "base peak intensity": 428185.09375,
+     "total ion current": 8118235.0,
+     "lowest observed m/z": 129.054382324219,
+     "highest observed m/z": 859.552490234375,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=359",
+    "index": 8,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 71,
+     "sha256": "983b002afb1000988fd4fd0a7dadb35e6c97ee1fdd40630f4e305880c6d262fb"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 71,
+     "sha256": "031eee923fdcb6976463777d9c976a64149581c33fff981b39da1b0cdd30dba6"
+    },
+    "scan_start_time_s": 146.75787014399998,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=356",
+      "isolation_window": [
+       619.17138671875,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 618.771118164063,
+        "charge": 5,
+        "intensity": 2236277.377319
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 619.171997070313,
+     "base peak intensity": 44851.984375,
+     "total ion current": 708958.875,
+     "lowest observed m/z": 115.696792602539,
+     "highest observed m/z": 1873.786743164063,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=361",
+    "index": 9,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 448,
+     "sha256": "c41335ce47423fe2fd7230caf0eac149000b1f0f3d14cfa81621adc814d92c79"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 448,
+     "sha256": "97233aa94b04b9852e92d066fec2df16fca15a8e63841d7da500daeba1837146"
+    },
+    "scan_start_time_s": 146.98733235198,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=357",
+      "isolation_window": [
+       438.124328613281,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 437.981170654297,
+        "charge": 7,
+        "intensity": 24225017.72124
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 129.101821899414,
+     "base peak intensity": 566695.75,
+     "total ion current": 12475282.0,
+     "lowest observed m/z": 111.091415405273,
+     "highest observed m/z": 1059.656005859375,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   }
+  ],
+  "chromatograms": [
+   {
+    "id": "TIC",
+    "time array": {
+     "dtype": "<f8",
+     "length": 33535,
+     "sha256": "54070ee76302b0fae708ba6eb06b6300241474c1da28969cc29a4823281e5391"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 33535,
+     "sha256": "a7159cf0fb67013c147cfa47815d8852441d3d12f07ce376670a8a61d6abda94"
+    }
+   }
+  ]
+ },
+ "numpresslinear_20250806_ArgC_DDA_HCD-FT_01.mzML": {
+  "spectra": [
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=339",
+    "index": 0,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f4",
+     "length": 112,
+     "sha256": "18db9580c22b79651180adf174146d64aa58b06197ff55074b18192d2081523b"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 112,
+     "sha256": "4b00a2eb31f6f5142cbbee4cd87f94125277ffc48648adbf96644739f78fcaa8"
+    },
+    "scan_start_time_s": 141.44036649702,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=337",
+      "isolation_window": [
+       511.142333984375,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 510.808349609375,
+        "charge": 6,
+        "intensity": 1218410.810745
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 567.7509765625,
+     "base peak intensity": 71649.75,
+     "total ion current": 1241250.0,
+     "lowest observed m/z": 114.95743560791,
+     "highest observed m/z": 794.501342773438,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=340",
+    "index": 1,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f4",
+     "length": 95,
+     "sha256": "bbfb3444f5b715f5c386525767b5865e6d58f062288a64a80b4aa52ee50760b4"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 95,
+     "sha256": "cbfc02f89805b0ad0d3b4f3644ab02070f7242b402074827bc4c52034d980808"
+    },
+    "scan_start_time_s": 141.70861945698002,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=337",
+      "isolation_window": [
+       612.968933105469,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 612.7685546875,
+        "charge": 5,
+        "intensity": 1117927.582062
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 613.173217773438,
+     "base peak intensity": 109904.1796875,
+     "total ion current": 1309295.0,
+     "lowest observed m/z": 129.101181030273,
+     "highest observed m/z": 1753.01708984375,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=342",
+    "index": 2,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f4",
+     "length": 232,
+     "sha256": "a73eef1ad6a251e967d05ad0fdf2af2aefe5ae2a64d162fdacd91049a26d5ce9"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 232,
+     "sha256": "faf9fed396acc7b55024c0667d2d21e64c963ebdee950af7b2782c50a66edbbc"
+    },
+    "scan_start_time_s": 141.955711569,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=338",
+      "isolation_window": [
+       438.122863769531,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 437.979736328125,
+        "charge": 7,
+        "intensity": 3499175.217133
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 129.100967407227,
+     "base peak intensity": 174912.640625,
+     "total ion current": 3056718.0,
+     "lowest observed m/z": 115.085411071777,
+     "highest observed m/z": 1058.640991210938,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=344",
+    "index": 3,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f4",
+     "length": 63,
+     "sha256": "0774ea762a81ce73cbd6acac2e14b40ce5f81077c137ee6b7fdaaa799ce30513"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 63,
+     "sha256": "09cd964edb6b94c03e6d2406a93e53aebbf01596b6cd8b1ddb57ffb4dba8b258"
+    },
+    "scan_start_time_s": 142.38370244898,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=341",
+      "isolation_window": [
+       765.960205078125,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 765.709716796875,
+        "charge": 4,
+        "intensity": 1763956.823532
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 765.961120605469,
+     "base peak intensity": 251637.015625,
+     "total ion current": 1403006.875,
+     "lowest observed m/z": 113.218620300293,
+     "highest observed m/z": 1190.1689453125,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=347",
+    "index": 4,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f4",
+     "length": 81,
+     "sha256": "6e54cf99f1d42ebe15cb105a133a7f272282978e0fa7223442357a68b30bcb62"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 81,
+     "sha256": "0ea0da796bd502cbad4002fad52c73fccb0221baa380da2105cf3652c4131b3b"
+    },
+    "scan_start_time_s": 143.18793315198002,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=345",
+      "isolation_window": [
+       513.640441894531,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 513.640441894531,
+        "charge": 6,
+        "intensity": 360559.972168
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 570.95068359375,
+     "base peak intensity": 37093.6015625,
+     "total ion current": 720080.1875,
+     "lowest observed m/z": 119.590682983398,
+     "highest observed m/z": 766.4814453125,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=351",
+    "index": 5,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f4",
+     "length": 103,
+     "sha256": "b2008deda4e42f1de32779cd4a3d80193c506d2d5babe70bd4103a1c0f664bd6"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 103,
+     "sha256": "f0837691c785e77eebbcb1bf5ba2c22d46a0c866ea27a71ed64a5cd2d2fb6412"
+    },
+    "scan_start_time_s": 144.46190214402,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=349",
+      "isolation_window": [
+       619.368347167969,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 619.16796875,
+        "charge": 5,
+        "intensity": 1540661.637268
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 618.969543457031,
+     "base peak intensity": 46217.97265625,
+     "total ion current": 920946.0625,
+     "lowest observed m/z": 111.156661987305,
+     "highest observed m/z": 1377.1162109375,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=355",
+    "index": 6,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f4",
+     "length": 141,
+     "sha256": "2e5986970cb63d91969e2b52a6b9ebb947dfece11df84d7efb9cdb7d1cbed493"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 141,
+     "sha256": "5acf83b6711b76dedd72864e705ca96b8702cd19b6425f49e39e90484aaa3c3b"
+    },
+    "scan_start_time_s": 145.66836780798,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=353",
+      "isolation_window": [
+       442.694091796875,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 442.550933837891,
+        "charge": 7,
+        "intensity": 3307706.29248
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 129.100982666016,
+     "base peak intensity": 112160.21875,
+     "total ion current": 1464117.0,
+     "lowest observed m/z": 115.086074829102,
+     "highest observed m/z": 859.548828125,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=358",
+    "index": 7,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f4",
+     "length": 272,
+     "sha256": "84af4d4b764cc901edb0a3b00a1afd5f29a782cfdce5975d4945d301a484a756"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 272,
+     "sha256": "68061133e0ed110f5ea72e54fb6de4ba9cb03a9c5a477d602469c1e92859ca6b"
+    },
+    "scan_start_time_s": 146.48958921701998,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=356",
+      "isolation_window": [
+       510.976379394531,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 510.809356689453,
+        "charge": 6,
+        "intensity": 16047211.36264
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 567.752624511719,
+     "base peak intensity": 428185.09375,
+     "total ion current": 8118235.0,
+     "lowest observed m/z": 129.054382324219,
+     "highest observed m/z": 859.552490234375,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=359",
+    "index": 8,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f4",
+     "length": 71,
+     "sha256": "983b002afb1000988fd4fd0a7dadb35e6c97ee1fdd40630f4e305880c6d262fb"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 71,
+     "sha256": "031eee923fdcb6976463777d9c976a64149581c33fff981b39da1b0cdd30dba6"
+    },
+    "scan_start_time_s": 146.75787014399998,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=356",
+      "isolation_window": [
+       619.17138671875,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 618.771118164063,
+        "charge": 5,
+        "intensity": 2236277.377319
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 619.171997070313,
+     "base peak intensity": 44851.984375,
+     "total ion current": 708958.875,
+     "lowest observed m/z": 115.696792602539,
+     "highest observed m/z": 1873.786743164063,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=361",
+    "index": 9,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f4",
+     "length": 448,
+     "sha256": "c41335ce47423fe2fd7230caf0eac149000b1f0f3d14cfa81621adc814d92c79"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 448,
+     "sha256": "97233aa94b04b9852e92d066fec2df16fca15a8e63841d7da500daeba1837146"
+    },
+    "scan_start_time_s": 146.98733235198,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=357",
+      "isolation_window": [
+       438.124328613281,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 437.981170654297,
+        "charge": 7,
+        "intensity": 24225017.72124
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 129.101821899414,
+     "base peak intensity": 566695.75,
+     "total ion current": 12475282.0,
+     "lowest observed m/z": 111.091415405273,
+     "highest observed m/z": 1059.656005859375,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   }
+  ],
+  "chromatograms": [
+   {
+    "id": "TIC",
+    "time array": {
+     "dtype": "<f8",
+     "length": 33535,
+     "sha256": "54070ee76302b0fae708ba6eb06b6300241474c1da28969cc29a4823281e5391"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 33535,
+     "sha256": "a7159cf0fb67013c147cfa47815d8852441d3d12f07ce376670a8a61d6abda94"
+    }
+   }
+  ]
+ },
+ "numpresspic_20250806_ArgC_DDA_HCD-FT_01.mzML": {
+  "spectra": [
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=339",
+    "index": 0,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 112,
+     "sha256": "18db9580c22b79651180adf174146d64aa58b06197ff55074b18192d2081523b"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 112,
+     "sha256": "9fd298f26b86b421e653590dec2dfedc7b3ff3fc004919f010960f45de6292a4"
+    },
+    "scan_start_time_s": 141.44036649702,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=337",
+      "isolation_window": [
+       511.142333984375,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 510.808349609375,
+        "charge": 6,
+        "intensity": 1218410.810745
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 567.7509765625,
+     "base peak intensity": 71649.75,
+     "total ion current": 1241250.0,
+     "lowest observed m/z": 114.95743560791,
+     "highest observed m/z": 794.501342773438,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=340",
+    "index": 1,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 95,
+     "sha256": "bbfb3444f5b715f5c386525767b5865e6d58f062288a64a80b4aa52ee50760b4"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 95,
+     "sha256": "96159639556ea92d21bcced8fe54576b798b311cc1fc97a6f815f88d7ea09d5a"
+    },
+    "scan_start_time_s": 141.70861945698002,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=337",
+      "isolation_window": [
+       612.968933105469,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 612.7685546875,
+        "charge": 5,
+        "intensity": 1117927.582062
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 613.173217773438,
+     "base peak intensity": 109904.1796875,
+     "total ion current": 1309295.0,
+     "lowest observed m/z": 129.101181030273,
+     "highest observed m/z": 1753.01708984375,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=342",
+    "index": 2,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 232,
+     "sha256": "a73eef1ad6a251e967d05ad0fdf2af2aefe5ae2a64d162fdacd91049a26d5ce9"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 232,
+     "sha256": "aaaeddb5373044479af34663b4fb19f56002d5bea28943bf47d5cd98d1e77a50"
+    },
+    "scan_start_time_s": 141.955711569,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=338",
+      "isolation_window": [
+       438.122863769531,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 437.979736328125,
+        "charge": 7,
+        "intensity": 3499175.217133
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 129.100967407227,
+     "base peak intensity": 174912.640625,
+     "total ion current": 3056718.0,
+     "lowest observed m/z": 115.085411071777,
+     "highest observed m/z": 1058.640991210938,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=344",
+    "index": 3,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 63,
+     "sha256": "0774ea762a81ce73cbd6acac2e14b40ce5f81077c137ee6b7fdaaa799ce30513"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 63,
+     "sha256": "b31ed46f607c48ec7acd63534a6ce1b54b0ea6def1b1e0fd8a988b36d5dee9dd"
+    },
+    "scan_start_time_s": 142.38370244898,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=341",
+      "isolation_window": [
+       765.960205078125,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 765.709716796875,
+        "charge": 4,
+        "intensity": 1763956.823532
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 765.961120605469,
+     "base peak intensity": 251637.015625,
+     "total ion current": 1403006.875,
+     "lowest observed m/z": 113.218620300293,
+     "highest observed m/z": 1190.1689453125,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=347",
+    "index": 4,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 81,
+     "sha256": "6e54cf99f1d42ebe15cb105a133a7f272282978e0fa7223442357a68b30bcb62"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 81,
+     "sha256": "d166872aa788a670494a94001a3acc664adfb16c85cd15d652a044b80c27d615"
+    },
+    "scan_start_time_s": 143.18793315198002,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=345",
+      "isolation_window": [
+       513.640441894531,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 513.640441894531,
+        "charge": 6,
+        "intensity": 360559.972168
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 570.95068359375,
+     "base peak intensity": 37093.6015625,
+     "total ion current": 720080.1875,
+     "lowest observed m/z": 119.590682983398,
+     "highest observed m/z": 766.4814453125,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=351",
+    "index": 5,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 103,
+     "sha256": "b2008deda4e42f1de32779cd4a3d80193c506d2d5babe70bd4103a1c0f664bd6"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 103,
+     "sha256": "09fbdcc18ca0f493c4e61793f12a566665e7b46ef91ae0a90bfb08eee9db68fe"
+    },
+    "scan_start_time_s": 144.46190214402,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=349",
+      "isolation_window": [
+       619.368347167969,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 619.16796875,
+        "charge": 5,
+        "intensity": 1540661.637268
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 618.969543457031,
+     "base peak intensity": 46217.97265625,
+     "total ion current": 920946.0625,
+     "lowest observed m/z": 111.156661987305,
+     "highest observed m/z": 1377.1162109375,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=355",
+    "index": 6,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 141,
+     "sha256": "2e5986970cb63d91969e2b52a6b9ebb947dfece11df84d7efb9cdb7d1cbed493"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 141,
+     "sha256": "8c96201a0d4ab928ca6375337ccab5e1cdade15d77a6fbd6006e8c8a49a87196"
+    },
+    "scan_start_time_s": 145.66836780798,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=353",
+      "isolation_window": [
+       442.694091796875,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 442.550933837891,
+        "charge": 7,
+        "intensity": 3307706.29248
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 129.100982666016,
+     "base peak intensity": 112160.21875,
+     "total ion current": 1464117.0,
+     "lowest observed m/z": 115.086074829102,
+     "highest observed m/z": 859.548828125,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=358",
+    "index": 7,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 272,
+     "sha256": "84af4d4b764cc901edb0a3b00a1afd5f29a782cfdce5975d4945d301a484a756"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 272,
+     "sha256": "68c65c710e5e33d316c14370783e8897188429fae7b8d74acb1897fedeca1d91"
+    },
+    "scan_start_time_s": 146.48958921701998,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=356",
+      "isolation_window": [
+       510.976379394531,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 510.809356689453,
+        "charge": 6,
+        "intensity": 16047211.36264
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 567.752624511719,
+     "base peak intensity": 428185.09375,
+     "total ion current": 8118235.0,
+     "lowest observed m/z": 129.054382324219,
+     "highest observed m/z": 859.552490234375,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=359",
+    "index": 8,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 71,
+     "sha256": "983b002afb1000988fd4fd0a7dadb35e6c97ee1fdd40630f4e305880c6d262fb"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 71,
+     "sha256": "b28241fd9ee25a15e14d85bf1d7747391947b3e833e5c7b6caf2864fa7211866"
+    },
+    "scan_start_time_s": 146.75787014399998,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=356",
+      "isolation_window": [
+       619.17138671875,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 618.771118164063,
+        "charge": 5,
+        "intensity": 2236277.377319
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 619.171997070313,
+     "base peak intensity": 44851.984375,
+     "total ion current": 708958.875,
+     "lowest observed m/z": 115.696792602539,
+     "highest observed m/z": 1873.786743164063,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=361",
+    "index": 9,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 448,
+     "sha256": "c41335ce47423fe2fd7230caf0eac149000b1f0f3d14cfa81621adc814d92c79"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 448,
+     "sha256": "5179652b8435c6f9aef190f88c8177453e7c45967b40492b80df6240f8a16ea7"
+    },
+    "scan_start_time_s": 146.98733235198,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=357",
+      "isolation_window": [
+       438.124328613281,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 437.981170654297,
+        "charge": 7,
+        "intensity": 24225017.72124
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 129.101821899414,
+     "base peak intensity": 566695.75,
+     "total ion current": 12475282.0,
+     "lowest observed m/z": 111.091415405273,
+     "highest observed m/z": 1059.656005859375,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   }
+  ],
+  "chromatograms": [
+   {
+    "id": "TIC",
+    "time array": {
+     "dtype": "<f8",
+     "length": 33535,
+     "sha256": "54070ee76302b0fae708ba6eb06b6300241474c1da28969cc29a4823281e5391"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 33535,
+     "sha256": "a7159cf0fb67013c147cfa47815d8852441d3d12f07ce376670a8a61d6abda94"
+    }
+   }
+  ]
+ },
+ "numpressslof_20250806_ArgC_DDA_HCD-FT_01.mzML": {
+  "spectra": [
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=339",
+    "index": 0,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 112,
+     "sha256": "18db9580c22b79651180adf174146d64aa58b06197ff55074b18192d2081523b"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 112,
+     "sha256": "0c5229d8c6f283842441b82f39cd2130b1f09cec335cf12b14c09f1c3358e89e"
+    },
+    "scan_start_time_s": 141.44036649702,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=337",
+      "isolation_window": [
+       511.142333984375,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 510.808349609375,
+        "charge": 6,
+        "intensity": 1218410.810745
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 567.7509765625,
+     "base peak intensity": 71649.75,
+     "total ion current": 1241250.0,
+     "lowest observed m/z": 114.95743560791,
+     "highest observed m/z": 794.501342773438,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=340",
+    "index": 1,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 95,
+     "sha256": "bbfb3444f5b715f5c386525767b5865e6d58f062288a64a80b4aa52ee50760b4"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 95,
+     "sha256": "f1e174fd98cb9d4673126f84ccd377b5b1fcd114164e19d8888312f2fcafd7f1"
+    },
+    "scan_start_time_s": 141.70861945698002,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=337",
+      "isolation_window": [
+       612.968933105469,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 612.7685546875,
+        "charge": 5,
+        "intensity": 1117927.582062
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 613.173217773438,
+     "base peak intensity": 109904.1796875,
+     "total ion current": 1309295.0,
+     "lowest observed m/z": 129.101181030273,
+     "highest observed m/z": 1753.01708984375,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=342",
+    "index": 2,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 232,
+     "sha256": "a73eef1ad6a251e967d05ad0fdf2af2aefe5ae2a64d162fdacd91049a26d5ce9"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 232,
+     "sha256": "fae57050ce296ea36df72e237194d308a85402bfce984114f9e9e136ef8d77dd"
+    },
+    "scan_start_time_s": 141.955711569,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=338",
+      "isolation_window": [
+       438.122863769531,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 437.979736328125,
+        "charge": 7,
+        "intensity": 3499175.217133
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 129.100967407227,
+     "base peak intensity": 174912.640625,
+     "total ion current": 3056718.0,
+     "lowest observed m/z": 115.085411071777,
+     "highest observed m/z": 1058.640991210938,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=344",
+    "index": 3,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 63,
+     "sha256": "0774ea762a81ce73cbd6acac2e14b40ce5f81077c137ee6b7fdaaa799ce30513"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 63,
+     "sha256": "58333daf9e1e80bc09e16c86690d3674f5b8efd4b053fdebf123dc3434cce011"
+    },
+    "scan_start_time_s": 142.38370244898,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=341",
+      "isolation_window": [
+       765.960205078125,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 765.709716796875,
+        "charge": 4,
+        "intensity": 1763956.823532
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 765.961120605469,
+     "base peak intensity": 251637.015625,
+     "total ion current": 1403006.875,
+     "lowest observed m/z": 113.218620300293,
+     "highest observed m/z": 1190.1689453125,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=347",
+    "index": 4,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 81,
+     "sha256": "6e54cf99f1d42ebe15cb105a133a7f272282978e0fa7223442357a68b30bcb62"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 81,
+     "sha256": "dabc960bb6e037ccc0dc8c40ae4ed2f48bf633f0b44161ea5d9371a82b3ee37a"
+    },
+    "scan_start_time_s": 143.18793315198002,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=345",
+      "isolation_window": [
+       513.640441894531,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 513.640441894531,
+        "charge": 6,
+        "intensity": 360559.972168
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 570.95068359375,
+     "base peak intensity": 37093.6015625,
+     "total ion current": 720080.1875,
+     "lowest observed m/z": 119.590682983398,
+     "highest observed m/z": 766.4814453125,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=351",
+    "index": 5,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 103,
+     "sha256": "b2008deda4e42f1de32779cd4a3d80193c506d2d5babe70bd4103a1c0f664bd6"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 103,
+     "sha256": "f9e2b698bc9717dfb7fdfe3e7023117b4a47be6f47b24b136f1a6026389b89d7"
+    },
+    "scan_start_time_s": 144.46190214402,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=349",
+      "isolation_window": [
+       619.368347167969,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 619.16796875,
+        "charge": 5,
+        "intensity": 1540661.637268
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 618.969543457031,
+     "base peak intensity": 46217.97265625,
+     "total ion current": 920946.0625,
+     "lowest observed m/z": 111.156661987305,
+     "highest observed m/z": 1377.1162109375,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=355",
+    "index": 6,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 141,
+     "sha256": "2e5986970cb63d91969e2b52a6b9ebb947dfece11df84d7efb9cdb7d1cbed493"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 141,
+     "sha256": "4f570122e39d2f80d7d0d4b20abe21ba16e1fd71630ad373bfc69a1995efca86"
+    },
+    "scan_start_time_s": 145.66836780798,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=353",
+      "isolation_window": [
+       442.694091796875,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 442.550933837891,
+        "charge": 7,
+        "intensity": 3307706.29248
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 129.100982666016,
+     "base peak intensity": 112160.21875,
+     "total ion current": 1464117.0,
+     "lowest observed m/z": 115.086074829102,
+     "highest observed m/z": 859.548828125,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=358",
+    "index": 7,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 272,
+     "sha256": "84af4d4b764cc901edb0a3b00a1afd5f29a782cfdce5975d4945d301a484a756"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 272,
+     "sha256": "8f5d1528f0fefe4a4ee00236089f34bf9f9baa1fafd1a86d414ae848d54b60de"
+    },
+    "scan_start_time_s": 146.48958921701998,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=356",
+      "isolation_window": [
+       510.976379394531,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 510.809356689453,
+        "charge": 6,
+        "intensity": 16047211.36264
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 567.752624511719,
+     "base peak intensity": 428185.09375,
+     "total ion current": 8118235.0,
+     "lowest observed m/z": 129.054382324219,
+     "highest observed m/z": 859.552490234375,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=359",
+    "index": 8,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 71,
+     "sha256": "983b002afb1000988fd4fd0a7dadb35e6c97ee1fdd40630f4e305880c6d262fb"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 71,
+     "sha256": "2e904d0cd2583160c310c06fe51786a8f6c1470ec5244062117706583ef12cca"
+    },
+    "scan_start_time_s": 146.75787014399998,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=356",
+      "isolation_window": [
+       619.17138671875,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 618.771118164063,
+        "charge": 5,
+        "intensity": 2236277.377319
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 619.171997070313,
+     "base peak intensity": 44851.984375,
+     "total ion current": 708958.875,
+     "lowest observed m/z": 115.696792602539,
+     "highest observed m/z": 1873.786743164063,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   },
+   {
+    "id": "controllerType=0 controllerNumber=1 scan=361",
+    "index": 9,
+    "ms_level": 2,
+    "m/z array": {
+     "dtype": "<f8",
+     "length": 448,
+     "sha256": "c41335ce47423fe2fd7230caf0eac149000b1f0f3d14cfa81621adc814d92c79"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 448,
+     "sha256": "f7dbbbb99d0260a40ab95f1ffab9b7f16e5f049479b27c726aaf74fed4484824"
+    },
+    "scan_start_time_s": 146.98733235198,
+    "precursors": [
+     {
+      "spectrum_ref": "controllerType=0 controllerNumber=1 scan=357",
+      "isolation_window": [
+       438.124328613281,
+       0.800000011921,
+       0.800000011921
+      ],
+      "collision_energy": 30.0,
+      "selected_ions": [
+       {
+        "mz": 437.981170654297,
+        "charge": 7,
+        "intensity": 24225017.72124
+       }
+      ]
+     }
+    ],
+    "cv": {
+     "base peak m/z": 129.101821899414,
+     "base peak intensity": 566695.75,
+     "total ion current": 12475282.0,
+     "lowest observed m/z": 111.091415405273,
+     "highest observed m/z": 1059.656005859375,
+     "ms level": 2.0
+    },
+    "centroid": true,
+    "profile": false
+   }
+  ],
+  "chromatograms": [
+   {
+    "id": "TIC",
+    "time array": {
+     "dtype": "<f8",
+     "length": 33535,
+     "sha256": "54070ee76302b0fae708ba6eb06b6300241474c1da28969cc29a4823281e5391"
+    },
+    "intensity array": {
+     "dtype": "<f4",
+     "length": 33535,
+     "sha256": "e8678f8962fc3881d7e67de992f140ca5f91d3ed1909c7018cc39cf5aa40082d"
+    }
+   }
+  ]
+ }
+}

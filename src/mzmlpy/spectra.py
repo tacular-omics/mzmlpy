@@ -69,6 +69,42 @@ def _resolve_dtype(data_type: str) -> np.dtype:
     return np.dtype(dtype_str)
 
 
+_C = CompressionTypeAccessions
+
+# Generic codec term -> combined terms that already include that codec.
+_COMBINED_WITH_GENERIC: dict[CompressionTypeAccessions, frozenset[CompressionTypeAccessions]] = {
+    _C.ZLIB_COMPRESSION: frozenset(
+        {
+            _C.MS_NUMPRESS_LINEAR_PREDICTION_ZLIB,
+            _C.MS_NUMPRESS_POSITIVE_INTEGER_ZLIB,
+            _C.MS_NUMPRESS_SHORT_LOGGED_FLOAT_ZLIB,
+            _C.TRUNCATION_ZLIB,
+            _C.TRUNCATION_DELTA_PREDICTION_ZLIB,
+            _C.TRUNCATION_LINEAR_PREDICTION_ZLIB,
+        }
+    ),
+    _C.ZSTD_COMPRESSION: frozenset(
+        {
+            _C.MS_NUMPRESS_LINEAR_PREDICTION_ZSTD,
+            _C.MS_NUMPRESS_POSITIVE_INTEGER_ZSTD,
+            _C.MS_NUMPRESS_SHORT_LOGGED_FLOAT_ZSTD,
+            _C.BYTE_SHUFFLED_ZSTD,
+            _C.DICTIONARY_ENCODED_ZSTD,
+        }
+    ),
+}
+
+# (bare numpress term, generic codec term) -> the combined "numpress followed by codec" term.
+_NUMPRESS_COMBINATIONS: dict[tuple[CompressionTypeAccessions, CompressionTypeAccessions], CompressionTypeAccessions] = {
+    (_C.MS_NUMPRESS_LINEAR_PREDICTION, _C.ZLIB_COMPRESSION): _C.MS_NUMPRESS_LINEAR_PREDICTION_ZLIB,
+    (_C.MS_NUMPRESS_POSITIVE_INTEGER, _C.ZLIB_COMPRESSION): _C.MS_NUMPRESS_POSITIVE_INTEGER_ZLIB,
+    (_C.MS_NUMPRESS_SHORT_LOGGED_FLOAT, _C.ZLIB_COMPRESSION): _C.MS_NUMPRESS_SHORT_LOGGED_FLOAT_ZLIB,
+    (_C.MS_NUMPRESS_LINEAR_PREDICTION, _C.ZSTD_COMPRESSION): _C.MS_NUMPRESS_LINEAR_PREDICTION_ZSTD,
+    (_C.MS_NUMPRESS_POSITIVE_INTEGER, _C.ZSTD_COMPRESSION): _C.MS_NUMPRESS_POSITIVE_INTEGER_ZSTD,
+    (_C.MS_NUMPRESS_SHORT_LOGGED_FLOAT, _C.ZSTD_COMPRESSION): _C.MS_NUMPRESS_SHORT_LOGGED_FLOAT_ZSTD,
+}
+
+
 def _parse_native_id(identifier: str) -> dict[str, int | str]:
     """Parse a native spectrum/chromatogram id into its space-separated ``key=value`` components.
 
@@ -104,19 +140,39 @@ class BinaryDataArray(_ParamGroup):
 
     @cached_property
     def compression(self) -> CompressionTypeAccessions | None:
-        """Return the compression accession for this array, or None if no compression CV term is present."""
-        # Composite prediction terms already include zlib. Prefer them even if a producer also
-        # emits the generic zlib term first; cvParam order has no semantic significance in mzML.
-        for composite in (
-            CompressionTypeAccessions.TRUNCATION_LINEAR_PREDICTION_ZLIB,
-            CompressionTypeAccessions.TRUNCATION_DELTA_PREDICTION_ZLIB,
-        ):
-            if composite in self.accessions:
-                return composite
+        """Return the compression accession for this array, or None if no compression CV term is present.
+
+        cvParam order has no meaning in mzML, so when several compression terms are present they are
+        resolved independently of order: a combined term wins over the generic codec it already
+        includes, a bare MS-Numpress term plus the generic zlib or zstd term (the form written before
+        the combined "followed by zlib" terms existed) resolves to the combined term, and "no
+        compression" never masks a real codec. Any other conflict warns and returns the first term.
+        """
+        found: list[CompressionTypeAccessions] = []
         for param in self.cv_params:
             with contextlib.suppress(ValueError):
-                return CompressionTypeAccessions(param.accession)
-        return None
+                term = CompressionTypeAccessions(param.accession)
+                if term not in found:
+                    found.append(term)
+        if len(found) <= 1:
+            return found[0] if found else None
+
+        terms = [t for t in found if t != CompressionTypeAccessions.NO_COMPRESSION]
+        # Drop a generic codec term that a combined term in the same array already includes.
+        for generic, combined_terms in _COMBINED_WITH_GENERIC.items():
+            if generic in terms and any(t in combined_terms for t in terms):
+                terms.remove(generic)
+        # Legacy two-term form: bare numpress + generic zlib/zstd -> the combined term.
+        for (numpress, generic), combined in _NUMPRESS_COMBINATIONS.items():
+            if numpress in terms and generic in terms:
+                terms = [combined if t == numpress else t for t in terms if t != generic]
+        if len(terms) > 1:
+            warnings.warn(
+                f"binaryDataArray has conflicting compression terms {[str(t) for t in terms]}; using {terms[0]}.",
+                UserWarning,
+                stacklevel=2,
+            )
+        return terms[0]
 
     @cached_property
     def encoding(self) -> BinaryDataTypeAccession | None:
