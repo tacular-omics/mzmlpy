@@ -9,7 +9,7 @@ validates file structure, and ships an optional local MCP server. The only runti
 `numpy`.
 
 Place in the tacular-omics graph: tier 0, no sibling dependencies. `spxtacular` uses it through
-its `mzml` and `readers` extras (`mzmlpy>=0.9.0,<0.10`), so a breaking change here must be checked
+its `mzml` and `readers` extras (`mzmlpy>=0.10,<0.11`), so a breaking change here must be checked
 against spxtacular's readers. Spectrum processing (peak picking, deconvolution, plotting) belongs
 in spxtacular, never here.
 
