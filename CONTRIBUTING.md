@@ -35,6 +35,10 @@ uv run pytest tests
 python scripts/release_version.py check
 ```
 
+`pytest tests` skips tests marked `slow` (subprocess launches, memory checks). CI runs them;
+to run them locally too, use `uv run pytest tests --run-slow` (or `just test-all`, which also
+uses the thorough Hypothesis profile).
+
 If you change the documentation, build it the way CI does:
 
 ```bash

@@ -102,6 +102,7 @@ def test_protocol_tools(mode: str) -> None:
     asyncio.run(exercise())
 
 
+@pytest.mark.slow  # launches the server in a subprocess
 def test_stdio_entry_point() -> None:
     async def exercise() -> None:
         parameters = StdioServerParameters(

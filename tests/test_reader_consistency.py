@@ -135,6 +135,7 @@ def test_overlapping_atomic_writes_have_independent_temporaries(tmp_path: Path) 
     assert sorted(tmp_path.iterdir()) == [destination]
 
 
+@pytest.mark.slow  # memory-flatness check over a 20 MB file
 @pytest.mark.parametrize("mode", ["plain", "memory", "stream", "auto"])
 def test_reading_chromatograms_does_not_retain_spectra(tmp_path: Path, mode: str) -> None:
     path = tmp_path / "large.mzML"
@@ -150,6 +151,7 @@ def test_reading_chromatograms_does_not_retain_spectra(tmp_path: Path, mode: str
         assert peak < 4 * 1024 * 1024
 
 
+@pytest.mark.slow  # memory-flatness check over a 20 MB file
 @pytest.mark.parametrize("compressed", [False, True])
 def test_cold_open_has_bounded_python_memory(tmp_path: Path, compressed: bool) -> None:
     path = tmp_path / "cold.mzML"
