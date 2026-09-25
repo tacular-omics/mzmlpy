@@ -6,7 +6,9 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
-Breaking API cleanup. Renamed names have no aliases. See the
+## [0.10.0] (2026-09-24)
+
+**Breaking:** API cleanup. Renamed names have no aliases. See the
 [migration guide](https://tacular-omics.github.io/mzmlpy/migration/) for an old -> new table.
 
 ### Removed
@@ -23,7 +25,6 @@ Breaking API cleanup. Renamed names have no aliases. See the
 - Unused constants: `PeakType`, `NoiseMode`, `DataType`, `TimeUnit`, `XMLAttribute`, `EncodingFormat`,
   `XMLNamespace`, `PROTON_MASS`, `ISOTOPE_AVERAGE_DIFFERENCE`, `ISOLATION_WINDOW_TARGET_MZ`. `XMLElement` is merged
   into `MzMLElement`.
-
 - `gzip_mode="extract"`, the `extract_dir` parameter and `clear_cache()`: mzmlpy no longer writes decompressed
   copies to disk. `gzip_mode="extract"` raises `MzmlError` and `extract_dir=` raises `TypeError`. For fast random
   access to a `.mzML.gz`, run `write_indexed_gzip` on it once or install the rapidgzip extra.
@@ -31,9 +32,6 @@ Breaking API cleanup. Renamed names have no aliases. See the
 
 ### Changed
 
-- `spectra.filter(mz_tolerance_type=...)` is renamed `mz_tolerance_unit` (no alias; the old keyword raises
-  `TypeError`), following the tacular-omics rule that the Da/ppm switch next to a tolerance is `*_tolerance_unit`.
-  It was only on `main`, never released.
 - Reader vocabulary shared with tdfpy and spxtacular: `scan_start_time` (`timedelta`) -> `rt` (float, seconds) on
   `Spectrum` and `Scan`; `Scan.inverse_reduced_ion_mobility` -> `ook0`, `Scan.ion_mobility_drift_time` ->
   `drift_time`; `SelectedIon.selected_ion_mz` -> `mz`, `peak_intensity` -> `intensity`, `charge_state` -> `charge`,
