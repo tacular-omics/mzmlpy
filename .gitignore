@@ -7,7 +7,9 @@ __pycache__/
 *.so
 
 tmp.py
-paper/
+paper/paper.pdf
+paper/jats/
+paper/*.crossref
 *.gzidx
 *.mzMLidx
 *.gzidx.src
