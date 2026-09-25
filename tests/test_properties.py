@@ -10,7 +10,6 @@ more examples.
 """
 
 import base64
-import os
 import tempfile
 import zlib
 from pathlib import Path
@@ -27,10 +26,6 @@ from mzmlpy import Mzml, validate, write_indexed_gzip
 from mzmlpy.constants import CompressionTypeAccession as C
 from mzmlpy.decoder import MSDecoder
 from mzmlpy.spectra import BinaryDataArray
-
-settings.register_profile("default", max_examples=40, deadline=None)
-settings.register_profile("thorough", max_examples=1000, deadline=None)
-settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "default"))
 
 DTYPES = {
     "MS:1000521": np.dtype("<f4"),

@@ -1,12 +1,11 @@
 """The 0.10 public API: error hierarchy, vocabulary renames, immutability, removed names."""
 
 import importlib
-import os
 import tempfile
 from pathlib import Path
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
 
 import mzmlpy
@@ -20,9 +19,6 @@ from mzmlpy import (
     SpectrumFilter,
 )
 from mzmlpy.elems.dtree_wrapper import _DataTreeWrapper, _ParamGroup
-
-settings.register_profile("default", max_examples=40, deadline=None)
-settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "default"))
 
 EXAMPLE = "tests/data/example.mzML"
 BRUKER = "tests/data/bruker_ms2_im.mzML"

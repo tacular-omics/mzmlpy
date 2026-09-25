@@ -16,6 +16,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# CI runs the whole suite, including tests marked slow (skipped by default locally).
+env:
+  RUN_SLOW: "1"
+
 jobs:
   lint:
     runs-on: ubuntu-latest

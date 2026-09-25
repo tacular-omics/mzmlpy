@@ -579,6 +579,7 @@ def test_reading_after_close_raises(tmp_path: Path, gzip_mode: str | None) -> No
         reader.close()  # closing twice is fine
 
 
+@pytest.mark.slow  # launches a Python subprocess
 def test_an_unclosed_stream_iterator_does_not_abort_the_interpreter(tmp_path: Path) -> None:
     import gzip
     import subprocess

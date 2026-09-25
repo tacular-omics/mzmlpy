@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+# CI runs the whole suite, including tests marked slow (skipped by default locally).
+env:
+  RUN_SLOW: "1"
+
 jobs:
   latest:
     strategy:

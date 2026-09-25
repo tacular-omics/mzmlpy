@@ -96,6 +96,11 @@ numpress = ["pynumpress>=0.1.5"]
 zstd = ["zstd>=1.5.5"]
 rapidgzip = ["rapidgzip>=0.14.0"]
 
+[tool.pytest.ini_options]
+markers = [
+    "slow: slower than ~1 s (subprocess launches, memory-flatness checks); skipped unless --run-slow or RUN_SLOW=1",
+]
+
 [tool.ruff]
 target-version = "py312"
 line-length = 120

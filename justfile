@@ -23,9 +23,13 @@ check:
     just ty
     just test
 
-# Run tests
+# Run tests (fast default: skips tests marked slow)
 test *args:
     uv run pytest tests {{args}}
+
+# Run every test, including slow ones, with the thorough Hypothesis profile (what CI covers)
+test-all *args:
+    RUN_SLOW=1 HYPOTHESIS_PROFILE=thorough uv run pytest tests {{args}}
 
 # Rewrite src and tests to Python 3.12+ syntax with pyupgrade
 upgrade:

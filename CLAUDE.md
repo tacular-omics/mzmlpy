@@ -25,7 +25,8 @@ just install        # uv sync --locked
 just lint           # ruff check src tests
 just format         # ruff isort fix + ruff format (src, tests)
 just ty             # ty check src (excludes decoder.py, file_classes/indexedGzip.py, util.py via [tool.ty.src] in pyproject)
-just test [ARGS]    # pytest tests, extra args passed through (e.g. just test -q -k gzip)
+just test [ARGS]    # pytest tests, extra args passed through (e.g. just test -q -k gzip); skips slow tests
+just test-all       # also slow tests (RUN_SLOW=1) and HYPOTHESIS_PROFILE=thorough
 just test-cov       # pytest with branch coverage (term + html + xml) and junit.xml in one run
 just check          # lint + ty + test (the default recipe; does NOT format)
 just docs           # mkdocs serve on localhost:8001
@@ -34,8 +35,10 @@ just upgrade        # pyupgrade --py312-plus over src and tests
 just set-version X  # release helper (overseer only), see Releasing
 ```
 
-Always run `just lint`, `just ty` and `just test` after a code change. The full suite runs in
-about 10 seconds.
+Always run `just lint`, `just ty` and `just test` after a code change. The default run takes
+about 20 seconds; tests marked `@pytest.mark.slow` (subprocess launches, memory-flatness checks)
+are skipped unless `--run-slow` or `RUN_SLOW=1`, which CI sets. Hypothesis runs 40 examples by
+default, 1000 with `HYPOTHESIS_PROFILE=thorough`.
 
 CLI (`src/mzmlpy/__main__.py`, JSON on stdout; exit 0 ok, 1 invalid data, 2 operational error):
 
