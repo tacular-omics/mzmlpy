@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.10.1] (2026-10-08)
+
 ### Added
 
 - `Activation.activation_types`: every dissociation method term of an activation, in document order.
@@ -477,6 +479,12 @@ affect existing code (see **Changed**).
 
 - First release on PyPI.
 
+[Unreleased]: https://github.com/tacular-omics/mzmlpy/compare/v0.10.1...HEAD
+[0.10.1]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.10.1
+[0.10.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.10.0
+[0.9.3]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.9.3
+[0.9.2]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.9.2
+[0.9.1]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.9.1
 [0.9.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.9.0
 [0.8.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.8.0
 [0.7.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.7.0
