@@ -748,6 +748,25 @@ class SelectedIon(_ParamGroup):
         return self.cv_int(SelectedIonAccession.CHARGE_STATE)
 
     @property
+    def possible_charges(self) -> tuple[int, ...]:
+        """Every possible charge state (MS:1000633) of the selected ion, in document order; empty if none.
+
+        Written when the charge could not be determined uniquely; a file may list several.
+        """
+        values: list[int] = []
+        for cv_param in self.cv_params:
+            if cv_param.accession != SelectedIonAccession.POSSIBLE_CHARGE_STATE or cv_param.value is None:
+                continue
+            try:
+                values.append(int(cv_param.value))
+            except ValueError as e:
+                raise MzmlError(
+                    f"CV param {cv_param.name or 'possible charge state'!r} "
+                    f"({SelectedIonAccession.POSSIBLE_CHARGE_STATE}) has a non-integer value {cv_param.value!r}"
+                ) from e
+        return tuple(values)
+
+    @property
     def ook0(self) -> float | None:
         """Inverse reduced ion mobility 1/K0 (Vs/cm², MS:1002815) of the selected ion, or None."""
         return self.cv_float(SelectedIonAccession.INVERSE_REDUCED_ION_MOBILITY)
@@ -1191,6 +1210,41 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
         return self.cv_float(SpectrumMSAccession.HIGHEST_OBSERVED_MZ)
 
 
+ChromatogramType = Literal[
+    "emission",
+    "sim",
+    "basepeak",
+    "pic",
+    "tic",
+    "absorption",
+    "srm",
+    "sic",
+    "crm",
+    "temperature",
+    "pressure",
+    "flow_rate",
+    "ion_current",
+    "electromagnetic_radiation",
+]
+
+_CHROMATOGRAM_TYPE_NAMES: dict[ChromatogramTypeAccession, ChromatogramType] = {
+    ChromatogramTypeAccession.EMISSION: "emission",
+    ChromatogramTypeAccession.SELECTED_ION_MONITORING: "sim",
+    ChromatogramTypeAccession.BASEPEAK: "basepeak",
+    ChromatogramTypeAccession.PRECURSOR_ION_CURRENT: "pic",
+    ChromatogramTypeAccession.TOTAL_ION_CURRENT: "tic",
+    ChromatogramTypeAccession.ABSORPTION: "absorption",
+    ChromatogramTypeAccession.SELECTED_REACTION_MONITORING: "srm",
+    ChromatogramTypeAccession.SELECTED_ION_CURRENT: "sic",
+    ChromatogramTypeAccession.CONSECUTIVE_REACTION_MONITORING: "crm",
+    ChromatogramTypeAccession.TEMPERATURE: "temperature",
+    ChromatogramTypeAccession.PRESSURE: "pressure",
+    ChromatogramTypeAccession.FLOW_RATE: "flow_rate",
+    ChromatogramTypeAccession.ION_CURRENT: "ion_current",
+    ChromatogramTypeAccession.ELECTROMAGNETIC_RADIATION: "electromagnetic_radiation",
+}
+
+
 @dataclass(frozen=True)
 class Chromatogram(_ParamGroup, _BinaryDataArrayMixin):
     """An mzML `chromatogram` element.
@@ -1289,29 +1343,16 @@ class Chromatogram(_ParamGroup, _BinaryDataArrayMixin):
         return self.get_attribute("dataProcessingRef")
 
     @property
-    def chromatogram_type(
-        self,
-    ) -> Literal["emission", "sim", "basepeak", "pic", "tic", "absorption", "srm", "sic"] | None:
-        """Get chromatogram type (e.g. TIC, BPC, etc.) for this chromatogram."""
+    def chromatogram_type(self) -> ChromatogramType | None:
+        """Get chromatogram type (e.g. TIC, BPC, etc.) for this chromatogram.
+
+        Covers every child of MS:1000626 "chromatogram type". The most specific term wins when a
+        chromatogram carries both a type and its parent (e.g. TIC and ion current).
+        """
+        accessions = self.accessions
         for acc in ChromatogramTypeAccession:
-            if acc in self.accessions:
-                match acc:
-                    case ChromatogramTypeAccession.EMISSION:
-                        return "emission"
-                    case ChromatogramTypeAccession.SELECTED_ION_MONITORING:
-                        return "sim"
-                    case ChromatogramTypeAccession.BASEPEAK:
-                        return "basepeak"
-                    case ChromatogramTypeAccession.PRECURSOR_ION_CURRENT:
-                        return "pic"
-                    case ChromatogramTypeAccession.TOTAL_ION_CURRENT:
-                        return "tic"
-                    case ChromatogramTypeAccession.ABSORPTION:
-                        return "absorption"
-                    case ChromatogramTypeAccession.SELECTED_REACTION_MONITORING:
-                        return "srm"
-                    case ChromatogramTypeAccession.SELECTED_ION_CURRENT:
-                        return "sic"
+            if acc in accessions:
+                return _CHROMATOGRAM_TYPE_NAMES[acc]
         return None
 
 

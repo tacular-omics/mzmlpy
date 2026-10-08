@@ -228,7 +228,11 @@ _BINARY_DECODE_DTYPES: dict[BinaryDataTypeAccession, str] = {
 
 
 class ChromatogramTypeAccession(StrEnum):
-    """Enumeration of chromatogram type accessions."""
+    """Enumeration of chromatogram type accessions (children of MS:1000626 "chromatogram type").
+
+    Specific terms come before their parents (ion current, electromagnetic radiation), so iterating
+    in definition order finds the most specific type first.
+    """
 
     EMISSION = "MS:1000813"
     SELECTED_ION_MONITORING = "MS:1001472"
@@ -238,6 +242,13 @@ class ChromatogramTypeAccession(StrEnum):
     ABSORPTION = "MS:1000812"
     SELECTED_REACTION_MONITORING = "MS:1001473"
     SELECTED_ION_CURRENT = "MS:1000627"
+    # Obsolete in PSI-MS, but older files still carry it.
+    CONSECUTIVE_REACTION_MONITORING = "MS:1001474"
+    TEMPERATURE = "MS:1002715"
+    PRESSURE = "MS:1003019"
+    FLOW_RATE = "MS:1003020"
+    ION_CURRENT = "MS:1000810"
+    ELECTROMAGNETIC_RADIATION = "MS:1000811"
 
 
 class ChecksumTypeAccession(StrEnum):
@@ -320,6 +331,7 @@ class SelectedIonAccession(StrEnum):
     SELECTED_ION_MZ = "MS:1000744"
     PEAK_INTENSITY = "MS:1000042"
     CHARGE_STATE = "MS:1000041"
+    POSSIBLE_CHARGE_STATE = "MS:1000633"
     INVERSE_REDUCED_ION_MOBILITY = "MS:1002815"
     ION_MOBILITY_DRIFT_TIME = "MS:1002476"
     FAIMS_VOLTAGE_START = "MS:1003450"

@@ -198,7 +198,7 @@ for prod in spectrum.products:
 
 - `Precursor`: `isolation_window`, `selected_ions`, `activation`, `spectrum_ref`,
   `external_spectrum_id`, `source_file_ref`.
-- `SelectedIon`: `mz`, `charge`, `intensity`, `ook0` (1/K0),
+- `SelectedIon`: `mz`, `charge`, `possible_charges` (tuple of MS:1000633 values), `intensity`, `ook0` (1/K0),
   `drift_time`, `ccs`, `faims_voltage_start`, `faims_voltage_end`.
 - `Activation`: `activation_type`, `activation_types`, `collision_energy`, `supplemental_collision_energy`, `activation_energy`, `collision_gas`,
   `collision_gas_pressure`.
@@ -225,7 +225,8 @@ with Mzml("run.mzML") as reader:
 ```
 
 Properties: `id`, `id_dict`, `time`, `intensity`, `chromatogram_type`
-(`Literal["emission", "sim", "basepeak", "pic", "tic", "absorption", "srm", "sic"] | None`),
+(`Literal["emission", "sim", "basepeak", "pic", "tic", "absorption", "srm", "sic", "crm",
+"temperature", "pressure", "flow_rate", "ion_current", "electromagnetic_radiation"] | None`),
 `precursor: Precursor | None`, `product: Product | None`, `has_precursor`, `has_product`,
 `binary_arrays`, `default_array_length`, `data_processing_ref`, `source_file_ref`.
 Methods: `get_binary_array(id)`, `has_binary_array(id)`.
