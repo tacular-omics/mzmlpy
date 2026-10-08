@@ -9,9 +9,16 @@ All notable changes to this project are documented here. The format is based on
 ### Added
 
 - `Activation.activation_types`: every dissociation method term of an activation, in document order.
+- `SelectedIon.possible_charges`: every possible charge state (MS:1000633) of a selected ion, in
+  document order; empty when absent. These terms were previously dropped.
 
 ### Fixed
 
+- `Chromatogram.chromatogram_type` recognises every child of MS:1000626 "chromatogram type".
+  Six terms that returned None now map to `"ion_current"` (MS:1000810),
+  `"electromagnetic_radiation"` (MS:1000811), `"temperature"` (MS:1002715), `"pressure"`
+  (MS:1003019), `"flow_rate"` (MS:1003020) and `"crm"` (MS:1001474, obsolete but still in older
+  files). `ChromatogramTypeAccession` gains the matching members.
 - `Activation.activation_type` returns the primary dissociation method. Supplemental terms
   (MS:1002678 supplemental beam-type CID, MS:1002679 supplemental CID) are returned only when no
   primary term is present, so EThcD (ETD + supplemental beam-type CID, as msconvert writes it) now
