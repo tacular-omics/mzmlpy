@@ -39,6 +39,10 @@ from .elems.dtree_wrapper import _DataTreeWrapper, _DataTreeWrapperProtocol, _Pa
 from .elems.params import CvParam
 from .errors import MzmlDecodeError, MzmlError
 
+# imzML terms marking a binaryDataArray whose values live in the external .ibd file:
+# external data, external offset, external array length, external encoded length.
+_EXTERNAL_DATA_ACCESSIONS: frozenset[str] = frozenset({"IMS:1000101", "IMS:1000102", "IMS:1000103", "IMS:1000104"})
+
 
 def _decode_to_native(data: bytes, data_type: str) -> np.ndarray:
     dtype = _resolve_dtype(data_type)
@@ -211,6 +215,12 @@ class BinaryDataArray(_ParamGroup):
         result_dtype = (
             np.dtype("<f8") if compression_type.name.startswith("MS_NUMPRESS") else _resolve_dtype(binary_data_type)
         )
+        external = sorted(_EXTERNAL_DATA_ACCESSIONS & self.accessions)
+        if external:
+            raise MzmlDecodeError(
+                "external binary data (imzML .ibd) is not supported: this binaryDataArray carries "
+                f"{', '.join(external)} and stores its values outside the mzML file."
+            )
         # Get binary data from element
         binary_element = self.element.find(f"./{self.ns}binary")
         if binary_element is None or binary_element.text is None:
@@ -763,6 +773,18 @@ class SelectedIon(_ParamGroup):
         return self.cv_float(SelectedIonAccession.COLLISIONAL_CROSS_SECTION)
 
 
+_DISSOCIATION_BY_ACCESSION: dict[str, CollisionDissociationTypeAccession] = {
+    str(t): t for t in CollisionDissociationTypeAccession
+}
+# Terms that qualify a primary dissociation method rather than name one (EThcD, ETciD).
+_SUPPLEMENTAL_DISSOCIATION: frozenset[CollisionDissociationTypeAccession] = frozenset(
+    {
+        CollisionDissociationTypeAccession.SUPPLEMENTAL_BEAM_TYPE_COLLISION_INDUCED_DISSOCIATION,
+        CollisionDissociationTypeAccession.SUPPLEMENTAL_COLLISION_INDUCED_DISSOCIATION,
+    }
+)
+
+
 @dataclass(frozen=True, repr=False)
 class Activation(_ParamGroup):
     """Represents an activation element within a precursor.
@@ -772,12 +794,34 @@ class Activation(_ParamGroup):
     """
 
     @property
+    def activation_types(self) -> tuple[CollisionDissociationTypeAccession, ...]:
+        """Every dissociation method term of this activation, in document order, without duplicates.
+
+        EThcD, as msconvert writes it, gives ``(ELECTRON_TRANSFER_DISSOCIATION,
+        SUPPLEMENTAL_BEAM_TYPE_COLLISION_INDUCED_DISSOCIATION)``.
+        """
+        found: list[CollisionDissociationTypeAccession] = []
+        for param in self.cv_params:
+            term = _DISSOCIATION_BY_ACCESSION.get(param.accession)
+            if term is not None and term not in found:
+                found.append(term)
+        return tuple(found)
+
+    @property
     def activation_type(self) -> CollisionDissociationTypeAccession | None:
-        """Get activation type for this precursor."""
-        for cd in CollisionDissociationTypeAccession:
-            if cd in self.accessions:
-                return cd
-        return None
+        """The primary dissociation method of this activation, or None.
+
+        Supplemental terms (supplemental beam-type CID MS:1002678, supplemental CID MS:1002679) only
+        qualify the primary method, so a non-supplemental term wins: EThcD (ETD + supplemental
+        beam-type CID) reports ETD. Among several primary terms the first in document order wins; a
+        supplemental term is returned only when no primary term is present. Use
+        :attr:`activation_types` for every term.
+        """
+        types = self.activation_types
+        primary = next((t for t in types if t not in _SUPPLEMENTAL_DISSOCIATION), None)
+        if primary is not None:
+            return primary
+        return types[0] if types else None
 
     @property
     def activation_energy(self) -> float | None:

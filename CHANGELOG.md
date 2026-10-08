@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- `Activation.activation_types`: every dissociation method term of an activation, in document order.
+
+### Fixed
+
+- `Activation.activation_type` returns the primary dissociation method. Supplemental terms
+  (MS:1002678 supplemental beam-type CID, MS:1002679 supplemental CID) are returned only when no
+  primary term is present, so EThcD (ETD + supplemental beam-type CID, as msconvert writes it) now
+  reports ETD instead of MS:1002678. Among several primary terms the first in document order wins.
+- A binaryDataArray whose values live in an external imzML `.ibd` file (IMS:1000101 to
+  IMS:1000104) now raises `MzmlDecodeError` instead of decoding silently to an empty array.
+
 ## [0.10.0] (2026-09-24)
 
 **Breaking:** API cleanup. Renamed names have no aliases. See the
