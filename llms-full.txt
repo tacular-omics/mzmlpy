@@ -187,7 +187,8 @@ for prec in spectrum.precursors:
         ion.mz, ion.charge, ion.intensity
     act = prec.activation                 # Activation | None
     if act is not None:
-        act.activation_type               # CollisionDissociationTypeAccession | None, e.g. CID MS:1000133
+        act.activation_type               # primary method, CollisionDissociationTypeAccession | None (EThcD -> ETD)
+        act.activation_types              # every dissociation term, document order (tuple)
         act.collision_energy              # MS:1000045, eV, float | None
     prec.spectrum_ref                     # id of the precursor spectrum, str | None
 
@@ -199,7 +200,7 @@ for prod in spectrum.products:
   `external_spectrum_id`, `source_file_ref`.
 - `SelectedIon`: `mz`, `charge`, `intensity`, `ook0` (1/K0),
   `drift_time`, `ccs`, `faims_voltage_start`, `faims_voltage_end`.
-- `Activation`: `activation_type`, `collision_energy`, `supplemental_collision_energy`, `activation_energy`, `collision_gas`,
+- `Activation`: `activation_type`, `activation_types`, `collision_energy`, `supplemental_collision_energy`, `activation_energy`, `collision_gas`,
   `collision_gas_pressure`.
 - `IsolationWindow`: `isolation_mz`, `lower_offset`, `upper_offset`, `isolation_width`, `isolation_mz_range`,
   `no_isolation` (MS:1003159).
