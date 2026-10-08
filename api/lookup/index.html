@@ -1,0 +1,2284 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A lightweight Python library for parsing mzML mass spectrometry files.">
+      
+      
+      
+        <link rel="canonical" href="https://tacular-omics.github.io/mzmlpy/api/lookup/">
+      
+      
+        <link rel="prev" href="../chromatogram/">
+      
+      
+        <link rel="next" href="../validation/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Lookup - mzmlpy</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#lookup" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="mzmlpy" class="md-header__button md-logo" aria-label="mzmlpy" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            mzmlpy
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Lookup
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/tacular-omics/mzmlpy" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tacular-omics/mzmlpy
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="mzmlpy" class="md-nav__button md-logo" aria-label="mzmlpy" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    mzmlpy
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/tacular-omics/mzmlpy" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tacular-omics/mzmlpy
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../migration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migrating to 0.10
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mzml/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mzml reader
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../spectrum/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spectrum
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../chromatogram/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chromatogram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lookup
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lookup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.SpectrumLookup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SpectrumLookup
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SpectrumLookup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.SpectrumLookup.count" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        count
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.SpectrumLookup.ids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ids
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.SpectrumLookup.filter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        filter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.SpectrumLookup.get_by_index" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_by_index
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.SpectrumLookup.get_by_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_by_id
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.SpectrumLookup.get_by_slice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_by_slice
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.ChromatogramLookup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ChromatogramLookup
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ChromatogramLookup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.ChromatogramLookup.count" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        count
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.ChromatogramLookup.ids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ids
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.ChromatogramLookup.get_by_index" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_by_index
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.ChromatogramLookup.get_by_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_by_id
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.ChromatogramLookup.get_by_slice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_by_slice
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation and filtering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../indexed-gzip/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Indexed gzip
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../precursor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Precursor and ions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../file-description/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File description
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../instrument/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Instrument
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-processing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data processing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metadata/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metadata
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../params/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CV parameters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../constants/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Constants
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/tacular-omics/mzmlpy/blob/main/CHANGELOG.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../citation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Citation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.SpectrumLookup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SpectrumLookup
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SpectrumLookup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.SpectrumLookup.count" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        count
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.SpectrumLookup.ids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ids
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.SpectrumLookup.filter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        filter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.SpectrumLookup.get_by_index" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_by_index
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.SpectrumLookup.get_by_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_by_id
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.SpectrumLookup.get_by_slice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_by_slice
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.ChromatogramLookup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ChromatogramLookup
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ChromatogramLookup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.ChromatogramLookup.count" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        count
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.ChromatogramLookup.ids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ids
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.ChromatogramLookup.get_by_index" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_by_index
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.ChromatogramLookup.get_by_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_by_id
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mzmlpy.lookup.ChromatogramLookup.get_by_slice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_by_slice
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="lookup">Lookup<a class="headerlink" href="#lookup" title="Permanent link">&para;</a></h1>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="mzmlpy.lookup.SpectrumLookup" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">mzmlpy.lookup.SpectrumLookup</span>
+
+
+<a href="#mzmlpy.lookup.SpectrumLookup" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">SpectrumLookup</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">file_object</span><span class="p">:</span> <span class="n"><span title="mzmlpy.file_interface.FileInterface">FileInterface</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">count</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">id_regex</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="mzmlpy.lookup.BaseLookup">BaseLookup</span>[<a class="autorefs autorefs-internal" title="            mzmlpy.spectra.Spectrum
+
+
+  
+      dataclass
+  " href="../spectrum/#mzmlpy.spectra.Spectrum">Spectrum</a>]</code></p>
+
+
+
+        <p>Lookup interface for spectra.</p>
+
+
+
+
+
+
+
+
+                  <details class="mkdocstrings-source">
+                    <summary>Source code in <code>src/mzmlpy/lookup.py</code></summary>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-134">134</a></span>
+<span class="normal"><a href="#__codelineno-0-135">135</a></span>
+<span class="normal"><a href="#__codelineno-0-136">136</a></span>
+<span class="normal"><a href="#__codelineno-0-137">137</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-134" name="__codelineno-0-134"></a><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_object</span><span class="p">:</span> <span class="n">FileInterface</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">count</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">id_regex</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-135" name="__codelineno-0-135"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_file_object</span> <span class="o">=</span> <span class="n">file_object</span>
+<a id="__codelineno-0-136" name="__codelineno-0-136"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_count</span> <span class="o">=</span> <span class="n">count</span>
+<a id="__codelineno-0-137" name="__codelineno-0-137"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_id_regex</span> <span class="o">=</span> <span class="n">id_regex</span>
+</code></pre></div></td></tr></table></div>
+                  </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="mzmlpy.lookup.SpectrumLookup.count" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">count</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#mzmlpy.lookup.SpectrumLookup.count" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">count</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">|</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Get count of items.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="mzmlpy.lookup.SpectrumLookup.ids" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">ids</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#mzmlpy.lookup.SpectrumLookup.ids" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">ids</span><span class="p">:</span> <span class="n"><span title="list">list</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Native ids of all items, in file order, without parsing the items.</p>
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="mzmlpy.lookup.SpectrumLookup.filter" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">filter</span>
+
+
+<a href="#mzmlpy.lookup.SpectrumLookup.filter" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">filter</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">ms_level</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">rt</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">rt_range</span><span class="p">:</span> <span class="p">(</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>        <span class="n"><span title="tuple">tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n"><span title="float">float</span></span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="p">)</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">rt_tolerance</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">30.0</span><span class="p">,</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">polarity</span><span class="p">:</span> <span class="n"><span title="mzmlpy.constants.Polarity">Polarity</span></span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">precursor_mz</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">precursor_mz_range</span><span class="p">:</span> <span class="p">(</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>        <span class="n"><span title="tuple">tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n"><span title="float">float</span></span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="p">)</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">mz_tolerance</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">20.0</span><span class="p">,</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">mz_tolerance_unit</span><span class="p">:</span> <span class="n"><span title="mzmlpy.constants.ToleranceUnit">ToleranceUnit</span></span> <span class="o">=</span> <span class="s2">&quot;ppm&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    <span class="n">spectrum_type</span><span class="p">:</span> <span class="p">(</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>        <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="s2">&quot;centroid&quot;</span><span class="p">,</span> <span class="s2">&quot;profile&quot;</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    <span class="p">)</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    <span class="n">ook0_range</span><span class="p">:</span> <span class="p">(</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>        <span class="n"><span title="tuple">tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n"><span title="float">float</span></span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    <span class="p">)</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>    <span class="n">drift_time_range</span><span class="p">:</span> <span class="p">(</span>
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>        <span class="n"><span title="tuple">tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n"><span title="float">float</span></span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    <span class="p">)</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>    <span class="n">faims_voltage_range</span><span class="p">:</span> <span class="p">(</span>
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>        <span class="n"><span title="tuple">tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n"><span title="float">float</span></span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>    <span class="p">)</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="collections.abc.Iterator">Iterator</span></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="            mzmlpy.spectra.Spectrum
+
+
+  
+      dataclass
+  " href="../spectrum/#mzmlpy.spectra.Spectrum">Spectrum</a></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Lazily select spectra by metadata, without decoding binary arrays.</p>
+<p>Criteria are combined with AND. Tuples are inclusive <code>*_range</code> bounds, either end None
+for open. Point queries follow tdfpy's <code>query</code>: <code>rt</code> matches within <code>rt_tolerance</code>
+seconds and <code>precursor_mz</code> within <code>mz_tolerance</code> ppm (or Da with
+<code>mz_tolerance_unit="da"</code>). Pass a point or its range, not both. See
+:class:<code>SpectrumFilter</code> for how each criterion matches. Keep the reader open while
+iterating.</p>
+<p>With an indexed reader (access strategy <code>plain</code>, <code>rapidgzip</code> or
+<code>memory</code>; <code>stream</code> and <code>embedded</code> scan every spectrum), the first retention-time
+query reads the scan times of every spectrum once, from the metadata before each
+record's binary arrays, and caches them. It and later queries then read in full only the
+spectra inside the window. Record order does not matter.</p>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="            mzmlpy.errors.MzmlError" href="../errors/#mzmlpy.errors.MzmlError">MzmlError</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A criterion is invalid, or both a point and its range were given.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/mzmlpy/lookup.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-286">286</a></span>
+<span class="normal"><a href="#__codelineno-0-287">287</a></span>
+<span class="normal"><a href="#__codelineno-0-288">288</a></span>
+<span class="normal"><a href="#__codelineno-0-289">289</a></span>
+<span class="normal"><a href="#__codelineno-0-290">290</a></span>
+<span class="normal"><a href="#__codelineno-0-291">291</a></span>
+<span class="normal"><a href="#__codelineno-0-292">292</a></span>
+<span class="normal"><a href="#__codelineno-0-293">293</a></span>
+<span class="normal"><a href="#__codelineno-0-294">294</a></span>
+<span class="normal"><a href="#__codelineno-0-295">295</a></span>
+<span class="normal"><a href="#__codelineno-0-296">296</a></span>
+<span class="normal"><a href="#__codelineno-0-297">297</a></span>
+<span class="normal"><a href="#__codelineno-0-298">298</a></span>
+<span class="normal"><a href="#__codelineno-0-299">299</a></span>
+<span class="normal"><a href="#__codelineno-0-300">300</a></span>
+<span class="normal"><a href="#__codelineno-0-301">301</a></span>
+<span class="normal"><a href="#__codelineno-0-302">302</a></span>
+<span class="normal"><a href="#__codelineno-0-303">303</a></span>
+<span class="normal"><a href="#__codelineno-0-304">304</a></span>
+<span class="normal"><a href="#__codelineno-0-305">305</a></span>
+<span class="normal"><a href="#__codelineno-0-306">306</a></span>
+<span class="normal"><a href="#__codelineno-0-307">307</a></span>
+<span class="normal"><a href="#__codelineno-0-308">308</a></span>
+<span class="normal"><a href="#__codelineno-0-309">309</a></span>
+<span class="normal"><a href="#__codelineno-0-310">310</a></span>
+<span class="normal"><a href="#__codelineno-0-311">311</a></span>
+<span class="normal"><a href="#__codelineno-0-312">312</a></span>
+<span class="normal"><a href="#__codelineno-0-313">313</a></span>
+<span class="normal"><a href="#__codelineno-0-314">314</a></span>
+<span class="normal"><a href="#__codelineno-0-315">315</a></span>
+<span class="normal"><a href="#__codelineno-0-316">316</a></span>
+<span class="normal"><a href="#__codelineno-0-317">317</a></span>
+<span class="normal"><a href="#__codelineno-0-318">318</a></span>
+<span class="normal"><a href="#__codelineno-0-319">319</a></span>
+<span class="normal"><a href="#__codelineno-0-320">320</a></span>
+<span class="normal"><a href="#__codelineno-0-321">321</a></span>
+<span class="normal"><a href="#__codelineno-0-322">322</a></span>
+<span class="normal"><a href="#__codelineno-0-323">323</a></span>
+<span class="normal"><a href="#__codelineno-0-324">324</a></span>
+<span class="normal"><a href="#__codelineno-0-325">325</a></span>
+<span class="normal"><a href="#__codelineno-0-326">326</a></span>
+<span class="normal"><a href="#__codelineno-0-327">327</a></span>
+<span class="normal"><a href="#__codelineno-0-328">328</a></span>
+<span class="normal"><a href="#__codelineno-0-329">329</a></span>
+<span class="normal"><a href="#__codelineno-0-330">330</a></span>
+<span class="normal"><a href="#__codelineno-0-331">331</a></span>
+<span class="normal"><a href="#__codelineno-0-332">332</a></span>
+<span class="normal"><a href="#__codelineno-0-333">333</a></span>
+<span class="normal"><a href="#__codelineno-0-334">334</a></span>
+<span class="normal"><a href="#__codelineno-0-335">335</a></span>
+<span class="normal"><a href="#__codelineno-0-336">336</a></span>
+<span class="normal"><a href="#__codelineno-0-337">337</a></span>
+<span class="normal"><a href="#__codelineno-0-338">338</a></span>
+<span class="normal"><a href="#__codelineno-0-339">339</a></span>
+<span class="normal"><a href="#__codelineno-0-340">340</a></span>
+<span class="normal"><a href="#__codelineno-0-341">341</a></span>
+<span class="normal"><a href="#__codelineno-0-342">342</a></span>
+<span class="normal"><a href="#__codelineno-0-343">343</a></span>
+<span class="normal"><a href="#__codelineno-0-344">344</a></span>
+<span class="normal"><a href="#__codelineno-0-345">345</a></span>
+<span class="normal"><a href="#__codelineno-0-346">346</a></span>
+<span class="normal"><a href="#__codelineno-0-347">347</a></span>
+<span class="normal"><a href="#__codelineno-0-348">348</a></span>
+<span class="normal"><a href="#__codelineno-0-349">349</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-286" name="__codelineno-0-286"></a><span class="k">def</span><span class="w"> </span><span class="nf">filter</span><span class="p">(</span>
+<a id="__codelineno-0-287" name="__codelineno-0-287"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-288" name="__codelineno-0-288"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-289" name="__codelineno-0-289"></a>    <span class="n">ms_level</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-290" name="__codelineno-0-290"></a>    <span class="n">rt</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-291" name="__codelineno-0-291"></a>    <span class="n">rt_range</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-292" name="__codelineno-0-292"></a>    <span class="n">rt_tolerance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">30.0</span><span class="p">,</span>
+<a id="__codelineno-0-293" name="__codelineno-0-293"></a>    <span class="n">polarity</span><span class="p">:</span> <span class="n">Polarity</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-294" name="__codelineno-0-294"></a>    <span class="n">precursor_mz</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-295" name="__codelineno-0-295"></a>    <span class="n">precursor_mz_range</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-296" name="__codelineno-0-296"></a>    <span class="n">mz_tolerance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">20.0</span><span class="p">,</span>
+<a id="__codelineno-0-297" name="__codelineno-0-297"></a>    <span class="n">mz_tolerance_unit</span><span class="p">:</span> <span class="n">ToleranceUnit</span> <span class="o">=</span> <span class="s2">&quot;ppm&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-298" name="__codelineno-0-298"></a>    <span class="n">spectrum_type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;centroid&quot;</span><span class="p">,</span> <span class="s2">&quot;profile&quot;</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-299" name="__codelineno-0-299"></a>    <span class="n">ook0_range</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-300" name="__codelineno-0-300"></a>    <span class="n">drift_time_range</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-301" name="__codelineno-0-301"></a>    <span class="n">faims_voltage_range</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-302" name="__codelineno-0-302"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Spectrum</span><span class="p">]:</span>
+<a id="__codelineno-0-303" name="__codelineno-0-303"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Lazily select spectra by metadata, without decoding binary arrays.</span>
+<a id="__codelineno-0-304" name="__codelineno-0-304"></a>
+<a id="__codelineno-0-305" name="__codelineno-0-305"></a><span class="sd">    Criteria are combined with AND. Tuples are inclusive ``*_range`` bounds, either end None</span>
+<a id="__codelineno-0-306" name="__codelineno-0-306"></a><span class="sd">    for open. Point queries follow tdfpy&#39;s ``query``: ``rt`` matches within ``rt_tolerance``</span>
+<a id="__codelineno-0-307" name="__codelineno-0-307"></a><span class="sd">    seconds and ``precursor_mz`` within ``mz_tolerance`` ppm (or Da with</span>
+<a id="__codelineno-0-308" name="__codelineno-0-308"></a><span class="sd">    ``mz_tolerance_unit=&quot;da&quot;``). Pass a point or its range, not both. See</span>
+<a id="__codelineno-0-309" name="__codelineno-0-309"></a><span class="sd">    :class:`SpectrumFilter` for how each criterion matches. Keep the reader open while</span>
+<a id="__codelineno-0-310" name="__codelineno-0-310"></a><span class="sd">    iterating.</span>
+<a id="__codelineno-0-311" name="__codelineno-0-311"></a>
+<a id="__codelineno-0-312" name="__codelineno-0-312"></a><span class="sd">    With an indexed reader (access strategy ``plain``, ``rapidgzip`` or</span>
+<a id="__codelineno-0-313" name="__codelineno-0-313"></a><span class="sd">    ``memory``; ``stream`` and ``embedded`` scan every spectrum), the first retention-time</span>
+<a id="__codelineno-0-314" name="__codelineno-0-314"></a><span class="sd">    query reads the scan times of every spectrum once, from the metadata before each</span>
+<a id="__codelineno-0-315" name="__codelineno-0-315"></a><span class="sd">    record&#39;s binary arrays, and caches them. It and later queries then read in full only the</span>
+<a id="__codelineno-0-316" name="__codelineno-0-316"></a><span class="sd">    spectra inside the window. Record order does not matter.</span>
+<a id="__codelineno-0-317" name="__codelineno-0-317"></a>
+<a id="__codelineno-0-318" name="__codelineno-0-318"></a><span class="sd">    Raises:</span>
+<a id="__codelineno-0-319" name="__codelineno-0-319"></a><span class="sd">        MzmlError: A criterion is invalid, or both a point and its range were given.</span>
+<a id="__codelineno-0-320" name="__codelineno-0-320"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-321" name="__codelineno-0-321"></a>    <span class="n">check_point</span><span class="p">(</span><span class="s2">&quot;rt&quot;</span><span class="p">,</span> <span class="n">rt</span><span class="p">)</span>
+<a id="__codelineno-0-322" name="__codelineno-0-322"></a>    <span class="n">check_point</span><span class="p">(</span><span class="s2">&quot;precursor_mz&quot;</span><span class="p">,</span> <span class="n">precursor_mz</span><span class="p">)</span>
+<a id="__codelineno-0-323" name="__codelineno-0-323"></a>    <span class="n">tolerance_range</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">rt_tolerance</span><span class="p">,</span> <span class="s2">&quot;rt_tolerance&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-324" name="__codelineno-0-324"></a>    <span class="n">mz_tolerance_range</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">mz_tolerance</span><span class="p">,</span> <span class="n">mz_tolerance_unit</span><span class="p">)</span>
+<a id="__codelineno-0-325" name="__codelineno-0-325"></a>    <span class="k">if</span> <span class="n">rt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-326" name="__codelineno-0-326"></a>        <span class="k">if</span> <span class="n">rt_range</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-327" name="__codelineno-0-327"></a>            <span class="k">raise</span> <span class="n">MzmlError</span><span class="p">(</span><span class="s2">&quot;pass rt or rt_range, not both&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-328" name="__codelineno-0-328"></a>        <span class="n">rt_range</span> <span class="o">=</span> <span class="n">tolerance_range</span><span class="p">(</span><span class="n">rt</span><span class="p">,</span> <span class="n">rt_tolerance</span><span class="p">,</span> <span class="s2">&quot;rt_tolerance&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-329" name="__codelineno-0-329"></a>    <span class="k">if</span> <span class="n">precursor_mz</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-330" name="__codelineno-0-330"></a>        <span class="k">if</span> <span class="n">precursor_mz_range</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-331" name="__codelineno-0-331"></a>            <span class="k">raise</span> <span class="n">MzmlError</span><span class="p">(</span><span class="s2">&quot;pass precursor_mz or precursor_mz_range, not both&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-332" name="__codelineno-0-332"></a>        <span class="n">precursor_mz_range</span> <span class="o">=</span> <span class="n">mz_tolerance_range</span><span class="p">(</span><span class="n">precursor_mz</span><span class="p">,</span> <span class="n">mz_tolerance</span><span class="p">,</span> <span class="n">mz_tolerance_unit</span><span class="p">)</span>
+<a id="__codelineno-0-333" name="__codelineno-0-333"></a>    <span class="n">predicate</span> <span class="o">=</span> <span class="n">SpectrumFilter</span><span class="p">(</span>
+<a id="__codelineno-0-334" name="__codelineno-0-334"></a>        <span class="n">ms_level</span><span class="o">=</span><span class="n">ms_level</span><span class="p">,</span>
+<a id="__codelineno-0-335" name="__codelineno-0-335"></a>        <span class="n">rt_range</span><span class="o">=</span><span class="n">rt_range</span><span class="p">,</span>
+<a id="__codelineno-0-336" name="__codelineno-0-336"></a>        <span class="n">polarity</span><span class="o">=</span><span class="n">polarity</span><span class="p">,</span>
+<a id="__codelineno-0-337" name="__codelineno-0-337"></a>        <span class="n">precursor_mz_range</span><span class="o">=</span><span class="n">precursor_mz_range</span><span class="p">,</span>
+<a id="__codelineno-0-338" name="__codelineno-0-338"></a>        <span class="n">spectrum_type</span><span class="o">=</span><span class="n">spectrum_type</span><span class="p">,</span>
+<a id="__codelineno-0-339" name="__codelineno-0-339"></a>        <span class="n">ook0_range</span><span class="o">=</span><span class="n">ook0_range</span><span class="p">,</span>
+<a id="__codelineno-0-340" name="__codelineno-0-340"></a>        <span class="n">drift_time_range</span><span class="o">=</span><span class="n">drift_time_range</span><span class="p">,</span>
+<a id="__codelineno-0-341" name="__codelineno-0-341"></a>        <span class="n">faims_voltage_range</span><span class="o">=</span><span class="n">faims_voltage_range</span><span class="p">,</span>
+<a id="__codelineno-0-342" name="__codelineno-0-342"></a>    <span class="p">)</span>
+<a id="__codelineno-0-343" name="__codelineno-0-343"></a>    <span class="c1"># Only a retention-time query on a reader that can read spectrum heads needs the count;</span>
+<a id="__codelineno-0-344" name="__codelineno-0-344"></a>    <span class="c1"># on a stream reader counting would read the whole file before the first result.</span>
+<a id="__codelineno-0-345" name="__codelineno-0-345"></a>    <span class="k">if</span> <span class="n">predicate</span><span class="o">.</span><span class="n">rt_range</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_object</span><span class="o">.</span><span class="n">can_read_spectrum_heads</span><span class="p">():</span>
+<a id="__codelineno-0-346" name="__codelineno-0-346"></a>        <span class="n">count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">count</span>
+<a id="__codelineno-0-347" name="__codelineno-0-347"></a>        <span class="k">if</span> <span class="n">count</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-348" name="__codelineno-0-348"></a>            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_filter_rt_window</span><span class="p">(</span><span class="n">predicate</span><span class="p">,</span> <span class="n">predicate</span><span class="o">.</span><span class="n">rt_range</span><span class="p">,</span> <span class="n">count</span><span class="p">)</span>
+<a id="__codelineno-0-349" name="__codelineno-0-349"></a>    <span class="k">return</span> <span class="p">(</span><span class="n">spectrum</span> <span class="k">for</span> <span class="n">spectrum</span> <span class="ow">in</span> <span class="bp">self</span> <span class="k">if</span> <span class="n">predicate</span><span class="o">.</span><span class="n">matches</span><span class="p">(</span><span class="n">spectrum</span><span class="p">))</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="mzmlpy.lookup.SpectrumLookup.get_by_index" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">get_by_index</span>
+
+
+<a href="#mzmlpy.lookup.SpectrumLookup.get_by_index" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">get_by_index</span><span class="p">(</span><span class="n">index</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="mzmlpy.lookup.BaseLookup[T]">T</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Get item by index. Negative indices count from the end, like a list.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/mzmlpy/lookup.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-158">158</a></span>
+<span class="normal"><a href="#__codelineno-0-159">159</a></span>
+<span class="normal"><a href="#__codelineno-0-160">160</a></span>
+<span class="normal"><a href="#__codelineno-0-161">161</a></span>
+<span class="normal"><a href="#__codelineno-0-162">162</a></span>
+<span class="normal"><a href="#__codelineno-0-163">163</a></span>
+<span class="normal"><a href="#__codelineno-0-164">164</a></span>
+<span class="normal"><a href="#__codelineno-0-165">165</a></span>
+<span class="normal"><a href="#__codelineno-0-166">166</a></span>
+<span class="normal"><a href="#__codelineno-0-167">167</a></span>
+<span class="normal"><a href="#__codelineno-0-168">168</a></span>
+<span class="normal"><a href="#__codelineno-0-169">169</a></span>
+<span class="normal"><a href="#__codelineno-0-170">170</a></span>
+<span class="normal"><a href="#__codelineno-0-171">171</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-158" name="__codelineno-0-158"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_by_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
+<a id="__codelineno-0-159" name="__codelineno-0-159"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get item by index. Negative indices count from the end, like a list.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-160" name="__codelineno-0-160"></a>    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+<a id="__codelineno-0-161" name="__codelineno-0-161"></a>        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;index must be an int, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">index</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-162" name="__codelineno-0-162"></a>    <span class="k">if</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-0-163" name="__codelineno-0-163"></a>        <span class="c1"># Normalize against the count so lookup[-1] mirrors slice behavior (lookup[-1:]).</span>
+<a id="__codelineno-0-164" name="__codelineno-0-164"></a>        <span class="n">count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">count</span>
+<a id="__codelineno-0-165" name="__codelineno-0-165"></a>        <span class="k">if</span> <span class="n">count</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-166" name="__codelineno-0-166"></a>            <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;index </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2"> out of range: negative indices need a known count&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-167" name="__codelineno-0-167"></a>        <span class="k">if</span> <span class="n">index</span> <span class="o">+</span> <span class="n">count</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-0-168" name="__codelineno-0-168"></a>            <span class="n">valid</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;valid indices are -</span><span class="si">{</span><span class="n">count</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">count</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">count</span> <span class="k">else</span> <span class="s2">&quot;the lookup is empty&quot;</span>
+<a id="__codelineno-0-169" name="__codelineno-0-169"></a>            <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;index </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2"> out of range: </span><span class="si">{</span><span class="n">valid</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-170" name="__codelineno-0-170"></a>        <span class="n">index</span> <span class="o">+=</span> <span class="n">count</span>
+<a id="__codelineno-0-171" name="__codelineno-0-171"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_by_index_impl</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="mzmlpy.lookup.SpectrumLookup.get_by_id" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">get_by_id</span>
+
+
+<a href="#mzmlpy.lookup.SpectrumLookup.get_by_id" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">get_by_id</span><span class="p">(</span><span class="n">identifier</span><span class="p">:</span> <span class="n"><span title="str">str</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="mzmlpy.lookup.BaseLookup[T]">T</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Get item by native id, or by the <code>id_regex</code> key when the reader was given one.</p>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="            mzmlpy.errors.MzmlRecordNotFoundError" href="../errors/#mzmlpy.errors.MzmlRecordNotFoundError">MzmlRecordNotFoundError</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>No record has this id (also a <code>KeyError</code>).</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="TypeError">TypeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>identifier</code> is not a string.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/mzmlpy/lookup.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-173">173</a></span>
+<span class="normal"><a href="#__codelineno-0-174">174</a></span>
+<span class="normal"><a href="#__codelineno-0-175">175</a></span>
+<span class="normal"><a href="#__codelineno-0-176">176</a></span>
+<span class="normal"><a href="#__codelineno-0-177">177</a></span>
+<span class="normal"><a href="#__codelineno-0-178">178</a></span>
+<span class="normal"><a href="#__codelineno-0-179">179</a></span>
+<span class="normal"><a href="#__codelineno-0-180">180</a></span>
+<span class="normal"><a href="#__codelineno-0-181">181</a></span>
+<span class="normal"><a href="#__codelineno-0-182">182</a></span>
+<span class="normal"><a href="#__codelineno-0-183">183</a></span>
+<span class="normal"><a href="#__codelineno-0-184">184</a></span>
+<span class="normal"><a href="#__codelineno-0-185">185</a></span>
+<span class="normal"><a href="#__codelineno-0-186">186</a></span>
+<span class="normal"><a href="#__codelineno-0-187">187</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-173" name="__codelineno-0-173"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_by_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">identifier</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
+<a id="__codelineno-0-174" name="__codelineno-0-174"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get item by native id, or by the ``id_regex`` key when the reader was given one.</span>
+<a id="__codelineno-0-175" name="__codelineno-0-175"></a>
+<a id="__codelineno-0-176" name="__codelineno-0-176"></a><span class="sd">    Raises:</span>
+<a id="__codelineno-0-177" name="__codelineno-0-177"></a><span class="sd">        MzmlRecordNotFoundError: No record has this id (also a ``KeyError``).</span>
+<a id="__codelineno-0-178" name="__codelineno-0-178"></a><span class="sd">        TypeError: ``identifier`` is not a string.</span>
+<a id="__codelineno-0-179" name="__codelineno-0-179"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-180" name="__codelineno-0-180"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">identifier</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+<a id="__codelineno-0-181" name="__codelineno-0-181"></a>        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;id must be a str, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">identifier</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-182" name="__codelineno-0-182"></a>    <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-183" name="__codelineno-0-183"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_by_exact_id</span><span class="p">(</span><span class="n">identifier</span><span class="p">)</span>
+<a id="__codelineno-0-184" name="__codelineno-0-184"></a>    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+<a id="__codelineno-0-185" name="__codelineno-0-185"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_id_regex</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span><span class="n">mapped</span> <span class="o">:=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_id_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">identifier</span><span class="p">)):</span>
+<a id="__codelineno-0-186" name="__codelineno-0-186"></a>            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_by_exact_id</span><span class="p">(</span><span class="n">mapped</span><span class="p">)</span>
+<a id="__codelineno-0-187" name="__codelineno-0-187"></a>        <span class="k">raise</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="mzmlpy.lookup.SpectrumLookup.get_by_slice" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">get_by_slice</span>
+
+
+<a href="#mzmlpy.lookup.SpectrumLookup.get_by_slice" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">get_by_slice</span><span class="p">(</span><span class="n">slice_obj</span><span class="p">:</span> <span class="n"><span title="slice">slice</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="list">list</span></span><span class="p">[</span><span class="n"><span title="mzmlpy.lookup.BaseLookup[T]">T</span></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Get items by slice notation.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/mzmlpy/lookup.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-189">189</a></span>
+<span class="normal"><a href="#__codelineno-0-190">190</a></span>
+<span class="normal"><a href="#__codelineno-0-191">191</a></span>
+<span class="normal"><a href="#__codelineno-0-192">192</a></span>
+<span class="normal"><a href="#__codelineno-0-193">193</a></span>
+<span class="normal"><a href="#__codelineno-0-194">194</a></span>
+<span class="normal"><a href="#__codelineno-0-195">195</a></span>
+<span class="normal"><a href="#__codelineno-0-196">196</a></span>
+<span class="normal"><a href="#__codelineno-0-197">197</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-189" name="__codelineno-0-189"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_by_slice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slice_obj</span><span class="p">:</span> <span class="nb">slice</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<a id="__codelineno-0-190" name="__codelineno-0-190"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get items by slice notation.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-191" name="__codelineno-0-191"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">count</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-192" name="__codelineno-0-192"></a>        <span class="c1"># Don&#39;t know count - must iterate all and slice</span>
+<a id="__codelineno-0-193" name="__codelineno-0-193"></a>        <span class="n">items</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">T</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+<a id="__codelineno-0-194" name="__codelineno-0-194"></a>        <span class="k">return</span> <span class="n">items</span><span class="p">[</span><span class="n">slice_obj</span><span class="p">]</span>
+<a id="__codelineno-0-195" name="__codelineno-0-195"></a>    <span class="c1"># Know count - use slice.indices() to handle all cases</span>
+<a id="__codelineno-0-196" name="__codelineno-0-196"></a>    <span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">,</span> <span class="n">step</span> <span class="o">=</span> <span class="n">slice_obj</span><span class="o">.</span><span class="n">indices</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">count</span><span class="p">)</span>
+<a id="__codelineno-0-197" name="__codelineno-0-197"></a>    <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">get_by_index</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">,</span> <span class="n">step</span><span class="p">)]</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="mzmlpy.lookup.ChromatogramLookup" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">mzmlpy.lookup.ChromatogramLookup</span>
+
+
+<a href="#mzmlpy.lookup.ChromatogramLookup" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">ChromatogramLookup</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">file_object</span><span class="p">:</span> <span class="n"><span title="mzmlpy.file_interface.FileInterface">FileInterface</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">count</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">id_regex</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="mzmlpy.lookup.BaseLookup">BaseLookup</span>[<a class="autorefs autorefs-internal" title="            mzmlpy.spectra.Chromatogram
+
+
+  
+      dataclass
+  " href="../chromatogram/#mzmlpy.spectra.Chromatogram">Chromatogram</a>]</code></p>
+
+
+
+        <p>Lookup interface for chromatograms.</p>
+
+
+
+
+
+
+
+
+                  <details class="mkdocstrings-source">
+                    <summary>Source code in <code>src/mzmlpy/lookup.py</code></summary>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-134">134</a></span>
+<span class="normal"><a href="#__codelineno-0-135">135</a></span>
+<span class="normal"><a href="#__codelineno-0-136">136</a></span>
+<span class="normal"><a href="#__codelineno-0-137">137</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-134" name="__codelineno-0-134"></a><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_object</span><span class="p">:</span> <span class="n">FileInterface</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">count</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">id_regex</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-135" name="__codelineno-0-135"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_file_object</span> <span class="o">=</span> <span class="n">file_object</span>
+<a id="__codelineno-0-136" name="__codelineno-0-136"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_count</span> <span class="o">=</span> <span class="n">count</span>
+<a id="__codelineno-0-137" name="__codelineno-0-137"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_id_regex</span> <span class="o">=</span> <span class="n">id_regex</span>
+</code></pre></div></td></tr></table></div>
+                  </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="mzmlpy.lookup.ChromatogramLookup.count" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">count</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#mzmlpy.lookup.ChromatogramLookup.count" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">count</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">|</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Get count of items.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="mzmlpy.lookup.ChromatogramLookup.ids" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">ids</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#mzmlpy.lookup.ChromatogramLookup.ids" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">ids</span><span class="p">:</span> <span class="n"><span title="list">list</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Native ids of all items, in file order, without parsing the items.</p>
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="mzmlpy.lookup.ChromatogramLookup.get_by_index" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">get_by_index</span>
+
+
+<a href="#mzmlpy.lookup.ChromatogramLookup.get_by_index" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">get_by_index</span><span class="p">(</span><span class="n">index</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="mzmlpy.lookup.BaseLookup[T]">T</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Get item by index. Negative indices count from the end, like a list.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/mzmlpy/lookup.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-158">158</a></span>
+<span class="normal"><a href="#__codelineno-0-159">159</a></span>
+<span class="normal"><a href="#__codelineno-0-160">160</a></span>
+<span class="normal"><a href="#__codelineno-0-161">161</a></span>
+<span class="normal"><a href="#__codelineno-0-162">162</a></span>
+<span class="normal"><a href="#__codelineno-0-163">163</a></span>
+<span class="normal"><a href="#__codelineno-0-164">164</a></span>
+<span class="normal"><a href="#__codelineno-0-165">165</a></span>
+<span class="normal"><a href="#__codelineno-0-166">166</a></span>
+<span class="normal"><a href="#__codelineno-0-167">167</a></span>
+<span class="normal"><a href="#__codelineno-0-168">168</a></span>
+<span class="normal"><a href="#__codelineno-0-169">169</a></span>
+<span class="normal"><a href="#__codelineno-0-170">170</a></span>
+<span class="normal"><a href="#__codelineno-0-171">171</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-158" name="__codelineno-0-158"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_by_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
+<a id="__codelineno-0-159" name="__codelineno-0-159"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get item by index. Negative indices count from the end, like a list.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-160" name="__codelineno-0-160"></a>    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+<a id="__codelineno-0-161" name="__codelineno-0-161"></a>        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;index must be an int, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">index</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-162" name="__codelineno-0-162"></a>    <span class="k">if</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-0-163" name="__codelineno-0-163"></a>        <span class="c1"># Normalize against the count so lookup[-1] mirrors slice behavior (lookup[-1:]).</span>
+<a id="__codelineno-0-164" name="__codelineno-0-164"></a>        <span class="n">count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">count</span>
+<a id="__codelineno-0-165" name="__codelineno-0-165"></a>        <span class="k">if</span> <span class="n">count</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-166" name="__codelineno-0-166"></a>            <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;index </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2"> out of range: negative indices need a known count&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-167" name="__codelineno-0-167"></a>        <span class="k">if</span> <span class="n">index</span> <span class="o">+</span> <span class="n">count</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-0-168" name="__codelineno-0-168"></a>            <span class="n">valid</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;valid indices are -</span><span class="si">{</span><span class="n">count</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">count</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">count</span> <span class="k">else</span> <span class="s2">&quot;the lookup is empty&quot;</span>
+<a id="__codelineno-0-169" name="__codelineno-0-169"></a>            <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;index </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2"> out of range: </span><span class="si">{</span><span class="n">valid</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-170" name="__codelineno-0-170"></a>        <span class="n">index</span> <span class="o">+=</span> <span class="n">count</span>
+<a id="__codelineno-0-171" name="__codelineno-0-171"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_by_index_impl</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="mzmlpy.lookup.ChromatogramLookup.get_by_id" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">get_by_id</span>
+
+
+<a href="#mzmlpy.lookup.ChromatogramLookup.get_by_id" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">get_by_id</span><span class="p">(</span><span class="n">identifier</span><span class="p">:</span> <span class="n"><span title="str">str</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="mzmlpy.lookup.BaseLookup[T]">T</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Get item by native id, or by the <code>id_regex</code> key when the reader was given one.</p>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="            mzmlpy.errors.MzmlRecordNotFoundError" href="../errors/#mzmlpy.errors.MzmlRecordNotFoundError">MzmlRecordNotFoundError</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>No record has this id (also a <code>KeyError</code>).</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="TypeError">TypeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>identifier</code> is not a string.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/mzmlpy/lookup.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-173">173</a></span>
+<span class="normal"><a href="#__codelineno-0-174">174</a></span>
+<span class="normal"><a href="#__codelineno-0-175">175</a></span>
+<span class="normal"><a href="#__codelineno-0-176">176</a></span>
+<span class="normal"><a href="#__codelineno-0-177">177</a></span>
+<span class="normal"><a href="#__codelineno-0-178">178</a></span>
+<span class="normal"><a href="#__codelineno-0-179">179</a></span>
+<span class="normal"><a href="#__codelineno-0-180">180</a></span>
+<span class="normal"><a href="#__codelineno-0-181">181</a></span>
+<span class="normal"><a href="#__codelineno-0-182">182</a></span>
+<span class="normal"><a href="#__codelineno-0-183">183</a></span>
+<span class="normal"><a href="#__codelineno-0-184">184</a></span>
+<span class="normal"><a href="#__codelineno-0-185">185</a></span>
+<span class="normal"><a href="#__codelineno-0-186">186</a></span>
+<span class="normal"><a href="#__codelineno-0-187">187</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-173" name="__codelineno-0-173"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_by_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">identifier</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
+<a id="__codelineno-0-174" name="__codelineno-0-174"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get item by native id, or by the ``id_regex`` key when the reader was given one.</span>
+<a id="__codelineno-0-175" name="__codelineno-0-175"></a>
+<a id="__codelineno-0-176" name="__codelineno-0-176"></a><span class="sd">    Raises:</span>
+<a id="__codelineno-0-177" name="__codelineno-0-177"></a><span class="sd">        MzmlRecordNotFoundError: No record has this id (also a ``KeyError``).</span>
+<a id="__codelineno-0-178" name="__codelineno-0-178"></a><span class="sd">        TypeError: ``identifier`` is not a string.</span>
+<a id="__codelineno-0-179" name="__codelineno-0-179"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-180" name="__codelineno-0-180"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">identifier</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+<a id="__codelineno-0-181" name="__codelineno-0-181"></a>        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;id must be a str, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">identifier</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-182" name="__codelineno-0-182"></a>    <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-183" name="__codelineno-0-183"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_by_exact_id</span><span class="p">(</span><span class="n">identifier</span><span class="p">)</span>
+<a id="__codelineno-0-184" name="__codelineno-0-184"></a>    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+<a id="__codelineno-0-185" name="__codelineno-0-185"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_id_regex</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span><span class="n">mapped</span> <span class="o">:=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_id_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">identifier</span><span class="p">)):</span>
+<a id="__codelineno-0-186" name="__codelineno-0-186"></a>            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_by_exact_id</span><span class="p">(</span><span class="n">mapped</span><span class="p">)</span>
+<a id="__codelineno-0-187" name="__codelineno-0-187"></a>        <span class="k">raise</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="mzmlpy.lookup.ChromatogramLookup.get_by_slice" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">get_by_slice</span>
+
+
+<a href="#mzmlpy.lookup.ChromatogramLookup.get_by_slice" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">get_by_slice</span><span class="p">(</span><span class="n">slice_obj</span><span class="p">:</span> <span class="n"><span title="slice">slice</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="list">list</span></span><span class="p">[</span><span class="n"><span title="mzmlpy.lookup.BaseLookup[T]">T</span></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Get items by slice notation.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/mzmlpy/lookup.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-189">189</a></span>
+<span class="normal"><a href="#__codelineno-0-190">190</a></span>
+<span class="normal"><a href="#__codelineno-0-191">191</a></span>
+<span class="normal"><a href="#__codelineno-0-192">192</a></span>
+<span class="normal"><a href="#__codelineno-0-193">193</a></span>
+<span class="normal"><a href="#__codelineno-0-194">194</a></span>
+<span class="normal"><a href="#__codelineno-0-195">195</a></span>
+<span class="normal"><a href="#__codelineno-0-196">196</a></span>
+<span class="normal"><a href="#__codelineno-0-197">197</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-189" name="__codelineno-0-189"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_by_slice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slice_obj</span><span class="p">:</span> <span class="nb">slice</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<a id="__codelineno-0-190" name="__codelineno-0-190"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get items by slice notation.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-191" name="__codelineno-0-191"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">count</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-192" name="__codelineno-0-192"></a>        <span class="c1"># Don&#39;t know count - must iterate all and slice</span>
+<a id="__codelineno-0-193" name="__codelineno-0-193"></a>        <span class="n">items</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">T</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+<a id="__codelineno-0-194" name="__codelineno-0-194"></a>        <span class="k">return</span> <span class="n">items</span><span class="p">[</span><span class="n">slice_obj</span><span class="p">]</span>
+<a id="__codelineno-0-195" name="__codelineno-0-195"></a>    <span class="c1"># Know count - use slice.indices() to handle all cases</span>
+<a id="__codelineno-0-196" name="__codelineno-0-196"></a>    <span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">,</span> <span class="n">step</span> <span class="o">=</span> <span class="n">slice_obj</span><span class="o">.</span><span class="n">indices</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">count</span><span class="p">)</span>
+<a id="__codelineno-0-197" name="__codelineno-0-197"></a>    <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">get_by_index</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">,</span> <span class="n">step</span><span class="p">)]</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../chromatogram/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Chromatogram">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Chromatogram
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../validation/" class="md-footer__link md-footer__link--next" aria-label="Next: Validation and filtering">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Validation and filtering
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; the mzmlpy authors. MIT licence.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "navigation.footer", "content.code.copy", "search.highlight", "search.suggest"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
