@@ -9,7 +9,7 @@ argument of the wrong type raises :class:`TypeError`.
 """
 
 import contextlib
-from collections.abc import Iterator
+from collections.abc import Generator
 from xml.etree.ElementTree import ParseError
 
 
@@ -43,7 +43,7 @@ class MzmlDecodeError(MzmlError):
 
 
 @contextlib.contextmanager
-def _parse_errors(source: str | None = None) -> Iterator[None]:
+def _parse_errors(source: str | None = None) -> Generator[None, None, None]:
     """Re-raise a raw XML ``ParseError`` as :class:`MzmlParseError`."""
     try:
         yield
