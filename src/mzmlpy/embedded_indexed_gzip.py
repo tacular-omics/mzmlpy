@@ -10,7 +10,7 @@ import shutil
 import struct
 import tempfile
 import zlib
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO
@@ -295,7 +295,7 @@ def _aliases(block: _Block) -> list[str]:
 
 
 @contextlib.contextmanager
-def _decompressed_source(path: str | Path) -> Iterator[str]:
+def _decompressed_source(path: str | Path) -> Generator[str, None, None]:
     source_path = str(path)
     with open(source_path, "rb") as source:
         is_gzip = source.read(2) == _GZIP_MAGIC
