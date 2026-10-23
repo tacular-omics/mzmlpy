@@ -28,6 +28,7 @@ just ty             # ty check src (excludes decoder.py, file_classes/indexedGzi
 just test [ARGS]    # pytest tests, extra args passed through (e.g. just test -q -k gzip); skips slow tests
 just test-all       # also slow tests (RUN_SLOW=1) and HYPOTHESIS_PROFILE=thorough
 just test-cov       # pytest with branch coverage (term + html + xml) and junit.xml in one run
+just codecov-tests  # alias with no extra steps: depends on test-cov and runs nothing else
 just check          # lint + ty + test (the default recipe; does NOT format)
 just docs           # mkdocs serve on localhost:8001
 just docs-build     # mkdocs build --strict to site/
@@ -66,6 +67,7 @@ src/mzmlpy/
 ├── validation.py           # validate(), ValidationIssue, ValidationReport (streaming structural checks)
 ├── embedded_indexed_gzip.py# read/write pyMZML-compatible self-indexed gzip (write_indexed_gzip, index_gzip alias)
 ├── decoder.py              # MSDecoder: zlib / zstd / MS-Numpress decoding (excluded from ty)
+├── errors.py               # MzmlError hierarchy raised across the package
 ├── constants.py            # all CV accessions as StrEnums + ION_MOBILITIES
 ├── content.py              # CVElement, _MzMLContentBuilder (header parsing)
 ├── util.py                 # gzip helpers, atomic cache writes, cache signatures (excluded from ty)
@@ -77,7 +79,8 @@ src/mzmlpy/
 ├── _mcp_metadata.py, _mcp_types.py, _mcp_runtime.py, _mcp_export.py
 │                           # inventories, TypedDict schemas, jobs/result cache, JSONL exports
 ├── elems/                  # metadata wrappers: FileDescription, InstrumentConfiguration, Run, Sample,
-│                           # Software, DataProcessing, ScanSetting, params (CvParam/UserParam), dtree_wrapper
+│                           # Software, DataProcessing, ScanSetting, ReferenceableParamGroup,
+│                           # params (CvParam/UserParam), dtree_wrapper
 ├── file_classes/
 │   ├── interface.py        # MzmlInterface protocol every backend implements
 │   ├── standardMzml.py     # AbstractRandomAccessMzml, StandardMzml (plain file), BytesMzml (in memory)
@@ -174,7 +177,8 @@ Full signatures and examples: `llms-full.txt`.
 - Scope is discovery, metadata, validation, selection and export. Do not add peak processing,
   derived traces or plotting here (that is spxtacular's job).
 - `tests/test_mcp_protocol.py` checks current and legacy clients and the stdio subprocess.
-- User-facing details (19 tools, resources, limits): `docs/mcp.md`.
+- `create_server` registers 17 tools by default, and `export_records` plus `read_export` only
+  when `output_dir` is given (`--output-dir`). User-facing details (resources, limits): `docs/mcp.md`.
 
 ## Gotchas
 
