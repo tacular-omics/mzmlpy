@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.10.2] (2026-10-26)
+
+### Changed
+
+- Updated development and test dependencies. No changes to the library.
+
 ## [0.10.1] (2026-10-08)
 
 ### Added
