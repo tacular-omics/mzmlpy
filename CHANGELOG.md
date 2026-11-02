@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- Corrected two optional-dependency floors that named versions no installer can supply:
+  `zstd>=1.5.5` -> `zstd>=1.5.5.1` (zstd 1.5.5 was never published to PyPI; 1.5.5.1 is the
+  only 1.5.5.x release) and `rapidgzip>=0.14.0` -> `rapidgzip>=0.14.2` (0.14.0 and 0.14.1
+  are yanked). Installs are unaffected, since resolvers already picked 1.5.5.1 and 0.14.2;
+  the `lowest` CI job now exercises these two floors instead of stepping over them.
+
 ## [0.10.2] (2026-10-26)
 
 ### Changed
