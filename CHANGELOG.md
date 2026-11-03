@@ -10,8 +10,10 @@ All notable changes to this project are documented here. The format is based on
 
 - `anyio>=4.9` is now declared in the `mcp` extra. `_mcp_server.py` imports
   `anyio.to_thread` directly, so anyio was an undeclared direct dependency that happened to
-  arrive through `mcp`. Nothing changes for users, because mcp installs anyio anyway, and
-  mcp raises the requirement to 4.10 itself on Python 3.14.
+  arrive through `mcp`. The declaration is never the binding requirement: every mcp 2.x
+  release requires `anyio>=4.9` below Python 3.14 and `anyio>=4.10` on 3.14, so a resolver
+  reaches the same version with or without it. It is declared because the code imports it,
+  not to constrain the resolution.
 
 ### Changed
 
@@ -25,9 +27,12 @@ All notable changes to this project are documented here. The format is based on
   At 2.0.0 the server builds, registers all 17 tools and answers tool calls over a real
   stdio subprocess.
 - Raised `zstd>=1.5.5.1` to `zstd>=1.5.6.1`. 1.5.6.1 is the first zstd release with a cp312
-  wheel, so it is the lowest floor the `lowest` CI job can install without a compiler.
-  Ordinary installs are unaffected, because a resolver already takes the current zstd
-  release, which ships wheels for Python 3.12 through 3.14.
+  wheel, and mzmlpy requires Python 3.12 or newer, so every install at the old floor built
+  zstd from its sdist and needed a C toolchain. Unlike the anyio declaration above, this
+  floor is the binding one: nothing else requires zstd, so the old floor really did resolve
+  to 1.5.5.1 for lockfiles, for `--resolution lowest-direct` and for anyone carrying an old
+  pin. A default install is unaffected either way, because a resolver already takes the
+  current zstd release, which ships wheels for Python 3.12 through 3.14.
 - `test_stdio_entry_point` is skipped below mcp 2.1. It drives mcp's own client over a
   subprocess stdio transport, and `Client(StdioServerParameters(...))` is 2.1 client API.
   The gate is about mcp's client and not about the server mzmlpy ships, so the in-process
