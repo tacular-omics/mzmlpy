@@ -60,6 +60,10 @@ jobs:
       - run: uv sync --resolution lowest-direct --all-extras --all-groups
       # --no-sync is required: a plain `uv run` re-resolves to the default (highest)
       # versions and silently undoes the lowest-direct sync above.
+      # RUN_SLOW=1 reaches this step from the workflow-level env above, so the slow tests
+      # do run here. That matters more in this job than in any other: it is the only job
+      # that resolves the declared floors, so a slow test skipped here would leave a floor
+      # unguarded. Do not narrow that env to the other jobs.
       - run: uv run --no-sync pytest tests
 
   package:
