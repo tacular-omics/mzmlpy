@@ -8,47 +8,46 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
-- `anyio>=4.9` is now declared in the `mcp` extra. `_mcp_server.py` imports
-  `anyio.to_thread` directly, so anyio was an undeclared direct dependency that happened to
-  arrive through `mcp`. The declaration is never the binding requirement: every mcp 2.x
-  release requires `anyio>=4.9` below Python 3.14 and `anyio>=4.10` on 3.14, so a resolver
-  reaches the same version with or without it. It is declared because the code imports it,
-  not to constrain the resolution.
+- `anyio>=4.9` is now declared in the `mcp` extra and in the `dev` group. `_mcp_server.py`
+  imports `anyio.to_thread` directly, so anyio was an undeclared direct dependency that
+  happened to arrive through `mcp`. The declaration is never the binding requirement: every
+  mcp 2.x release requires `anyio>=4.9` below Python 3.14 and `anyio>=4.10` on 3.14, so a
+  resolver reaches the same version with or without it. It is declared because the code
+  imports it, not to constrain the resolution.
 
 ### Changed
 
-- Lowered three optional-dependency floors to the lowest version that installs from a wheel
-  on Python 3.12 and passes the full test suite: `mcp>=2.1.1` to `mcp>=2.0.0`,
-  `pynumpress>=0.1.5` to `pynumpress>=0.1.2`, and `rapidgzip>=0.14.2` to
-  `rapidgzip>=0.12.1`. The rapidgzip floor stops at 0.12.1 rather than going lower because
-  0.11.1 and every version below it segfault on a read from a worker thread, and 0.11.2 and
-  0.12.0 are yanked. mcp stops at 2.0.0 because 2.0.0 is the first release to provide
-  `mcp.server.MCPServer`, which `_mcp_server.py` imports, and 1.30.0 raises `ImportError`.
-  At 2.0.0 the server builds, registers all 17 tools and answers tool calls over a real
-  stdio subprocess.
-- Raised `zstd>=1.5.5.1` to `zstd>=1.5.6.1`. 1.5.6.1 is the first zstd release with a cp312
-  wheel, and mzmlpy requires Python 3.12 or newer, so every install at the old floor built
-  zstd from its sdist and needed a C toolchain. Unlike the anyio declaration above, this
-  floor is the binding one: nothing else requires zstd, so the old floor really did resolve
-  to 1.5.5.1 for lockfiles, for `--resolution lowest-direct` and for anyone carrying an old
+- Lowered three optional-dependency floors to the lowest version that installs on Python
+  3.12 and passes the full test suite: `mcp>=2.1.1` to `mcp>=2.0.0`, `pynumpress>=0.1.5` to
+  `pynumpress>=0.1.2`, and `rapidgzip>=0.14.0` to `rapidgzip>=0.12.1`. mcp stops at 2.0.0
+  because 2.0.0 is the first release to provide `mcp.server.MCPServer`, which
+  `_mcp_server.py` imports, and 1.30.0 raises `ImportError`; at 2.0.0 the server builds,
+  registers all 17 tools and answers tool calls over a real stdio subprocess. rapidgzip stops
+  at 0.12.1 because 0.11.1 and every version below it segfault on a read from a worker
+  thread, and 0.11.2 and 0.12.0 are yanked. Lowering a floor cannot change an install that
+  already resolves, so these three widen what is supported rather than tightening it.
+- Raised `zstd>=1.5.5` to `zstd>=1.5.6.1`. 1.5.6.1 is the first zstd release with a cp312
+  wheel, and mzmlpy requires Python 3.12 or newer, so a resolver taking the old floor built
+  zstd from its sdist and needed a C toolchain. This is the one floor in this release a
+  resolver can act on: nothing else requires zstd, so the old floor really did resolve low,
+  to 1.5.5.1, for lockfiles, for `--resolution lowest-direct` and for anyone carrying an old
   pin. A default install is unaffected either way, because a resolver already takes the
   current zstd release, which ships wheels for Python 3.12 through 3.14.
+- The old `zstd>=1.5.5` and `rapidgzip>=0.14.0` floors named versions no resolver can
+  install: zstd 1.5.5 was never published to PyPI, where 1.5.5.1 is the only 1.5.5.x release,
+  and rapidgzip 0.14.0 is yanked, as is 0.14.1. Every floor now names an obtainable version,
+  so the `lowest` CI job resolves each one to exactly the declared version instead of
+  stepping over it.
 - `test_stdio_entry_point` is skipped below mcp 2.1. It drives mcp's own client over a
   subprocess stdio transport, and `Client(StdioServerParameters(...))` is 2.1 client API.
   The gate is about mcp's client and not about the server mzmlpy ships, so the in-process
   protocol tests stay ungated and keep exercising the declared floor.
 - The `dev` dependency group now carries the same floors as the extras. It repeats these
-  requirements, and `uv sync --all-extras --all-groups --resolution lowest-direct` takes
-  the higher of the two, so stale dev pins would have kept the `lowest` CI job from
-  exercising the new floors at all.
-
-### Fixed
-
-- Corrected two optional-dependency floors that named versions no installer can supply:
-  `zstd>=1.5.5` -> `zstd>=1.5.5.1` (zstd 1.5.5 was never published to PyPI; 1.5.5.1 is the
-  only 1.5.5.x release) and `rapidgzip>=0.14.0` -> `rapidgzip>=0.14.2` (0.14.0 and 0.14.1
-  are yanked). Installs are unaffected, since resolvers already picked 1.5.5.1 and 0.14.2;
-  the `lowest` CI job now exercises these two floors instead of stepping over them.
+  requirements, and `uv sync --all-extras --all-groups --resolution lowest-direct` takes the
+  higher of the two, so stale dev pins would have kept the `lowest` CI job from exercising
+  the new floors at all.
+- Updated the pinned GitHub Actions and the development lockfile. No change to the library or
+  to any published requirement.
 
 ## [0.10.2] (2026-10-26)
 
