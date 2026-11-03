@@ -46,8 +46,6 @@ All notable changes to this project are documented here. The format is based on
   requirements, and `uv sync --all-extras --all-groups --resolution lowest-direct` takes the
   higher of the two, so stale dev pins would have kept the `lowest` CI job from exercising
   the new floors at all.
-- Updated the pinned GitHub Actions and the development lockfile. No change to the library or
-  to any published requirement.
 
 ## [0.10.2] (2026-10-26)
 
