@@ -6,6 +6,30 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- `anyio>=4.9` is now declared in the `mcp` extra. `_mcp_server.py` imports
+  `anyio.to_thread` directly, so anyio was an undeclared direct dependency that happened to
+  arrive through `mcp`. Nothing changes for users, because mcp installs anyio anyway, and
+  mcp raises the requirement to 4.10 itself on Python 3.14.
+
+### Changed
+
+- Lowered three optional-dependency floors to the lowest version that installs from a wheel
+  on Python 3.12 and passes the full test suite: `mcp>=2.1.1` to `mcp>=2.1.0`,
+  `pynumpress>=0.1.5` to `pynumpress>=0.1.2`, and `rapidgzip>=0.14.2` to
+  `rapidgzip>=0.12.1`. The rapidgzip floor stops at 0.12.1 rather than going lower because
+  0.11.1 and every version below it segfault on a read from a worker thread, and 0.11.2 and
+  0.12.0 are yanked.
+- Raised `zstd>=1.5.5.1` to `zstd>=1.5.6.1`. 1.5.6.1 is the first zstd release with a cp312
+  wheel, so it is the lowest floor the `lowest` CI job can install without a compiler.
+  Ordinary installs are unaffected, because a resolver already takes the current zstd
+  release, which ships wheels for Python 3.12 through 3.14.
+- The `dev` dependency group now carries the same floors as the extras. It repeats these
+  requirements, and `uv sync --all-extras --all-groups --resolution lowest-direct` takes
+  the higher of the two, so stale dev pins would have kept the `lowest` CI job from
+  exercising the new floors at all.
+
 ### Fixed
 
 - Corrected two optional-dependency floors that named versions no installer can supply:
