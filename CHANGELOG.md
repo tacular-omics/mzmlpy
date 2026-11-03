@@ -16,15 +16,22 @@ All notable changes to this project are documented here. The format is based on
 ### Changed
 
 - Lowered three optional-dependency floors to the lowest version that installs from a wheel
-  on Python 3.12 and passes the full test suite: `mcp>=2.1.1` to `mcp>=2.1.0`,
+  on Python 3.12 and passes the full test suite: `mcp>=2.1.1` to `mcp>=2.0.0`,
   `pynumpress>=0.1.5` to `pynumpress>=0.1.2`, and `rapidgzip>=0.14.2` to
   `rapidgzip>=0.12.1`. The rapidgzip floor stops at 0.12.1 rather than going lower because
   0.11.1 and every version below it segfault on a read from a worker thread, and 0.11.2 and
-  0.12.0 are yanked.
+  0.12.0 are yanked. mcp stops at 2.0.0 because 2.0.0 is the first release to provide
+  `mcp.server.MCPServer`, which `_mcp_server.py` imports, and 1.30.0 raises `ImportError`.
+  At 2.0.0 the server builds, registers all 17 tools and answers tool calls over a real
+  stdio subprocess.
 - Raised `zstd>=1.5.5.1` to `zstd>=1.5.6.1`. 1.5.6.1 is the first zstd release with a cp312
   wheel, so it is the lowest floor the `lowest` CI job can install without a compiler.
   Ordinary installs are unaffected, because a resolver already takes the current zstd
   release, which ships wheels for Python 3.12 through 3.14.
+- `test_stdio_entry_point` is skipped below mcp 2.1. It drives mcp's own client over a
+  subprocess stdio transport, and `Client(StdioServerParameters(...))` is 2.1 client API.
+  The gate is about mcp's client and not about the server mzmlpy ships, so the in-process
+  protocol tests stay ungated and keep exercising the declared floor.
 - The `dev` dependency group now carries the same floors as the extras. It repeats these
   requirements, and `uv sync --all-extras --all-groups --resolution lowest-direct` takes
   the higher of the two, so stale dev pins would have kept the `lowest` CI job from

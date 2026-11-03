@@ -918,7 +918,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "anyio", marker = "extra == 'mcp'", specifier = ">=4.9" },
-    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=2.1.0,<3" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=2.0.0,<3" },
     { name = "numpy", specifier = ">=1.26.0" },
     { name = "pynumpress", marker = "extra == 'numpress'", specifier = ">=0.1.2" },
     { name = "rapidgzip", marker = "extra == 'rapidgzip'", specifier = ">=0.12.1" },
@@ -930,7 +930,7 @@ provides-extras = ["mcp", "numpress", "rapidgzip", "zstd"]
 dev = [
     { name = "anyio", specifier = ">=4.9" },
     { name = "hypothesis", specifier = ">=6.100" },
-    { name = "mcp", specifier = ">=2.1.0,<3" },
+    { name = "mcp", specifier = ">=2.0.0,<3" },
     { name = "mkdocs", specifier = ">=1.6.0" },
     { name = "mkdocs-material", specifier = ">=9.5.0" },
     { name = "mkdocstrings", extras = ["python"], specifier = ">=0.27.0" },
