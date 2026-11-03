@@ -42,10 +42,6 @@ All notable changes to this project are documented here. The format is based on
   subprocess stdio transport, and `Client(StdioServerParameters(...))` is 2.1 client API.
   The gate is about mcp's client and not about the server mzmlpy ships, so the in-process
   protocol tests stay ungated and keep exercising the declared floor.
-- The `dev` dependency group now carries the same floors as the extras. It repeats these
-  requirements, and `uv sync --all-extras --all-groups --resolution lowest-direct` takes the
-  higher of the two, so stale dev pins would have kept the `lowest` CI job from exercising
-  the new floors at all.
 
 ## [0.10.2] (2026-10-26)
 
