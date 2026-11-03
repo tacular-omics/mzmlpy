@@ -74,7 +74,7 @@ test = [
     "pytest-examples>=0.0.14",
 ]
 dev = [
-    "mcp>=2.1.0,<3",
+    "mcp>=2.0.0,<3",
     "anyio>=4.9",
     "pytest>=9",
     "pytest-cov>=6.0.0",
@@ -94,9 +94,12 @@ dev = [
 [project.optional-dependencies]
 # Every floor below is the lowest version that installs from a wheel on Python 3.12
 # (the only Python the `lowest` CI job uses) and passes the full test suite.
-# anyio is declared because _mcp_server.py imports it directly; 4.9 is mcp 2.1.0's own
+# mcp 2.0.0 is the first release with `mcp.server.MCPServer`; 1.30.0 raises ImportError on
+# import. The server builds, registers all 17 tools and serves over stdio at 2.0.0 -- only
+# mcp's own *client* transport API is 2.1, and the one test that uses it is gated.
+# anyio is declared because _mcp_server.py imports it directly; 4.9 is mcp 2.0.0's own
 # floor, and mcp raises it to 4.10 itself on Python 3.14.
-mcp = ["mcp>=2.1.0,<3", "anyio>=4.9"]
+mcp = ["mcp>=2.0.0,<3", "anyio>=4.9"]
 numpress = ["pynumpress>=0.1.2"]
 # zstd below 1.5.6.1 has no cp312 wheel, and below 1.5.2.6 it omits the content size from
 # the frame header, so empty arrays do not round-trip.

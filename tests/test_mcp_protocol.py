@@ -1,7 +1,9 @@
 """Test tool discovery, structured results, errors, and the real stdio entry point."""
 
 import asyncio
+import re
 import sys
+from importlib.metadata import version
 from pathlib import Path
 
 import pytest
@@ -12,6 +14,23 @@ from mcp import Client, StdioServerParameters  # noqa: E402
 from mzmlpy.mcp import create_server  # noqa: E402
 
 DATA = Path(__file__).parent / "data"
+
+_MCP_VERSION = tuple(int(part) for part in re.match(r"(\d+)\.(\d+)", version("mcp")).groups())
+
+# Driving mcp's own client over a subprocess stdio transport -- Client(StdioServerParameters(...))
+# -- is mcp 2.1 API; at 2.0.0 Client rejects the parameters object with "does not support the
+# asynchronous context manager protocol". The gate is about mcp's client, not about what our
+# server needs: mzmlpy ships a server, and at the declared floor of 2.0.0 it builds, registers
+# all 17 tools and answers tool calls over a real stdio subprocess. The in-process tests below,
+# Client(create_server(...)), stay ungated, so the floor keeps being tested. Raising the floor to
+# 2.1 to satisfy this one test would lock out installs that genuinely work.
+requires_stdio_client = pytest.mark.skipif(
+    _MCP_VERSION < (2, 1),
+    reason=(
+        f"Client(StdioServerParameters(...)) needs mcp>=2.1, installed {version('mcp')}. "
+        "The server itself serves at 2.0.0."
+    ),
+)
 
 
 @pytest.mark.parametrize("mode", ["auto", "legacy"])
@@ -102,6 +121,7 @@ def test_protocol_tools(mode: str) -> None:
     asyncio.run(exercise())
 
 
+@requires_stdio_client
 @pytest.mark.slow  # launches the server in a subprocess
 def test_stdio_entry_point() -> None:
     async def exercise() -> None:
