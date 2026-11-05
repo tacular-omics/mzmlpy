@@ -204,8 +204,10 @@ Full signatures and examples: `llms-full.txt`.
   `spectrumList/@count`, against `chromatogramList/@count` (read from the bytes before the first
   indexed chromatogram, since the header parse never reaches that tag), and against the span of
   the last indexed record of each kind; `iter_indexed` proves a record missing from the middle of
-  a list when it reads the span holding it. Any disagreement rebuilds the index from the document
-  (`_reindex_from_document`) and warns. Do not add an accessor that trusts the index without
+  a list when it reads the span holding it, and the `None` it then yields is the signal that makes
+  `_iter_xml_elements_untracked` resume over the document past the records already yielded, so one
+  pass is complete and no caller ever sees a short list. Any disagreement rebuilds the index from
+  the document (`_reindex_from_document`) and warns. Do not add an accessor that trusts the index without
   these checks, and do not demote the warning: a short answer here is silent data loss.
 - **Cache currency uses source signatures** (`util.source_signature`: realpath, size, mtime_ns,
   ctime_ns) and atomic writes. Do not go back to plain mtime checks: a truncated cache with a fresh

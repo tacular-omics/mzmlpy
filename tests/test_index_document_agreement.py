@@ -179,6 +179,22 @@ def test_record_missing_from_the_middle_is_proved_by_reading_it(tmp_path: Path) 
         assert_accessors_agree(reader, "spectrum", ["scan=0", "scan=1", "scan=2"])
 
 
+def test_one_pass_is_complete_when_the_gap_is_proved_part_way_through(tmp_path: Path) -> None:
+    """A single iteration yields every record even when the rebuild happens mid-pass.
+
+    The index names the first, second and fourth of four records, so two are yielded from it
+    before the second entry's span proves the third missing. Iteration then resumes with the
+    streaming parser past the records already yielded, which is why one pass is enough: a
+    caller never has to iterate twice, and never sees a truncated list.
+    """
+    path = _written(tmp_path, "resume", build(spectra=4, declared_spectra=3, indexed_spectra=[0, 1, 3]))
+    expected = ["scan=0", "scan=1", "scan=2", "scan=3"]
+    with Mzml(path) as reader:
+        with pytest.warns(UserWarning, match="does not list every spectrum"):
+            assert [spectrum.id for spectrum in reader.spectra] == expected
+        assert_accessors_agree(reader, "spectrum", expected)
+
+
 def test_agreement_does_not_depend_on_the_access_strategy(tmp_path: Path) -> None:
     """The checks live in the shared random-access base, so a buffered reader agrees too."""
     path = _written(tmp_path, "in_memory", build(spectra=2, declared_spectra=1, indexed_spectra=[0]))
