@@ -1,6 +1,6 @@
 import copy
 import xml.etree.ElementTree as ElementTree
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import NamedTuple
 
@@ -77,8 +77,8 @@ class _MzMLContentBuilder:
         # Extra metadata (not in MzMLContent)
         self.obo_version: str | None = None
 
-        # Handler dispatch table
-        self._handlers = {
+        # Handler dispatch table, keyed by the raw tag name the parser reads off each element
+        self._handlers: dict[str, Callable[[ElementTree.Element], None]] = {
             MzMLElement.CV: self._handle_cv,
             MzMLElement.FILE_DESCRIPTION: self._handle_file_description,
             MzMLElement.REFERENCEABLE_PARAM_GROUP_LIST: self._handle_referenceable_param_group_list,
@@ -106,8 +106,8 @@ class _MzMLContentBuilder:
                     return  # Stop parsing after run starts
 
             # Handle end events with dispatch table
-            if event == "end" and tag in self._handlers:
-                self._handlers[tag](element)
+            if event == "end" and (handler := self._handlers.get(tag)) is not None:
+                handler(element)
                 element.clear()  # Free memory
 
     # ========== Handler Methods ==========
