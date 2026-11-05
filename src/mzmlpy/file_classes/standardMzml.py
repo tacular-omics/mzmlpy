@@ -31,7 +31,32 @@ logger = logging.getLogger(__name__)
 _ASCII_COMPATIBLE = frozenset({"utf-8", "ascii", "iso8859-1", "cp1252"})
 # Bytes read per spectrum when only its metadata (everything before the binary arrays) is needed.
 _HEAD_READ = 16384
+# Bytes read from a record's span when proving whether the index missed the record after it.
+_SPAN_PROOF_READ = 65536
+# Bytes read before a list's first record when looking for the list's own start tag.
+_LIST_TAG_READ = 8192
 _ARRAY_LIST_TAG = re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?binaryDataArrayList[\s>/]")
+_RECORD_START_TAG = {
+    "spectrum": re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?spectrum[\s>/]"),
+    "chromatogram": re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?chromatogram[\s>/]"),
+}
+_CHROMATOGRAM_LIST_COUNT = re.compile(
+    rb"<(?:[A-Za-z_][\w.-]*:)?chromatogramList\s[^>]*?\bcount=[\"'](?P<count>\d+)[\"']"
+)
+_CHROMATOGRAM_LIST_END = re.compile(rb"</(?:[A-Za-z_][\w.-]*:)?chromatogramList\s*>")
+
+
+def _count_record_starts(data: bytes, kind: str) -> int | None:
+    """How many ``kind`` records start in ``data``, or None if its markup makes that unreliable.
+
+    A record's span runs to the next *indexed* record, so a start tag in one that is not the
+    indexed record's own is a record no index entry names: proof that the index is short, not
+    that the file is. Markup inside a comment or a CDATA section can look like a start tag, so
+    such bytes count as no proof at all rather than as a record.
+    """
+    if b"<!--" in data or b"<![CDATA[" in data:
+        return None
+    return sum(1 for _ in _RECORD_START_TAG[kind].finditer(data))
 
 
 def _spectrum_head(data: bytes, identifier: str) -> bytes | None:
@@ -241,16 +266,40 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
         offsets = self.spectrum_offsets if kind == "spectrum" else self.chromatogram_offsets
         handle = self.get_binary_file_handler()
         try:
-            for identifier, offset in offsets.items():
+            # A snapshot, because proving the index short rebuilds the dictionary being read.
+            for identifier, offset in list(offsets.items()):
                 start, end = self.record_span(offset)
                 handle.seek(start)
                 data = handle.read(end - start) if end is not None else handle.read()
                 element = self.parse_span(data, kind, identifier)
+                if element is None and (_count_record_starts(data, kind) or 0) > 1:
+                    self._reindex_from_document(kind)
                 yield element
                 if element is None:
                     return
         finally:
             handle.close()
+
+    def _reindex_from_document(self, kind: str) -> None:
+        """Replace the offset index with one read from the document itself.
+
+        The document is the authority and the index is a cache of it, so a span holding a record
+        the index never names is a broken cache, not a shorter file. Rebuilding here keeps ids,
+        counts and lookups from staying behind the records iteration is about to yield.
+        """
+        warnings.warn(
+            f"The index does not list every {kind} in the file. Rebuilding it from the document; "
+            "counts, ids and lookups were short until now.",
+            stacklevel=2,
+        )
+        for name in ("spectrum_count", "chromatogram_count"):
+            self.__dict__.pop(name, None)
+        self._incomplete_kinds.clear()
+        seeker = self.get_binary_file_handler()
+        try:
+            self._build_index_from_scratch(seeker)
+        finally:
+            seeker.close()
 
     def iter_spectrum_heads(self) -> Iterator[bytes | None]:
         """Yield, for every indexed spectrum in index order, its bytes before the binary arrays.
@@ -377,7 +426,10 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
             try:
                 self._parse_index_section(seeker, index_offset)
                 self._finalize_index()
+                self._check_trailing_records(seeker)
             except Exception as e:
+                if isinstance(e, MzmlOffsetIndexError):
+                    warnings.warn(f"{e}. Rebuilding the index from the document.", stacklevel=2)
                 logger.warning(f"Error reading index: {e}. Building from scratch.")
                 self._data_end = None
                 seeker.seek(0)
@@ -385,6 +437,31 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
 
         finally:
             seeker.close()
+
+    def _check_trailing_records(self, seeker: BinaryIO) -> None:
+        """Reject an index whose last entry of a kind shares its span with an unnamed record.
+
+        The declared counts cannot prove an index complete: a writer that stopped early usually
+        gets the count and the index wrong together, which is how a short index passes the count
+        cross-checks above. The span of the last indexed record of a kind runs to the next kind's
+        first record or to the end of the data section, so reading that one span proves whether
+        records follow that no index entry names.
+
+        Only the last span of each kind is read, and of a span longer than ``_SPAN_PROOF_READ``
+        only its end, where a dropped record leaves its start tag and the indexed record's own
+        start tag is too far behind to be counted. A record missing from the middle of a list,
+        or one dropped record longer than that window, is left to :meth:`iter_indexed`, which
+        proves it from the span it reads anyway.
+        """
+        for kind, offsets in (("spectrum", self.spectrum_offsets), ("chromatogram", self.chromatogram_offsets)):
+            if not offsets:
+                continue
+            start, end = self.record_span(max(offsets.values()))
+            tail = end is not None and end - start > _SPAN_PROOF_READ
+            seeker.seek(end - _SPAN_PROOF_READ if tail and end is not None else start)
+            starts = _count_record_starts(seeker.read(_SPAN_PROOF_READ), kind)
+            if starts is not None and starts > (0 if tail else 1):
+                raise MzmlOffsetIndexError(f"Index does not list every {kind} in the file")
 
     def _find_index_offset(self, seeker: BinaryIO) -> int | None:
         """Find indexListOffset in file footer, return None if not found."""
@@ -424,6 +501,28 @@ class AbstractRandomAccessMzml(MzmlInterface, ABC):
                 self._add_offset_entry(kind, entry.attrib["idRef"], offset)
         if expected_spectra is not None and len(self.spectrum_offsets) != expected_spectra:
             raise MzmlOffsetIndexError("Spectrum index count does not match spectrumList")
+        self._check_chromatogram_count(seeker)
+
+    def _check_chromatogram_count(self, seeker: BinaryIO) -> None:
+        """Cross-check the chromatogram index against ``chromatogramList/@count``.
+
+        Per the mzML schema the chromatogram list follows every spectrum, so the header parse
+        never reaches its start tag and cannot hand the count over the way it does for spectra.
+        The tag sits immediately before the first chromatogram, so one bounded read finds it;
+        with no chromatogram in the index the end of the data section is read instead, which
+        holds the whole list when it is short and its end tag when it is not.
+        """
+        end = min(self.chromatogram_offsets.values()) if self.chromatogram_offsets else self._data_end
+        if end is None:
+            return
+        start = max(0, end - _LIST_TAG_READ)
+        seeker.seek(start)
+        window = seeker.read(end - start)
+        if match := _CHROMATOGRAM_LIST_COUNT.search(window):
+            if int(match.group("count")) != len(self.chromatogram_offsets):
+                raise MzmlOffsetIndexError("Chromatogram index count does not match chromatogramList")
+        elif not self.chromatogram_offsets and _CHROMATOGRAM_LIST_END.search(window):
+            raise MzmlOffsetIndexError("Index lists no chromatogram for a file that has a chromatogramList")
 
     def _add_offset_entry(self, index_type: str, native_id: str, offset: int) -> None:
         """Add an offset entry to the appropriate dictionary with duplicate checking."""

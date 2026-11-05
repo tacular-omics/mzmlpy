@@ -43,6 +43,29 @@ All notable changes to this project are documented here. The format is based on
   The gate is about mcp's client and not about the server mzmlpy ships, so the in-process
   protocol tests stay ungated and keep exercising the declared floor.
 
+### Fixed
+
+- Silent data loss on a file whose offset index names fewer records than the document holds.
+  The index was the only source of truth for `ids`, `len`, `in`, slicing and `__getitem__`
+  while iteration streamed the document, so the two halves of the reader answered the same
+  file differently: iteration yielded a spectrum that `spectra["scan=1"]`,
+  `spectra[1]` and `"scan=1" in spectra` all denied, and a chromatogram the index left out
+  was dropped from every accessor with nothing reporting it. The document is now the
+  authority and the index is a cache of it: a disagreement rebuilds the index from the
+  document and warns, instead of quietly returning a short answer.
+- Chromatograms are cross-checked against `chromatogramList/@count`, which nothing checked
+  before, so an index that named some or none of a file's chromatograms passed unexamined.
+  The schema puts the chromatogram list after every spectrum, out of reach of the header
+  parse that supplies `spectrumList/@count`, so the count is read from the bytes before the
+  first indexed chromatogram, or from the end of the data section when the index names none.
+- An index that is short in a way the declared counts agree with no longer passes the count
+  cross-checks. Both the count and the index record a writer that stopped early, so they
+  usually agree with each other and not with the file. The span of the last indexed record of
+  each kind is now read at open (of a long span, the end of it, which is where a dropped
+  record leaves its start tag), and that proves whether records follow it that no index entry
+  names. A record missing from the middle of a list is proved instead by the span that holds
+  it, on first read. Either proof rebuilds the index from the document and warns.
+
 ## [0.10.2] (2026-10-26)
 
 ### Changed
