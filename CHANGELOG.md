@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.10.3] (2026-11-06)
+
 ### Added
 
 - `anyio>=4.9` is now declared in the `mcp` extra and in the `dev` group. `_mcp_server.py`
@@ -545,7 +547,9 @@ affect existing code (see **Changed**).
 
 - First release on PyPI.
 
-[Unreleased]: https://github.com/tacular-omics/mzmlpy/compare/v0.10.1...HEAD
+[Unreleased]: https://github.com/tacular-omics/mzmlpy/compare/v0.10.3...HEAD
+[0.10.3]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.10.3
+[0.10.2]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.10.2
 [0.10.1]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.10.1
 [0.10.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.10.0
 [0.9.3]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.9.3
