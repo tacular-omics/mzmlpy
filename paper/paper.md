@@ -58,7 +58,7 @@ Several open-source tools read mzML from Python. **Pyteomics** [@goloborodko2013
 @levitsky2019pyteomics] is a broad proteomics framework whose `mzml` module offers iterative
 and indexed reading, with MS-Numpress support through the optional `pynumpress` package and
 CV handling through **psims** [@klein2019psims]. psims itself is mainly a writer for mzML and
-mzIdentML. **pymzML** [@bald2012pymzml; @kosters2018pymzml] is a dedicated mzML reader; its
+mzIdentML. **pymzML** [@bald2012pymzml; @kosters2018pymzml] is a dedicated mzML reader. Its
 version 2.0 introduced a seekable gzip layout that stores a spectrum offset index inside the
 gzip stream. **pyOpenMS** [@rost2014pyopenms] exposes the C++ OpenMS library
 [@pfeuffer2024openms], including in-memory and on-disc mzML access and a large set of
@@ -73,7 +73,7 @@ and gzip random access in one small package.
 
 Table 1 shows the format-support group of the repository's benchmark (`benchmarks/benchmark.py`),
 which we re-ran for this paper with pyteomics 5.0.1 and pymzML 2.7.0. The corpus in
-`tests/data` holds one set of 1,618 peaks encoded five ways; the table gives the summed
+`tests/data` holds one set of 1,618 peaks encoded five ways, and the table gives the summed
 intensity each reader returned. The Numpress files use the combined "followed by zlib" CV
 terms.
 
@@ -89,11 +89,11 @@ terms.
 
 On a larger file, the 47.9 MB, 3,392-spectrum Q Exactive HF run `QEHF1_09771_JB` from
 PRIDE project PXD015669 [@ivanov2020directms1], we ran the harness's throughput group twice
-(minimum of five repeats each; the harness opens mzmlpy with `in_memory=True`). The
+(minimum of five repeats each, and the harness opens mzmlpy with `in_memory=True`). The
 workstation was shared and under load, so absolute times are indicative only. Opening a file and building a random-access index took 0.047--0.056 s
 with mzmlpy and 0.94--1.08 s with pyteomics. Decoding every spectrum took 2.2--2.7 s with
 mzmlpy, 3.4--4.8 s with pyteomics and 2.8--3.3 s with pymzML. Opening the file and
-reading eight spectra at scattered positions took 0.053--0.058 s with mzmlpy and 1.1--2.1 s with pyteomics; pymzML's indexed lookup raised an
+reading eight spectra at scattered positions took 0.053--0.058 s with mzmlpy and 1.1--2.1 s with pyteomics. The indexed lookup in pymzML raised an
 `AttributeError` on this file, although it works on the small example file. Full decoding is
 thus of the same order in all three readers. The larger differences are in index
 construction, random access and encoding coverage.
@@ -103,7 +103,7 @@ construction, random access and encoding coverage.
 `Mzml` is a context manager. On opening, it sniffs the encoding, selects a file backend and
 parses the header metadata eagerly. Spectrum and chromatogram lookups accept an integer
 position, a native identifier or a slice, and return records wrapped in frozen dataclasses.
-CV-backed properties are parsed on first access; binary arrays are decoded on every access and
+CV-backed properties are parsed on first access. Binary arrays are decoded on every access and
 are never cached, so memory stays bounded by what the caller keeps. Absent CV terms return
 `None` or an empty tuple, units are normalised (retention time in seconds, injection time in
 milliseconds), and ion mobility is exposed whether a file stores it as a scan parameter or as
@@ -115,7 +115,7 @@ memory, pymzML-style self-indexed gzip, gzip read through rapidgzip's seekable i
 mzmlpy uses an embedded index if the file has one, then rapidgzip if it is installed, and
 otherwise decompresses into memory. It never writes files next to the input in this mode.
 `write_indexed_gzip` converts any mzML into a self-indexed `.mzML.gz` that decompresses to
-the original bytes exactly, is byte-for-byte deterministic, and can be read by pymzML; we
+the original bytes exactly, is byte-for-byte deterministic, and can be read by pymzML. We
 checked this by opening a converted `tests/data/example.mzML` with pymzML 2.7.0 and comparing
 three spectra with mzmlpy's output.
 
@@ -172,7 +172,7 @@ scan=20 359.43 445.34 2
 10 float64
 ```
 
-The file records this scan's start time as 5.9905 minutes; `rt` reports it in seconds.
+The file records this scan's start time as 5.9905 minutes, and `rt` reports it in seconds.
 
 # Research impact
 
