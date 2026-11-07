@@ -198,6 +198,17 @@ Full signatures and examples: `llms-full.txt`.
   `tmp_path`; the sidecars and their `.src` files are gitignored.
 - **`gzip_mode="stream"` random access rescans the file** from the start each time and warns. Use
   `indexed`, `in_memory=True` or a self-indexed gzip (`write_indexed_gzip`) for random access.
+- **The offset index is a cache of the document, never a second source of truth.** `ids`,
+  `len`, `in`, slicing and `__getitem__` read it, iteration can stream the document, so the two
+  must never be allowed to disagree. The footer index is cross-checked at open against
+  `spectrumList/@count`, against `chromatogramList/@count` (read from the bytes before the first
+  indexed chromatogram, since the header parse never reaches that tag), and against the span of
+  the last indexed record of each kind; `iter_indexed` proves a record missing from the middle of
+  a list when it reads the span holding it, and the `None` it then yields is the signal that makes
+  `_iter_xml_elements_untracked` resume over the document past the records already yielded, so one
+  pass is complete and no caller ever sees a short list. Any disagreement rebuilds the index from
+  the document (`_reindex_from_document`) and warns. Do not add an accessor that trusts the index without
+  these checks, and do not demote the warning: a short answer here is silent data loss.
 - **Cache currency uses source signatures** (`util.source_signature`: realpath, size, mtime_ns,
   ctime_ns) and atomic writes. Do not go back to plain mtime checks: a truncated cache with a fresh
   mtime was trusted forever before this.
