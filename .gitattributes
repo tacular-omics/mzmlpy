@@ -1,2 +1,9 @@
 # Preserve fixture bytes, including XML byte offsets and compressed counterparts.
 tests/data/** -text
+
+# Every mzML offset (indexList and indexListOffset) is a byte offset into that exact
+# file, so an EOL rewrite on checkout shifts all of them: mzML is bytes, not text.
+# Keyed on the extension as well as the directory, to cover fixtures outside tests/data
+# (tests/reference/psims_written.mzML) and any added later.
+*.mzML -text
+*.mzml -text
