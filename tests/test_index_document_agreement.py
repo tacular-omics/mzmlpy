@@ -164,6 +164,23 @@ def test_short_index_is_rebuilt_before_any_accessor_answers(
         assert_accessors_agree(reader, kind, identifiers)
 
 
+def test_middle_gap_with_an_honest_count_is_caught_at_open(tmp_path: Path) -> None:
+    """An honest count makes a middle gap arithmetic, so no record has to be read to prove it.
+
+    This is the one shape the ``spectrumList/@count`` check alone rejects. The index names the
+    first and last of three records, so the tail is sound and the trailing check has nothing to
+    find, and the count is honest, so the gap shows only as three declared against two entries.
+    The rebuild therefore happens at open and no accessor ever answers short.
+    """
+    path = _written(tmp_path, "middle_honest", build(spectra=3, indexed_spectra=[0, 2]))
+    expected = ["scan=0", "scan=1", "scan=2"]
+    with pytest.warns(UserWarning, match="Spectrum index count does not match spectrumList"):
+        reader = Mzml(path)
+    with reader:
+        assert reader.spectra.ids == expected
+        assert_accessors_agree(reader, "spectrum", expected)
+
+
 def test_record_missing_from_the_middle_is_proved_by_reading_it(tmp_path: Path) -> None:
     """A gap the counts hide is proved by the span that holds it, and the index is rebuilt then.
 
