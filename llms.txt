@@ -1,0 +1,45 @@
+# mzmlpy
+
+> Lightweight, type-safe, lazy-loading Python library (3.12+) for reading mzML mass spectrometry
+> files, including gzip-compressed .mzML.gz, with structural validation, metadata filtering and an
+> optional local MCP server. Only numpy is required at runtime.
+
+Open a file with `from mzmlpy import Mzml; with Mzml("run.mzML") as reader: ...`. `reader.spectra`
+and `reader.chromatograms` support indexing, native-id lookup, slicing, iteration and (for spectra)
+lazy metadata filtering; `Spectrum.mz` / `.intensity` return numpy arrays decoded on every access.
+Header metadata (instruments, software, samples, CV lists) is parsed when the file opens.
+`.mzML.gz` is read directly through a pyMZML-compatible self-indexed gzip written by
+`write_indexed_gzip`, rapidgzip-indexed access, streaming, or decompression into memory. `python -m mzmlpy` offers
+`inspect`, `validate`, `index-gzip` and `mcp` commands with JSON output.
+
+Absent CV terms return `None`; readers are not thread-safe; retention time (`Spectrum.rt`) and
+filter bounds are in seconds; the Da/ppm switch is `mz_tolerance_unit` (type `ToleranceUnit`); errors subclass `MzmlError` (a `ValueError`). mzmlpy only reads data: spectrum processing lives in the sibling package spxtacular.
+
+## Docs
+
+- [llms-full.txt](https://raw.githubusercontent.com/tacular-omics/mzmlpy/main/llms-full.txt): self-contained usage guide with every public class, signature, examples and gotchas
+- [Getting started](https://tacular-omics.github.io/mzmlpy/getting-started/): installation, reading spectra and chromatograms, gzip modes, validation
+- [MCP server](https://tacular-omics.github.io/mzmlpy/mcp/): tools, limits, paging and exports of the optional MCP server
+- [README](https://github.com/tacular-omics/mzmlpy/blob/main/README.md): overview and quick example
+- [Migrating to 0.10](https://tacular-omics.github.io/mzmlpy/migration/): old -> new names for the 0.10 API cleanup
+- [CHANGELOG](https://github.com/tacular-omics/mzmlpy/blob/main/CHANGELOG.md): release history, including the 0.9.0 native-dtype change
+
+## API
+
+- [Mzml reader](https://tacular-omics.github.io/mzmlpy/api/mzml/): `Mzml`, `peek_spectrum_count`
+- [Spectrum](https://tacular-omics.github.io/mzmlpy/api/spectrum/): `Spectrum`, `BinaryDataArray`, `Scan`, `ScanWindow`
+- [Chromatogram](https://tacular-omics.github.io/mzmlpy/api/chromatogram/): `Chromatogram`
+- [Lookup](https://tacular-omics.github.io/mzmlpy/api/lookup/): `SpectrumLookup`, `ChromatogramLookup`
+- [Validation and filtering](https://tacular-omics.github.io/mzmlpy/api/validation/): `validate`, `ValidationReport`, `ValidationIssue`, `SpectrumFilter`
+- [Precursor and ions](https://tacular-omics.github.io/mzmlpy/api/precursor/): `Precursor`, `SelectedIon`, `IsolationWindow`, `Activation`, `Product`
+- [CV parameters](https://tacular-omics.github.io/mzmlpy/api/params/): `CvParam`, `UserParam`
+- [Constants](https://tacular-omics.github.io/mzmlpy/api/constants/): CV accession enums
+- [Errors](https://tacular-omics.github.io/mzmlpy/api/errors/): `MzmlError` and its subclasses
+
+## Optional
+
+- [CLAUDE.md](https://github.com/tacular-omics/mzmlpy/blob/main/CLAUDE.md): guide for AI agents developing mzmlpy itself (commands, architecture, gotchas)
+- [Benchmarks](https://tacular-omics.github.io/mzmlpy/benchmarks/): format support and throughput versus pyteomics and pymzml
+- [GitHub repository](https://github.com/tacular-omics/mzmlpy)
+- [PyPI package](https://pypi.org/project/mzmlpy/)
+- [mzML specification](https://www.psidev.info/mzML): the HUPO-PSI standard mzmlpy reads
