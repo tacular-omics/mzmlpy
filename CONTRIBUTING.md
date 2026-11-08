@@ -18,21 +18,24 @@ just install
 
 `just --list` shows the other recipes.
 
-`just install` is `uv sync --locked`, which also installs the `dev` dependency group, and
-for mzmlpy that group names all four optional extras (`mcp`, `numpress`, `zstd`,
-`rapidgzip`). It is therefore enough for the whole test suite on its own: 789 tests
-collected, the same total as `uv sync --locked --all-extras`.
+`just install` is `uv sync --locked`, which also installs the `dev` dependency group.
+mzmlpy has four optional extras, `mcp`, `numpress`, `zstd` and `rapidgzip`, and the `dev`
+group names every one of them, so that one command is enough for the whole test suite.
+`uv pip list` is the check worth running: with `mcp`, `pynumpress`, `zstd` and
+`rapidgzip` all present, no test is skipped for want of an extra.
+
+Read the passed and skipped counts, not the collected total. A missing extra usually
+skips a test that was already collected, so the collected total is the same either way
+and only the pass count moves; other tests are never parametrized into existence, in
+`test_indexed_gzip.py`, `test_mcp_protocol.py`, `test_mcp_vocabulary.py` and
+`test_decoder_edge.py`, so those leave the total without ever appearing as a skip.
 
 Keep the dev group. `uv sync --locked --no-dev --group test` gets pytest but none of the
-extras, and the suite then reports 767 collected, 675 passed, 95 skipped and 1 failed,
-against 789 collected, 781 passed and 8 skipped for the command above. The 22 missing
-tests are never generated, in `test_indexed_gzip.py`, `test_mcp_protocol.py`,
-`test_mcp_vocabulary.py` and `test_decoder_edge.py`, so no skip count reveals them; the
-one failure is the `gzip_mode="indexed"` example in `docs/getting-started.md`, which
-needs `rapidgzip`. That partial install is the one to watch for, because it still looks
-like a passing suite from the skip counts alone. `--only-group test` is not the same
-thing and is not quiet: it leaves out the project and `numpy` too, so collection stops
-with 42 errors.
+extras, and for mzmlpy that is only partly quiet: the skip count rises sharply, the tests
+above drop out of collection, and the `gzip_mode="indexed"` example in
+`docs/getting-started.md` fails outright for want of `rapidgzip`. `--only-group test` is
+not the same thing and is louder still: it leaves out the project and `numpy` as well, so
+collection stops with errors.
 
 Install the commit hooks once per clone with `uvx pre-commit install`. On every
 commit they run `ruff check`, `ruff format --check` and a few file checks
