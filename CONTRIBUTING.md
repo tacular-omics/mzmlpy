@@ -24,11 +24,14 @@ group names every one of them, so that one command is enough for the whole test 
 `uv pip list` is the check worth running: with `mcp`, `pynumpress`, `zstd` and
 `rapidgzip` all present, no test is skipped for want of an extra.
 
-Read the passed and skipped counts, not the collected total. A missing extra usually
-skips a test that was already collected, so the collected total is the same either way
-and only the pass count moves; other tests are never parametrized into existence, in
+Read the collected total and the passed and skipped counts together. mzmlpy gates its
+optional tests at two scopes, and each one hides from a different number.
 `test_indexed_gzip.py`, `test_mcp_protocol.py`, `test_mcp_vocabulary.py` and
-`test_decoder_edge.py`, so those leave the total without ever appearing as a skip.
+`test_decoder_edge.py` call `pytest.importorskip` at import, so without that extra their
+tests are never collected at all: the total drops, while the skip count rises by only one
+line per module and so understates them. Everywhere else the call sits inside the test,
+so the test is collected and then skipped: the total is identical either way and only the
+pass count moves. Neither number alone shows a missing extra.
 
 Keep the dev group. `uv sync --locked --no-dev --group test` gets pytest but none of the
 extras, and for mzmlpy that is only partly quiet: the skip count rises sharply, the tests
