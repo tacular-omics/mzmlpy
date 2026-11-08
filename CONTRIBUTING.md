@@ -18,6 +18,22 @@ just install
 
 `just --list` shows the other recipes.
 
+`just install` is `uv sync --locked`, which also installs the `dev` dependency group, and
+for mzmlpy that group names all four optional extras (`mcp`, `numpress`, `zstd`,
+`rapidgzip`). It is therefore enough for the whole test suite on its own: 789 tests
+collected, the same total as `uv sync --locked --all-extras`.
+
+Keep the dev group. `uv sync --locked --no-dev --group test` gets pytest but none of the
+extras, and the suite then reports 767 collected, 675 passed, 95 skipped and 1 failed,
+against 789 collected, 781 passed and 8 skipped for the command above. The 22 missing
+tests are never generated, in `test_indexed_gzip.py`, `test_mcp_protocol.py`,
+`test_mcp_vocabulary.py` and `test_decoder_edge.py`, so no skip count reveals them; the
+one failure is the `gzip_mode="indexed"` example in `docs/getting-started.md`, which
+needs `rapidgzip`. That partial install is the one to watch for, because it still looks
+like a passing suite from the skip counts alone. `--only-group test` is not the same
+thing and is not quiet: it leaves out the project and `numpy` too, so collection stops
+with 42 errors.
+
 Install the commit hooks once per clone with `uvx pre-commit install`. On every
 commit they run `ruff check`, `ruff format --check` and a few file checks
 (`uvx pre-commit run --all-files` runs them on everything). Type checks and
