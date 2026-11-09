@@ -101,6 +101,22 @@ def test_optional_gate_matches_the_environment() -> None:
     one the key names, or this is a broken module being read as an absent extra. The extra
     is absent and the module imports fine, so the key names something the module does not
     need and a lean install is skipping examples it could have run.
+
+    The third one is asserted per module, and that is sound only because of how
+    :data:`OPTIONAL_IMPORTS` is keyed: one entry per module, listing that module's own
+    unguarded module-scope roots. Under that invariant an absent root means the import
+    cannot succeed, so a module whose verdict is "absent" has to fail.
+
+    Keep that invariant. A key shared across several modules whose roots differ -- one
+    entry for a whole subtree -- breaks it, and this assertion then goes red on correct
+    code: with a half-installed extra, the subtree members that do not need the missing
+    root still import, which is a supported environment with nothing wrong in it. tdfpy
+    measured exactly that, `pydantic` present and `mcp` absent, and its gate needs the
+    weaker pair instead: every failure names a root the key lists, and at least one failure
+    exists. That pair costs real strictness here, so it is not what this file uses --
+    measured 2026-11-08 on a two-entry key where one module legitimately fails and the
+    other is over-listed, the per-module assertion catches the over-listing and the weaker
+    pair passes, because the legitimate failure satisfies it.
     """
     assert OPTIONAL_IMPORTS, "OPTIONAL_IMPORTS is empty, so this test asserts nothing"
     for name, roots in OPTIONAL_IMPORTS.items():
