@@ -16,18 +16,30 @@ MIN_MODULES = 41
 MIN_EXAMPLES = 0
 
 # Modules that cannot be imported at all without an optional extra, named one by one so
-# the exclusion is visible and reviewable. The value is the extra's own top-level module,
-# and the skip is gated on THAT being absent rather than on which name the error happens
-# to carry, because a missing extra takes its transitive dependencies with it: without the
-# `mcp` extra, `_mcp_server` fails on `anyio` before it ever reaches `mcp.server`, and
-# pinning the names would mean editing this list every time an extra changes its own
-# dependencies. So wherever the extra IS installed -- the dev group names all four, as do
-# the `test`, `coverage` and `mcp-install` CI jobs -- every ModuleNotFoundError from these
-# modules fails the test, an undeclared dependency included, and their examples run
-# normally. Only a lean install (CI's `base-install`, or
-# `uv sync --locked --no-default-groups --group test`) skips them.
+# the exclusion is visible and reviewable. The value is EVERY third-party root the module
+# imports at module scope, and the skip is taken only when at least one of them is missing.
+# Two things that look like shortcuts are not:
+#
+# - Do not match on the error's name. Which dependency an import trips on first is not
+#   something this list can know. The first version of this file keyed on `mcp` and CI's
+#   six base-install jobs failed on `anyio`, which `_mcp_server` imports two lines earlier.
+# - Do not use the names the extra DECLARES. The rule is what the modules import, which is
+#   not the same set: an extra can declare a package no module imports (then its absence
+#   would skip a subtree that would have imported fine, silently), and a module can import
+#   a root the extra gets only transitively, as `anyio` is here.
+#
+# `mcp` alone would in fact be sound today, since it is the extra's own distribution name
+# and `anyio>=4.9` is a hard requirement of it, so "mcp present, anyio absent" is
+# unreachable. Both names are listed anyway: that argument rests on an upstream package's
+# requirements, which can change without anyone here touching a line.
+#
+# Wherever the extra IS installed -- the `dev` group, and CI's `test`, `coverage` and
+# `mcp-install` jobs -- every ModuleNotFoundError from these modules fails the test, an
+# undeclared dependency included, and their examples run normally. Only a lean install
+# (CI's `base-install`, or `uv sync --locked --no-default-groups --group test`) skips them.
 OPTIONAL_IMPORTS = {
-    "mzmlpy._mcp_server": "mcp",  # imports anyio.to_thread and mcp.server at module scope
+    # `import anyio.to_thread` and `from mcp.server import MCPServer`, _mcp_server.py:11-15
+    "mzmlpy._mcp_server": ("anyio", "mcp"),
 }
 
 
@@ -46,12 +58,17 @@ def _discover() -> list[str]:
     return names
 
 
-def _extra_is_absent(root: str) -> bool:
-    """Is the optional extra genuinely not installed in this environment?"""
+def _installed(root: str) -> bool:
+    """Is this top-level module importable in this environment?"""
     try:
-        return importlib.util.find_spec(root) is None
+        return importlib.util.find_spec(root) is not None
     except ModuleNotFoundError:
-        return True
+        return False
+
+
+def _extra_is_absent(roots: tuple[str, ...]) -> bool:
+    """True when any root the module needs is missing, so the module cannot import."""
+    return not all(_installed(root) for root in roots)
 
 
 def _import(name: str) -> ModuleType | None:
@@ -59,8 +76,8 @@ def _import(name: str) -> ModuleType | None:
     try:
         return importlib.import_module(name)
     except ModuleNotFoundError:
-        extra = OPTIONAL_IMPORTS.get(name)
-        if extra is None or not _extra_is_absent(extra):
+        roots = OPTIONAL_IMPORTS.get(name)
+        if roots is None or not _extra_is_absent(roots):
             raise
         return None
 
