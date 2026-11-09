@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import doctest
 import importlib
+import importlib.util
 import pkgutil
 from types import ModuleType
 
@@ -15,13 +16,18 @@ MIN_MODULES = 41
 MIN_EXAMPLES = 0
 
 # Modules that cannot be imported at all without an optional extra, named one by one so
-# the exclusion is visible and reviewable. The value is the single top-level module whose
-# absence is tolerated: any other missing module, and any other error from the same file,
-# still fails this test. `just install` (uv sync --locked) installs the `dev` group, which
-# names all four extras, so in CI these modules ARE imported and their examples DO run;
-# only a lean install such as `uv sync --locked --no-dev --group test` skips them.
+# the exclusion is visible and reviewable. The value is the extra's own top-level module,
+# and the skip is gated on THAT being absent rather than on which name the error happens
+# to carry, because a missing extra takes its transitive dependencies with it: without the
+# `mcp` extra, `_mcp_server` fails on `anyio` before it ever reaches `mcp.server`, and
+# pinning the names would mean editing this list every time an extra changes its own
+# dependencies. So wherever the extra IS installed -- the dev group names all four, as do
+# the `test`, `coverage` and `mcp-install` CI jobs -- every ModuleNotFoundError from these
+# modules fails the test, an undeclared dependency included, and their examples run
+# normally. Only a lean install (CI's `base-install`, or
+# `uv sync --locked --no-default-groups --group test`) skips them.
 OPTIONAL_IMPORTS = {
-    "mzmlpy._mcp_server": "mcp",  # `from mcp.server import MCPServer` at module scope
+    "mzmlpy._mcp_server": "mcp",  # imports anyio.to_thread and mcp.server at module scope
 }
 
 
@@ -40,13 +46,21 @@ def _discover() -> list[str]:
     return names
 
 
+def _extra_is_absent(root: str) -> bool:
+    """Is the optional extra genuinely not installed in this environment?"""
+    try:
+        return importlib.util.find_spec(root) is None
+    except ModuleNotFoundError:
+        return True
+
+
 def _import(name: str) -> ModuleType | None:
     """Import one module, tolerating only a named optional extra's absence."""
     try:
         return importlib.import_module(name)
-    except ModuleNotFoundError as error:
-        tolerated = OPTIONAL_IMPORTS.get(name)
-        if tolerated is None or error.name != tolerated:
+    except ModuleNotFoundError:
+        extra = OPTIONAL_IMPORTS.get(name)
+        if extra is None or not _extra_is_absent(extra):
             raise
         return None
 
