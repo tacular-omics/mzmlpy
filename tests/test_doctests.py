@@ -8,6 +8,8 @@ import importlib.util
 import pkgutil
 from types import ModuleType
 
+import pytest
+
 import mzmlpy
 
 # Measured 2026-11-08. Raise these when you add modules or examples; never lower them
@@ -80,6 +82,62 @@ def _import(name: str) -> ModuleType | None:
         if roots is None or not _extra_is_absent(roots):
             raise
         return None
+
+
+def test_optional_gate_matches_the_environment() -> None:
+    """The gate's verdict has to match what importing the gated module actually does.
+
+    Without this the gate certifies itself. A key naming a root no install provides reads
+    as "extra absent" in every environment, the module is dropped everywhere, and nothing
+    in this file notices: :data:`MIN_MODULES` counts the names the walk yields, and the
+    walk yields a module whether or not it imports, so the count does not move; and the
+    package attempts 0 examples today with :data:`MIN_EXAMPLES` at 0, so the examples that
+    stop running are not visible in that number either. Both floors are met by a gate that
+    has gone wrong, in both directions, which is why the verdict is checked here against
+    the import -- the one thing the key cannot influence.
+
+    Three outcomes, each asserted rather than assumed. The extra is present, so the module
+    must import. The extra is absent and the module fails, so the root it failed on must be
+    one the key names, or this is a broken module being read as an absent extra. The extra
+    is absent and the module imports fine, so the key names something the module does not
+    need and a lean install is skipping examples it could have run.
+
+    The third one is asserted per module, and that is sound only because of how
+    :data:`OPTIONAL_IMPORTS` is keyed: one entry per module, listing that module's own
+    unguarded module-scope roots. Under that invariant an absent root means the import
+    cannot succeed, so a module whose verdict is "absent" has to fail.
+
+    Keep that invariant. A key shared across several modules whose roots differ -- one
+    entry for a whole subtree -- breaks it, and this assertion then goes red on correct
+    code: with a half-installed extra, the subtree members that do not need the missing
+    root still import, which is a supported environment with nothing wrong in it. tdfpy
+    measured exactly that, `pydantic` present and `mcp` absent, and its gate needs the
+    weaker pair instead: every failure names a root the key lists, and at least one failure
+    exists. That pair costs real strictness here, so it is not what this file uses --
+    measured 2026-11-08 on a two-entry key where one module legitimately fails and the
+    other is over-listed, the per-module assertion catches the over-listing and the weaker
+    pair passes, because the legitimate failure satisfies it.
+    """
+    assert OPTIONAL_IMPORTS, "OPTIONAL_IMPORTS is empty, so this test asserts nothing"
+    for name, roots in OPTIONAL_IMPORTS.items():
+        assert roots, f"{name} is listed with no roots, so every environment reads as present"
+        if not _extra_is_absent(roots):
+            importlib.import_module(name)
+            continue
+        try:
+            importlib.import_module(name)
+        except ModuleNotFoundError as exc:
+            missing = (exc.name or "").split(".")[0]
+            assert missing in roots, (
+                f"{name} is missing {missing!r}, which the gate's key {roots} does not name, "
+                "so this is a broken module and not an absent extra"
+            )
+        else:
+            pytest.fail(
+                f"the gate skipped {name} but it imports fine, so a lean install drops its "
+                f"examples: either the key {roots} names something the module does not need, "
+                "or _extra_is_absent is wrong"
+            )
 
 
 def test_docstring_examples() -> None:
