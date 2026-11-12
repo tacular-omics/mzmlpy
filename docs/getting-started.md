@@ -74,6 +74,29 @@ with TemporaryDirectory() as directory:
 mzmlpy detects this pyMZML-compatible embedded format automatically. The file remains a standard
 concatenated gzip stream, and decompressing it reconstructs the original mzML bytes exactly.
 
+For an existing gzip file, use `is_embedded_indexed_gzip` to decide whether indexing is
+needed. Reuse a self-indexed input directly; write an ordinary gzip input to a separate
+output file:
+
+```python
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from mzmlpy import Mzml, is_embedded_indexed_gzip, write_indexed_gzip
+
+source = Path("tests/data/example.mzML.gz")
+with TemporaryDirectory() as directory:
+    indexed = source
+    if not is_embedded_indexed_gzip(source):
+        indexed = Path(directory) / "input.indexed.mzML.gz"
+        write_indexed_gzip(source, indexed)
+
+    assert is_embedded_indexed_gzip(indexed)
+    with Mzml(indexed) as reader:
+        assert reader.access_strategy == "embedded"
+        spectrum = reader.spectra[0]
+```
+
 - **`"auto"`** (default) takes the first of the routes above that is available.
 - **`"indexed"`** — Use the `rapidgzip` library for seekable access to the compressed file without decompressing it all. Requires `pip install mzmlpy[rapidgzip]`. Builds a gzip seek index (`.gzidx`) and mzML offset index (`.mzMLidx`) on first open, cached alongside the file for instant startup on subsequent opens (including `"auto"` opens). This is the only mode that writes files next to the source, so its directory must be writable.
 - **`"stream"`** — Stream the file sequentially with no index. Lowest startup cost, but random access (e.g. `reader.spectra[0]`) scans from the beginning each time — a warning is emitted.
