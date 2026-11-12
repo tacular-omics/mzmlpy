@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Documentation
+
+- Show how to skip gzip indexing when the input already contains an embedded index.
+
 ## [0.10.3] (2026-11-06)
 
 ### Added

@@ -5,6 +5,9 @@ of `write_indexed_gzip`.
 
 ::: mzmlpy.write_indexed_gzip
 
+Use `is_embedded_indexed_gzip` to decide whether an existing gzip file can be reused
+directly or needs conversion with `write_indexed_gzip`.
+
 ::: mzmlpy.is_embedded_indexed_gzip
 
 ::: mzmlpy.IndexedGzipWriteResult
