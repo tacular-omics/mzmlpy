@@ -5,6 +5,7 @@ from array import array
 from bisect import bisect_right
 from collections.abc import Iterator
 from functools import cached_property
+from itertools import islice
 from typing import Literal, overload
 
 from .constants import Polarity, SpectrumMSAccession, TimeUnitAccession, ToleranceUnit
@@ -194,6 +195,10 @@ class BaseLookup[T: (Spectrum, Chromatogram)](ABC):
             return items[slice_obj]
         # Know count - use slice.indices() to handle all cases
         start, stop, step = slice_obj.indices(self.count)
+        if not self._file_object.can_seek() and step == 1:
+            if stop <= start:
+                return []
+            return list(islice(self, start, stop))
         return [self.get_by_index(i) for i in range(start, stop, step)]
 
     @property
