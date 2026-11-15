@@ -84,6 +84,10 @@ def test_stream_slicing_single_pass():
             assert [s.id for s in sliced] == [s.id for s in ref_sliced]
             assert len(sliced) == 4, f"Got {len(sliced)} spectra (pass count: {pass_count})"
 
+            # Empty and zero-length slices return an empty list immediately
+            assert stream_reader.spectra[4:2] == []
+            assert stream_reader.spectra[2:2] == []
+
             # Also verify chromatograms slicing
             _ = len(stream_reader.chromatograms)
             pass_count = 0
@@ -94,6 +98,7 @@ def test_stream_slicing_single_pass():
             assert len([w for w in caught if "Random access" in str(w.message)]) == 0
             assert [c.id for c in chrom_sliced] == [c.id for c in ref_chrom_sliced]
             assert len(chrom_sliced) == 2, f"Got {len(chrom_sliced)} chromatograms (pass count: {pass_count})"
+            assert stream_reader.chromatograms[2:1] == []
 
 
 # ------------------------------------------------------------------ FileDescription / Run
