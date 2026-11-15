@@ -425,6 +425,10 @@ class FileInterface:
         for mzml_element in self._iter_xml_elements("spectrum"):
             yield Spectrum(self._expand_param_group_refs(mzml_element.element))
 
+    def can_seek(self) -> bool:
+        """Whether the backend supports fast random access / seeking."""
+        return isinstance(self.file_handler, AbstractRandomAccessMzml)
+
     def can_read_spectrum_heads(self) -> bool:
         """Whether :meth:`iter_spectrum_heads` is supported: an indexed, ASCII-compatible file
         whose index lists every spectrum (plain, rapidgzip and in-memory readers)."""

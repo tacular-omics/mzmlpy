@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+
+- Contiguous forward slices on a stream reader (`gzip_mode="stream"`) now take at most
+  a single pass instead of re-reading and decompressing the file once per element. Slices
+  served in one pass no longer emit `Random access on gzip_mode='stream'` warnings, while
+  steps other than 1 and negative steps retain their existing behavior.
+
 ### Documentation
 
 - Show how to skip gzip indexing when the input already contains an embedded index.

@@ -52,6 +52,50 @@ def test_stream_mode_unknown_id_raises():
                 _ = r.spectra[999]
 
 
+def test_stream_slicing_single_pass():
+    """A contiguous forward slice on a stream reader costs at most one pass and emits no random-access warning (#69)."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        with Mzml(EXAMPLE_GZ, in_memory=False, gzip_mode="stream") as stream_reader, Mzml(EXAMPLE) as ref_reader:
+            # Warm reader metadata so count / template reads are not attributed to the slice
+            _ = len(stream_reader.spectra)
+            _ = stream_reader._file_object._param_group_templates  # noqa: SLF001
+            caught.clear()
+
+            handler = stream_reader._file_object.file_handler  # noqa: SLF001
+            orig_get = handler.get_file_handler
+            pass_count = 0
+
+            def count_passes(*args, **kwargs):
+                nonlocal pass_count
+                pass_count += 1
+                return orig_get(*args, **kwargs)
+
+            handler.get_file_handler = count_passes
+            sliced = stream_reader.spectra[0:4]
+            ref_sliced = ref_reader.spectra[0:4]
+
+            # 1. Contiguous forward slice costs at most one pass
+            assert pass_count <= 1, f"Expected at most 1 pass, got {pass_count}"
+            # 2. No Random access warning emitted for the single-pass slice
+            random_access_warnings = [w for w in caught if "Random access" in str(w.message)]
+            assert len(random_access_warnings) == 0, f"Unexpected warnings: {random_access_warnings}"
+            # 3. Sliced IDs equal indexed reader
+            assert [s.id for s in sliced] == [s.id for s in ref_sliced]
+            assert len(sliced) == 4, f"Got {len(sliced)} spectra (pass count: {pass_count})"
+
+            # Also verify chromatograms slicing
+            _ = len(stream_reader.chromatograms)
+            pass_count = 0
+            caught.clear()
+            chrom_sliced = stream_reader.chromatograms[0:2]
+            ref_chrom_sliced = ref_reader.chromatograms[0:2]
+            assert pass_count <= 1, f"Expected at most 1 pass for chromatograms, got {pass_count}"
+            assert len([w for w in caught if "Random access" in str(w.message)]) == 0
+            assert [c.id for c in chrom_sliced] == [c.id for c in ref_chrom_sliced]
+            assert len(chrom_sliced) == 2, f"Got {len(chrom_sliced)} chromatograms (pass count: {pass_count})"
+
+
 # ------------------------------------------------------------------ FileDescription / Run
 def test_file_description_metadata():
     with Mzml(EXAMPLE) as r:
