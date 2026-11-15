@@ -426,8 +426,13 @@ class FileInterface:
             yield Spectrum(self._expand_param_group_refs(mzml_element.element))
 
     def can_seek(self) -> bool:
-        """Whether the backend supports fast random access / seeking."""
-        return isinstance(self.file_handler, AbstractRandomAccessMzml)
+        """Whether the backend supports fast random access: every strategy but ``"stream"``.
+
+        An ``isinstance`` test against :class:`AbstractRandomAccessMzml` would miss
+        :class:`EmbeddedIndexedGzip`, which seeks through its own embedded index without
+        inheriting from that base class.
+        """
+        return self.access_strategy != AccessStrategy.STREAM
 
     def can_read_spectrum_heads(self) -> bool:
         """Whether :meth:`iter_spectrum_heads` is supported: an indexed, ASCII-compatible file

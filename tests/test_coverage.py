@@ -6,7 +6,7 @@ import warnings
 import numpy as np
 import pytest
 
-from mzmlpy import Mzml, peek_spectrum_count
+from mzmlpy import Mzml, peek_spectrum_count, write_indexed_gzip
 
 EXAMPLE = "tests/data/example.mzML"
 EXAMPLE_GZ = "tests/data/example.mzML.gz"
@@ -99,6 +99,33 @@ def test_stream_slicing_single_pass():
             assert [c.id for c in chrom_sliced] == [c.id for c in ref_chrom_sliced]
             assert len(chrom_sliced) == 2, f"Got {len(chrom_sliced)} chromatograms (pass count: {pass_count})"
             assert stream_reader.chromatograms[2:1] == []
+
+
+def test_seeking_backend_slicing_still_uses_the_index(tmp_path):
+    """A seeking backend keeps one index seek per sliced element, so the single-pass path
+    for stream readers never captures a reader that can seek (#69 scope)."""
+    output = tmp_path / "indexed.mzML.gz"
+    write_indexed_gzip(EXAMPLE, output)
+    with Mzml(output) as reader, Mzml(EXAMPLE) as ref_reader:
+        interface = reader._file_object  # noqa: SLF001
+        assert interface.access_strategy == "embedded"
+
+        backend = interface.file_handler
+        orig_get = backend.get_spectrum_by_index
+        seeks = []
+
+        def count_seeks(index):
+            seeks.append(index)
+            return orig_get(index)
+
+        backend.get_spectrum_by_index = count_seeks
+        sliced = reader.spectra[1:4]
+
+        # One seek per element, rather than a streaming pass over everything before it
+        assert seeks == [1, 2, 3], f"Expected one index seek per element, got {seeks}"
+        # The slice is still the right three spectra, so cheapness cannot come from returning less
+        assert [s.id for s in sliced] == [s.id for s in ref_reader.spectra[1:4]]
+        assert len(sliced) == 3, f"Got {len(sliced)} spectra (index seeks: {seeks})"
 
 
 # ------------------------------------------------------------------ FileDescription / Run
