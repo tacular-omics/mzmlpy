@@ -319,7 +319,9 @@ def test_rt_table_agrees_with_parsed_scans(tmp_path: Path, case: str) -> None:
         warnings.simplefilter("ignore")
         heads = list(reader._file_object.iter_spectrum_heads() or [])
         assert len(heads) == 2 and heads[1] is not None
-        assert (_head_scan_rts(heads[1]) is not None) is fast
+        # With the file's groups in hand, "param group" defers because its group holds a scan
+        # start time, not merely because the groups are unknown.
+        assert (_head_scan_rts(heads[1], reader._file_object._param_group_templates) is not None) is fast
         expected = [tuple(_scan_rts(s)) for s in reader.spectra]
         assert list(reader.spectra._scan_rt_table(2) or []) == expected
 
@@ -370,18 +372,22 @@ REF_CASES: dict[str, tuple[str, str, bool]] = {
 
 @pytest.mark.parametrize("case", list(REF_CASES))
 @pytest.mark.parametrize("where", ["spectrum", "scan"])
+@pytest.mark.parametrize("own_time", [True, False], ids=["scan has its own time", "group is the only time"])
 def test_rt_head_reader_defers_only_for_param_groups_that_may_affect_time(
-    tmp_path: Path, case: str, where: str
+    tmp_path: Path, case: str, where: str, own_time: bool
 ) -> None:
-    """A ref to a group with no scan-time term is read from the bytes; any doubt defers."""
+    """A ref to a group with no scan-time term is read from the bytes; any doubt defers.
+
+    Without ``own_time`` the scan carries no scan start time of its own, so a group that holds
+    one is the record's only source of a time. That is the shape where reading the bytes anyway
+    would answer () and drop the record from every retention-time window, rather than merely
+    agreeing with the parse by luck.
+    """
     from mzmlpy.lookup import _head_scan_rts, _scan_rts
 
     ref, groups, fast = REF_CASES[case]
-    scan = (
-        f"<scan>{ref}{RT_CV.format(v=3.0, u=SECONDS)}</scan>"
-        if where == "scan"
-        else _scan(RT_CV.format(v=3.0, u=SECONDS))
-    )
+    own = RT_CV.format(v=3.0, u=SECONDS) if own_time else ""
+    scan = f"<scan>{ref}{own}</scan>" if where == "scan" else _scan(own)
     at_spectrum = ref if where == "spectrum" else ""
     path = write_indexed(
         tmp_path / "r.mzML",
@@ -442,6 +448,22 @@ def test_rt_window_still_defers_when_a_group_carries_a_time(tmp_path: Path) -> N
         fast = [s.id for s in reader.spectra.filter(rt_range=(1.0, 2.0))]
         plain = [s.id for s in reader.spectra if any(1.0 <= (sc.rt or -1) <= 2.0 for sc in s.scans)]
         assert fast == plain == ["scan=1", "scan=2"]
+
+
+def test_rt_window_keeps_records_whose_only_time_comes_from_a_group(tmp_path: Path) -> None:
+    """A scan-level group holding the record's only scan start time must still be found."""
+    ref = '<referenceableParamGroupRef ref="g"/>'
+    path = write_indexed(
+        tmp_path / "group_time.mzML",
+        [spectrum_xml(i, None, extra=f'<scanList count="1"><scan>{ref}</scan></scanList>') for i in range(6)],
+        before_run=_groups(g=RT_CV.format(v=99.0, u=SECONDS)),
+    )
+    everything = [f"scan={i}" for i in range(6)]
+    with Mzml(path) as reader:
+        plain = [s.id for s in reader.spectra if any(sc.rt == 99.0 for sc in s.scans)]
+        assert plain == everything  # the group is what gives every record its 99.0 s
+        assert [s.id for s in reader.spectra.filter(rt_range=(98.0, 100.0))] == everything
+        assert [s.id for s in reader.spectra.filter(rt_range=(0.0, 50.0))] == []
 
 
 def test_rt_table_reports_a_bad_time_like_a_linear_scan(tmp_path: Path) -> None:
