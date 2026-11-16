@@ -324,6 +324,126 @@ def test_rt_table_agrees_with_parsed_scans(tmp_path: Path, case: str) -> None:
         assert list(reader.spectra._scan_rt_table(2) or []) == expected
 
 
+def _groups(**groups: str) -> str:
+    body = "".join(
+        f'<referenceableParamGroup id="{gid}">{terms}</referenceableParamGroup>' for gid, terms in groups.items()
+    )
+    return f'<referenceableParamGroupList count="{len(groups)}">{body}</referenceableParamGroupList>'
+
+
+PLAIN_TERMS = '<cvParam cvRef="MS" accession="MS:1000130" name="positive scan" value=""/>'
+# name -> (ref element, groups, whether the byte reader answers without a parse)
+REF_CASES: dict[str, tuple[str, str, bool]] = {
+    "group without a time": ('<referenceableParamGroupRef ref="g"/>', _groups(g=PLAIN_TERMS), True),
+    "two groups without a time": (
+        '<referenceableParamGroupRef ref="g"/><referenceableParamGroupRef ref="h"/>',
+        _groups(g=PLAIN_TERMS, h=""),
+        True,
+    ),
+    "group with a time": ('<referenceableParamGroupRef ref="g"/>', _groups(g=RT_CV.format(v=11.0, u=SECONDS)), False),
+    "second group with a time": (
+        '<referenceableParamGroupRef ref="g"/><referenceableParamGroupRef ref="h"/>',
+        _groups(g=PLAIN_TERMS, h=RT_CV.format(v=11.0, u=SECONDS)),
+        False,
+    ),
+    "group with a time unit": (
+        '<referenceableParamGroupRef ref="g"/>',
+        _groups(
+            g='<cvParam cvRef="MS" accession="MS:1000927" name="ion injection time" value="1" '
+            'unitAccession="UO:0000028"/>'
+        ),
+        False,
+    ),
+    "group with the time's name only": (
+        '<referenceableParamGroupRef ref="g"/>',
+        _groups(g='<userParam name="Scan Start Time" value="3"/>'),
+        False,
+    ),
+    "unknown group": ('<referenceableParamGroupRef ref="nope"/>', _groups(g=PLAIN_TERMS), False),
+    "no groups in the file": ('<referenceableParamGroupRef ref="g"/>', "", False),
+    "single-quoted ref": ("<referenceableParamGroupRef ref='g'/>", _groups(g=PLAIN_TERMS), False),
+    "ref with an entity": ('<referenceableParamGroupRef ref="g&#x31;"/>', _groups(g1=PLAIN_TERMS), False),
+    "ref with another attribute": ('<referenceableParamGroupRef ref="g" x="1"/>', _groups(g=PLAIN_TERMS), False),
+    "ref without an id": ("<referenceableParamGroupRef/>", _groups(g=PLAIN_TERMS), False),
+}
+
+
+@pytest.mark.parametrize("case", list(REF_CASES))
+@pytest.mark.parametrize("where", ["spectrum", "scan"])
+def test_rt_head_reader_defers_only_for_param_groups_that_may_affect_time(
+    tmp_path: Path, case: str, where: str
+) -> None:
+    """A ref to a group with no scan-time term is read from the bytes; any doubt defers."""
+    from mzmlpy.lookup import _head_scan_rts, _scan_rts
+
+    ref, groups, fast = REF_CASES[case]
+    scan = (
+        f"<scan>{ref}{RT_CV.format(v=3.0, u=SECONDS)}</scan>"
+        if where == "scan"
+        else _scan(RT_CV.format(v=3.0, u=SECONDS))
+    )
+    at_spectrum = ref if where == "spectrum" else ""
+    path = write_indexed(
+        tmp_path / "r.mzML",
+        [spectrum_xml(0, 1.0), spectrum_xml(1, None, extra=f'{at_spectrum}<scanList count="1">{scan}</scanList>')],
+        before_run=groups,
+    )
+    with Mzml(path) as reader, warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        heads = list(reader._file_object.iter_spectrum_heads() or [])
+        assert heads[1] is not None
+        templates = reader._file_object._param_group_templates
+        assert (_head_scan_rts(heads[1], templates) is not None) is fast
+        assert _head_scan_rts(heads[1]) is None  # without the file's groups it always defers
+        expected = [tuple(_scan_rts(s)) for s in reader.spectra]
+        assert list(reader.spectra._scan_rt_table(2) or []) == expected
+
+
+def _ref_file(tmp_path: Path, groups: str) -> Path:
+    ref = '<referenceableParamGroupRef ref="g"/>'
+    spectra = [
+        spectrum_xml(
+            i, None, extra=f'{ref}<scanList count="1"><scan>{RT_CV.format(v=float(i), u=SECONDS)}</scan></scanList>'
+        )
+        for i in range(6)
+    ]
+    return write_indexed(tmp_path / "refs.mzML", spectra, before_run=groups)
+
+
+def test_rt_window_materialises_only_matches_when_groups_carry_no_time(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Spectra that reference a group without a scan time still use the byte reader (issue 75)."""
+    from mzmlpy.file_interface import FileInterface
+
+    path = _ref_file(tmp_path, _groups(g=PLAIN_TERMS))
+    calls = [0]
+    original = FileInterface._expand_param_group_refs
+
+    def counted(self: FileInterface, element: ET.Element) -> ET.Element:
+        calls[0] += 1
+        return original(self, element)
+
+    monkeypatch.setattr(FileInterface, "_expand_param_group_refs", counted)
+    with Mzml(path) as reader:
+        ids = [s.id for s in reader.spectra.filter(rt_range=(1.0, 2.0))]
+        assert ids == ["scan=1", "scan=2"]
+        assert calls[0] == 2  # the matches only, each parsed once
+        calls[0] = 0
+        assert [s.id for s in reader.spectra.filter(rt_range=(100.0, 200.0))] == []
+        assert calls[0] == 0
+        assert reader.spectra._rt_table is not None
+
+
+def test_rt_window_still_defers_when_a_group_carries_a_time(tmp_path: Path) -> None:
+    """A group with a scan start time is parsed in full, and the results equal the plain scan."""
+    path = _ref_file(tmp_path, _groups(g=RT_CV.format(v=99.0, u=SECONDS)))
+    with Mzml(path) as reader:
+        fast = [s.id for s in reader.spectra.filter(rt_range=(1.0, 2.0))]
+        plain = [s.id for s in reader.spectra if any(1.0 <= (sc.rt or -1) <= 2.0 for sc in s.scans)]
+        assert fast == plain == ["scan=1", "scan=2"]
+
+
 def test_rt_table_reports_a_bad_time_like_a_linear_scan(tmp_path: Path) -> None:
     bad = f'<scanList count="1">{_scan(RT_CV.format(v="soon", u=SECONDS))}</scanList>'
     path = write_indexed(tmp_path / "bad.mzML", [spectrum_xml(0, 1.0), spectrum_xml(1, None, extra=bad)])
@@ -598,3 +718,25 @@ def test_an_unclosed_stream_iterator_does_not_abort_the_interpreter(tmp_path: Pa
     result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=120)
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "scan=0"
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "example.mzML",
+        "zlib_20250806_ArgC_DDA_HCD-FT_01.mzML",
+        "bruker_ms2_im.mzML",
+        "bruker_ms2_im_combined_im.mzML",
+    ],
+)
+def test_rt_window_on_fixtures_equals_the_plain_scan(name: str) -> None:
+    data = Path(__file__).parent / "data" / name
+    with Mzml(data) as reader:
+        every = [(s.id, [sc.rt for sc in s.scans]) for s in reader.spectra]
+        times = sorted(t for _, rts in every for t in rts if t is not None)
+        low, high = times[0], times[len(times) // 2]
+        expected = [i for i, rts in every if any(t is not None and low <= t <= high for t in rts)]
+        assert [s.id for s in reader.spectra.filter(rt_range=(low, high))] == expected
+        assert [s.id for s in reader.spectra.filter(rt_range=(0.0, 1e12))] == [
+            i for i, rts in every if any(t is not None for t in rts)
+        ]
