@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- `Spectrum.ion_mobility_array` returns the per-point ion mobility array (any type in `ION_MOBILITIES`) in its
+  declared dtype, or `None` when the spectrum has no such array, including scan-level-only ion mobility
+  such as Bruker PASEF MS2. With more than one ion mobility array it warns and returns the first.
+
 ### Performance
 
 - `SpectrumLookup.filter(rt_range=...)` no longer gives up its byte-level scan-time reader on files
@@ -22,6 +28,7 @@ All notable changes to this project are documented here. The format is based on
 
 ### Documentation
 
+- Replace the "Working with Ion Mobility" example with one that runs against a combined-IM fixture.
 - Show how to skip gzip indexing when the input already contains an embedded index.
 
 ## [0.10.3] (2026-11-06)
