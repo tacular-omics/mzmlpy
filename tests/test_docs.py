@@ -12,7 +12,7 @@ def docs_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Run examples against a copy of tests/data so index sidecars never land in the repo."""
     data = tmp_path / "tests" / "data"
     data.mkdir(parents=True)
-    for name in ("example.mzML", "example.mzML.gz"):
+    for name in ("example.mzML", "example.mzML.gz", "bruker_ms2_im_combined_im.mzML"):
         shutil.copy2(ROOT / "tests" / "data" / name, data / name)
     monkeypatch.chdir(tmp_path)
     return data
