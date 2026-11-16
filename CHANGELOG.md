@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Performance
+
+- `SpectrumLookup.filter(rt_range=...)` no longer gives up its byte-level scan-time reader on files
+  whose spectra carry a `referenceableParamGroupRef`. The reader now defers a record only when a
+  referenced group is unknown, cannot be read unambiguously, or carries a scan start time or a time
+  unit; otherwise a retention-time window parses only its matches instead of every record twice.
+
 ### Changed
 
 - Contiguous forward slices on a stream reader (`gzip_mode="stream"`) now take at most
