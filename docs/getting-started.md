@@ -228,24 +228,29 @@ with Mzml("tests/data/example.mzML") as reader:
 
 ## Working with Ion Mobility
 
-Check whether a spectrum carries ion mobility data and retrieve the relevant arrays:
+Check whether a spectrum carries ion mobility data and read the per-point array:
 
 ```python
 from mzmlpy import Mzml
-from mzmlpy.constants import BinaryDataArrayAccession
 
-with Mzml("tests/data/example.mzML") as reader:
+with Mzml("tests/data/bruker_ms2_im_combined_im.mzML") as reader:
     spec = reader.spectra[0]
 
-    if spec.has_im:
-        print(f"IM types: {spec.im_types}")
+    print(spec.has_im)  # True: ion mobility is recorded for this spectrum
+    print(spec.im_types)  # which array types it carries, e.g. {MS:1003006}
 
-        im_array = spec.get_binary_array(
-            BinaryDataArrayAccession.MEAN_INVERSE_REDUCED_ION_MOBILITY
-        )
-        if im_array is not None:
-            values = im_array.data
+    im = spec.ion_mobility_array  # np.ndarray | None, one value per m/z
+    mz = spec.mz
+    assert im is not None and mz is not None
+    assert len(im) == len(mz)
+    print(f"{len(im)} points, 1/K0 from {im.min():.3f} to {im.max():.3f}")
 ```
+
+`Spectrum.ion_mobility_array` returns the decoded array in the dtype the file declares, or `None` when the
+spectrum has no ion mobility array. That includes spectra that record ion mobility only as a
+scan-level value, such as Bruker timsTOF PASEF MS2; read that value with `Spectrum.ook0`. If a
+spectrum carries more than one ion mobility array, a `UserWarning` is emitted and the first one in
+document order is returned; use `get_binary_array` with an accession from `im_types` to pick another.
 
 ## Working with Chromatograms
 
