@@ -3,7 +3,7 @@ import re
 from abc import ABC, abstractmethod
 from array import array
 from bisect import bisect_right
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from functools import cached_property
 from itertools import islice
 from typing import Literal, overload
@@ -19,19 +19,50 @@ _CV_PARAM = re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?cvParam\s[^>]*>")
 _SCAN_NAME_END = frozenset((b" ", b"\t", b"\r", b"\n", b">", b"/"))
 _ATTRIBUTE = re.compile(rb'([\w:.-]+)\s*=\s*"([^"]*)"')
 _RT_TERMS = (SpectrumMSAccession.SCAN_START_TIME.encode(), b"scan start time")
+_PARAM_GROUP_REF = b"referenceableParamGroupRef"
+_PARAM_GROUP_REF_TAG = re.compile(rb'<(?:[A-Za-z_][\w.-]*:)?referenceableParamGroupRef\s+ref="([^"&<>\']*)"\s*/?>')
 _RT_FACTORS = {unit.value.encode(): _SECONDS_PER_UNIT[unit] for unit in TimeUnitAccession}
 
 
-def _head_scan_rts(head: bytes) -> tuple[float, ...] | None:
+def _param_groups_leave_rt_alone(head: bytes, templates: Mapping[str, list[tuple[str, dict[str, str]]]] | None) -> bool:
+    """True when every param group ref in ``head`` is readable and names a known group that
+    cannot supply or change a scan time. Any doubt returns False.
+
+    A ref must be a whole tag with a single double-quoted ``ref`` attribute and no entity, and
+    every occurrence of the element name must be such a tag. A group is unsafe if it is unknown
+    or any of its terms mentions the scan start time (accession or name) or a time unit.
+    """
+    if templates is None:
+        return False
+    ids = _PARAM_GROUP_REF_TAG.findall(head)
+    if len(ids) != head.count(_PARAM_GROUP_REF):
+        return False
+    for raw in ids:
+        group = templates.get(raw.decode("utf-8", "replace"))
+        if group is None:
+            return False
+        for _, attributes in group:
+            text = " ".join(attributes.values()).encode()
+            if any(term.lower() in text.lower() for term in _RT_TERMS) or any(
+                unit in text.upper() for unit in _RT_FACTORS
+            ):
+                return False
+    return True
+
+
+def _head_scan_rts(
+    head: bytes, templates: Mapping[str, list[tuple[str, dict[str, str]]]] | None = None
+) -> tuple[float, ...] | None:
     """Scan times in seconds from a spectrum's bytes before its binary arrays, like
     :func:`_scan_rts`, or None when only a full parse can answer exactly.
 
     Only the plain case is read here: each ``scan`` holds at most one scan start time cvParam,
     as a direct child, written with double-quoted attributes, a numeric value and a time unit
-    accession, and no referenceable param group is referenced. Anything else (and every warning
+    accession. A referenceable param group may be referenced only when ``templates`` (the file's
+    parsed groups) shows that no referenced group can affect a scan time. Anything else (and every warning
     or error case of :attr:`Scan.rt`) returns None so the caller parses the record.
     """
-    if b"referenceableParamGroupRef" in head:
+    if _PARAM_GROUP_REF in head and not _param_groups_leave_rt_alone(head, templates):
         return None
     mentions = [*_find_all(head, _RT_TERMS[0]), *_find_all(head, _RT_TERMS[1])]
     if not mentions:
@@ -381,8 +412,11 @@ class SpectrumLookup(BaseLookup[Spectrum]):
             if heads is None:
                 return None
             table = _RtTable()
+            templates: dict[str, list[tuple[str, dict[str, str]]]] | None = None
             for index, head in enumerate(heads):
-                times = _head_scan_rts(head) if head is not None else None
+                if head is not None and templates is None and _PARAM_GROUP_REF in head:
+                    templates = self._file_object._param_group_templates  # parsed once, cached
+                times = _head_scan_rts(head, templates) if head is not None else None
                 if times is None:
                     times = tuple(_scan_rts(self.get_by_index(index)))
                 table.append(times)
