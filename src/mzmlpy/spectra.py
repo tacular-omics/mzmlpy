@@ -1140,6 +1140,30 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
         return None
 
     @property
+    def ion_mobility_array(self) -> np.ndarray | None:
+        """Return the per-point ion mobility array, or None if no ion mobility binary array is present.
+
+        Named ``ion_mobility_array`` because ``Spectrum.ion_mobility`` was the 0.9 scalar and no longer
+        exists (see :attr:`ook0` and :attr:`Scan.drift_time` for the scan-level values).
+
+        Any array type in :data:`mzmlpy.constants.ION_MOBILITIES` counts; :attr:`im_types` says which
+        one a spectrum carries. The values keep the dtype the file declares and the array is writable.
+        A spectrum that records ion mobility only as a scan-level value (e.g. Bruker timsTOF PASEF MS2,
+        see :attr:`Spectrum.ook0`) has no such array and returns None. If a spectrum carries more than
+        one ion mobility array, a ``UserWarning`` is emitted and the first one in document order is returned.
+        """
+        arrays = [barray for barray in self.binary_arrays if barray.binary_array_type in ION_MOBILITIES]
+        if not arrays:
+            return None
+        if len(arrays) > 1:
+            warnings.warn(
+                f"This spectrum has {len(arrays)} ion mobility arrays. Returning the first one in document order.",
+                UserWarning,
+                stacklevel=2,
+            )
+        return arrays[0]._decode()
+
+    @property
     def has_im(self) -> bool:
         """Return True if this spectrum carries ion mobility data — either as a binary array
         (e.g. combined-IM frames) or as a scan-level cvParam (e.g. Bruker timsTOF PASEF MS2)."""
