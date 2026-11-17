@@ -247,10 +247,15 @@ with Mzml("tests/data/bruker_ms2_im_combined_im.mzML") as reader:
 ```
 
 `Spectrum.ion_mobility_array` returns the decoded array in the dtype the file declares, or `None` when the
-spectrum has no ion mobility array. That includes spectra that record ion mobility only as a
-scan-level value, such as Bruker timsTOF PASEF MS2; read that value with `Spectrum.ook0`. If a
-spectrum carries more than one ion mobility array, a `UserWarning` is emitted and the first one in
-document order is returned; use `get_binary_array` with an accession from `im_types` to pick another.
+spectrum has no per-point ion mobility array. That includes spectra that record ion mobility only as a
+scan-level value, such as Bruker timsTOF PASEF MS2; read that value with `Spectrum.ook0`.
+
+Per point means one value per point, which is `defaultArrayLength` (or the length of `mz` when a spectrum
+does not declare it). mzML lets a single array carry its own `arrayLength`, so an array of another length
+measures something else and `im[i]` would not describe the same point as `mz[i]`: such an array is reported
+with a `UserWarning` and `None` is returned. When more than one array has a value per point, a
+`UserWarning` is emitted and the first in document order is returned. Either way `get_binary_array` with an
+accession from `im_types` still reads any array the spectrum holds.
 
 ## Working with Chromatograms
 

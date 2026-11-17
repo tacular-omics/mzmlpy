@@ -13,7 +13,7 @@ exception hierarchy. Renamed names have no aliases: the old name raises `Attribu
 | `Spectrum.lower_mz` / `upper_mz`, `Scan.lower_mz` / `upper_mz` | `Spectrum.mz_range`, `Scan.mz_range` | `(lower, upper)` envelope of the scan windows; `ScanWindow.lower_mz` / `upper_mz` are kept |
 | `Spectrum.TIC` | `Spectrum.total_ion_current` | |
 | `Spectrum.charge` (per-point array) | `Spectrum.charge_array` | `Spectrum.charge` no longer exists (AttributeError); the precursor charge is `Spectrum.precursor_charge` (`int \| None`) |
-| `Spectrum.ion_mobility` (1/K0, else drift time) | `Spectrum.ook0` or `Spectrum.scans[0].drift_time` | no fallback between the two quantities |
+| `Spectrum.ion_mobility` (1/K0, else drift time) | `Spectrum.ook0` or `Spectrum.scans[0].drift_time` | no fallback between the two quantities; the per-point array of a combined-IM spectrum is `Spectrum.ion_mobility_array` |
 | `IsolationWindow.target_mz` | `IsolationWindow.isolation_mz` | |
 | `(w.target_mz - w.lower_offset, w.target_mz + w.upper_offset)` | `IsolationWindow.isolation_mz_range` | also `isolation_width` |
 | `spectrum.precursors[0].selected_ions[0].mz`, `...selected_ions[0].charge`, `precursors[0].activation.collision_energy`, `precursors[0].isolation_window` bounds | `Spectrum.precursor_mz`, `Spectrum.precursor_charge`, `Spectrum.collision_energy`, `Spectrum.isolation_mz_range` | new shortcuts; first precursor, first selected ion; None when absent |
