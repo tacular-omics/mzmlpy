@@ -13,12 +13,13 @@ All notable changes to this project are documented here. The format is based on
   such as Bruker PASEF MS2. An array counts as per-point only when its length is the spectrum's point count
   (`defaultArrayLength`, or the length of `mz` when that is absent); otherwise it warns and returns `None`,
   since pairing it with `mz` by index would misalign the two. With more than one per-point array it warns
-  and returns the first in document order.
+  and returns the first in document order. A spectrum that declares no `defaultArrayLength` and carries no
+  `mz` array has no point count to check against, so the first array is returned as the file wrote it.
 
 ### Performance
 
 - `SpectrumLookup.filter(rt_range=...)` no longer gives up its byte-level scan-time reader on files
-  whose spectra carry a `referenceableParamGroupRef`. The reader now defers a record only when a
+  whose spectra carry a `referenceableParamGroupRef`. The reader now defers such a record only when a
   referenced group is unknown, cannot be read unambiguously, or carries a scan start time or a time
   unit; otherwise a retention-time window parses only its matches instead of every record twice.
 
