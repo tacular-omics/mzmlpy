@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.11.0] (2026-11-16)
+
 ### Added
 
 - `Spectrum.ion_mobility_array` returns the per-point ion mobility array (any type in `ION_MOBILITIES`) in its
@@ -576,7 +578,8 @@ affect existing code (see **Changed**).
 
 - First release on PyPI.
 
-[Unreleased]: https://github.com/tacular-omics/mzmlpy/compare/v0.10.3...HEAD
+[Unreleased]: https://github.com/tacular-omics/mzmlpy/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.11.0
 [0.10.3]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.10.3
 [0.10.2]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.10.2
 [0.10.1]: https://github.com/tacular-omics/mzmlpy/releases/tag/v0.10.1
