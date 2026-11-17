@@ -10,7 +10,10 @@ All notable changes to this project are documented here. The format is based on
 
 - `Spectrum.ion_mobility_array` returns the per-point ion mobility array (any type in `ION_MOBILITIES`) in its
   declared dtype, or `None` when the spectrum has no such array, including scan-level-only ion mobility
-  such as Bruker PASEF MS2. With more than one ion mobility array it warns and returns the first.
+  such as Bruker PASEF MS2. An array counts as per-point only when its length is the spectrum's point count
+  (`defaultArrayLength`, or the length of `mz` when that is absent); otherwise it warns and returns `None`,
+  since pairing it with `mz` by index would misalign the two. With more than one per-point array it warns
+  and returns the first in document order.
 
 ### Performance
 

@@ -147,6 +147,7 @@ All properties are lazy and return `None` (or `()` for sequences) when the term 
 | `mz` | `np.ndarray \| None` | decoded m/z array (decoded on every access) |
 | `intensity` | `np.ndarray \| None` | decoded intensity array |
 | `charge_array` | `np.ndarray \| None` | per-point charge array, if present |
+| `ion_mobility_array` | `np.ndarray \| None` | per-point ion mobility array (any type in `ION_MOBILITIES`), if one has a value per point |
 | `ms_level` | `int \| None` | 1, 2, ... |
 | `polarity` | `Polarity \| None` (`Literal["positive", "negative"]`) | |
 | `spectrum_type` | `Literal["centroid", "profile"] \| None` | |
@@ -510,7 +511,8 @@ timsTOF ion mobility:
 with Mzml("bruker.mzML") as reader:
     s = reader.spectra[0]
     if s.has_im:
-        print(s.ook0, s.im_types)   # scan-level 1/K0 and per-point mobility arrays present
+        print(s.ook0, s.im_types)        # scan-level 1/K0, and which mobility arrays are present
+        print(s.ion_mobility_array)      # the per-point array itself, or None
 ```
 
 Validate a batch of files:
@@ -576,7 +578,7 @@ tables are copied from the migration guide (https://tacular-omics.github.io/mzml
 | `Spectrum.lower_mz` / `upper_mz`, `Scan.lower_mz` / `upper_mz` | `Spectrum.mz_range`, `Scan.mz_range` | `(lower, upper)` envelope of the scan windows; `ScanWindow.lower_mz` / `upper_mz` are kept |
 | `Spectrum.TIC` | `Spectrum.total_ion_current` | |
 | `Spectrum.charge` (per-point array) | `Spectrum.charge_array` | `Spectrum.charge` no longer exists (AttributeError); the precursor charge is `Spectrum.precursor_charge` (`int \| None`) |
-| `Spectrum.ion_mobility` (1/K0, else drift time) | `Spectrum.ook0` or `Spectrum.scans[0].drift_time` | no fallback between the two quantities |
+| `Spectrum.ion_mobility` (1/K0, else drift time) | `Spectrum.ook0` or `Spectrum.scans[0].drift_time` | no fallback between the two quantities; the per-point array of a combined-IM spectrum is `Spectrum.ion_mobility_array` |
 | `IsolationWindow.target_mz` | `IsolationWindow.isolation_mz` | |
 | `(w.target_mz - w.lower_offset, w.target_mz + w.upper_offset)` | `IsolationWindow.isolation_mz_range` | also `isolation_width` |
 | `spectrum.precursors[0].selected_ions[0].mz`, `...selected_ions[0].charge`, `precursors[0].activation.collision_energy`, `precursors[0].isolation_window` bounds | `Spectrum.precursor_mz`, `Spectrum.precursor_charge`, `Spectrum.collision_energy`, `Spectrum.isolation_mz_range` | new shortcuts; first precursor, first selected ion; None when absent |

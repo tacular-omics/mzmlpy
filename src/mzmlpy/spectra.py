@@ -1139,9 +1139,17 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
             return binary_array._decode()
         return None
 
+    def _im_arrays(self) -> list[tuple[BinaryDataArrayAccession, BinaryDataArray]]:
+        """The spectrum's ion mobility arrays with their accession, in document order; empty when none."""
+        return [
+            (barray.binary_array_type, barray)
+            for barray in self.binary_arrays
+            if barray.binary_array_type in ION_MOBILITIES
+        ]
+
     @property
     def ion_mobility_array(self) -> np.ndarray | None:
-        """Return the per-point ion mobility array, or None if no ion mobility binary array is present.
+        """Return the per-point ion mobility array, or None if the spectrum has no per-point one.
 
         Named ``ion_mobility_array`` because ``Spectrum.ion_mobility`` was the 0.9 scalar and no longer
         exists (see :attr:`ook0` and :attr:`Scan.drift_time` for the scan-level values).
@@ -1149,27 +1157,60 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
         Any array type in :data:`mzmlpy.constants.ION_MOBILITIES` counts; :attr:`im_types` says which
         one a spectrum carries. The values keep the dtype the file declares and the array is writable.
         A spectrum that records ion mobility only as a scan-level value (e.g. Bruker timsTOF PASEF MS2,
-        see :attr:`Spectrum.ook0`) has no such array and returns None. If a spectrum carries more than
-        one ion mobility array, a ``UserWarning`` is emitted and the first one in document order is returned.
+        see :attr:`Spectrum.ook0`) has no such array and returns None.
+
+        Per point is checked, not assumed. An array counts only when it holds one value per point, which
+        is :attr:`default_array_length` (the ``defaultArrayLength`` attribute), or the length of :attr:`mz`
+        when that attribute is absent. mzML lets one ``binaryDataArray`` carry its own ``arrayLength``, so
+        an array of another length measures something else and pairing it with :attr:`mz` by index would
+        misalign the two silently: a ``UserWarning`` is emitted and None returned, and
+        :meth:`get_binary_array` still reaches the array itself. When more than one array holds one value
+        per point, a ``UserWarning`` is emitted and the first in document order is returned.
         """
-        arrays = [barray for barray in self.binary_arrays if barray.binary_array_type in ION_MOBILITIES]
+        arrays = self._im_arrays()
         if not arrays:
             return None
-        if len(arrays) > 1:
-            warnings.warn(
-                f"This spectrum has {len(arrays)} ion mobility arrays. Returning the first one in document order.",
-                UserWarning,
-                stacklevel=2,
-            )
-        return arrays[0]._decode()
+        points = self.default_array_length
+        if points is None:
+            mz = self.mz
+            points = None if mz is None else len(mz)
+        if points is None:
+            # No point count to check against, so take the file at its word.
+            if len(arrays) > 1:
+                warnings.warn(
+                    f"This spectrum has {len(arrays)} ion mobility arrays and no point count to tell them "
+                    "apart. Returning the first one in document order.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            return arrays[0][1]._decode()
+        lengths = []
+        for accession, barray in arrays:
+            values = barray._decode()
+            lengths.append(len(values))
+            if len(values) == points:
+                if len(arrays) > 1:
+                    warnings.warn(
+                        f"This spectrum has {len(arrays)} ion mobility arrays. Returning "
+                        f"{accession}, the first with one value per point ({points}).",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                return values
+        warnings.warn(
+            f"This spectrum has {len(arrays)} ion mobility array(s) of length {lengths}, and it has {points} "
+            "points, so none of them is per-point. Returning None; read one with get_binary_array().",
+            UserWarning,
+            stacklevel=2,
+        )
+        return None
 
     @property
     def has_im(self) -> bool:
         """Return True if this spectrum carries ion mobility data — either as a binary array
         (e.g. combined-IM frames) or as a scan-level cvParam (e.g. Bruker timsTOF PASEF MS2)."""
-        for barray in self.binary_arrays:
-            if barray.binary_array_type in ION_MOBILITIES:
-                return True
+        if self._im_arrays():
+            return True
         for scan in self.scans:
             if scan.ook0 is not None or scan.drift_time is not None:
                 return True
@@ -1178,11 +1219,7 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
     @property
     def im_types(self) -> set[BinaryDataArrayAccession]:
         """Return the set of ion mobility array accessions present in this spectrum; empty set if none."""
-        im_arrays = set()
-        for barray in self.binary_arrays:
-            if barray.binary_array_type in ION_MOBILITIES:
-                im_arrays.add(barray.binary_array_type)
-        return im_arrays
+        return {accession for accession, _ in self._im_arrays()}
 
     @cached_property
     def spectrum_type(self) -> Literal["centroid", "profile"] | None:
