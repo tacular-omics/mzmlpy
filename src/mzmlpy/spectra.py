@@ -1160,12 +1160,17 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
         see :attr:`Spectrum.ook0`) has no such array and returns None.
 
         Per point is checked, not assumed. An array counts only when it holds one value per point, which
-        is :attr:`default_array_length` (the ``defaultArrayLength`` attribute), or the length of :attr:`mz`
-        when that attribute is absent. mzML lets one ``binaryDataArray`` carry its own ``arrayLength``, so
-        an array of another length measures something else and pairing it with :attr:`mz` by index would
-        misalign the two silently: a ``UserWarning`` is emitted and None returned, and
-        :meth:`get_binary_array` still reaches the array itself. When more than one array holds one value
-        per point, a ``UserWarning`` is emitted and the first in document order is returned.
+        is :attr:`default_array_length` (the ``defaultArrayLength`` attribute, which mzML requires), or the
+        length of :attr:`mz` when that attribute is absent. mzML lets one ``binaryDataArray`` carry its own
+        ``arrayLength``, so an array of another length measures something else and pairing it with
+        :attr:`mz` by index would misalign the two silently: a ``UserWarning`` is emitted and None
+        returned, and :meth:`get_binary_array` still reaches the array itself. The schema is explicit that
+        a reader may do this: "Parsing software can thus safely choose to ignore arrays of lengths
+        different from the one defined in the 'defaultArrayLength' SpectrumType element."
+
+        Only an ambiguous choice warns. An array beside others of a different length is not ambiguous,
+        because the length picks it, so that case is silent. When two or more arrays hold one value per
+        point a ``UserWarning`` is emitted and the first in document order is returned.
         """
         arrays = self._im_arrays()
         if not arrays:
@@ -1184,26 +1189,26 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
                     stacklevel=2,
                 )
             return arrays[0][1]._decode()
-        lengths = []
-        for accession, barray in arrays:
-            values = barray._decode()
-            lengths.append(len(values))
-            if len(values) == points:
-                if len(arrays) > 1:
-                    warnings.warn(
-                        f"This spectrum has {len(arrays)} ion mobility arrays. Returning "
-                        f"{accession}, the first with one value per point ({points}).",
-                        UserWarning,
-                        stacklevel=2,
-                    )
-                return values
-        warnings.warn(
-            f"This spectrum has {len(arrays)} ion mobility array(s) of length {lengths}, and it has {points} "
-            "points, so none of them is per-point. Returning None; read one with get_binary_array().",
-            UserWarning,
-            stacklevel=2,
-        )
-        return None
+        decoded = [(accession, barray._decode()) for accession, barray in arrays]
+        per_point = [(accession, values) for accession, values in decoded if len(values) == points]
+        if not per_point:
+            warnings.warn(
+                f"This spectrum has {len(arrays)} ion mobility array(s) of length "
+                f"{[len(values) for _, values in decoded]}, and it has {points} points, so none of them is "
+                "per-point. Returning None; read one with get_binary_array().",
+                UserWarning,
+                stacklevel=2,
+            )
+            return None
+        if len(per_point) > 1:
+            names = ", ".join(str(accession) for accession, _ in per_point)
+            warnings.warn(
+                f"This spectrum has {len(per_point)} ion mobility arrays holding one value per point "
+                f"({points}): {names}. Returning {per_point[0][0]}, the first in document order.",
+                UserWarning,
+                stacklevel=2,
+            )
+        return per_point[0][1]
 
     @property
     def has_im(self) -> bool:

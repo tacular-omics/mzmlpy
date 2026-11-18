@@ -15,9 +15,10 @@ COMBINED_ID = "merged=1015 frame=1016 scanStart=655 scanEnd=679"
 
 
 def _array(accession: str, name: str, values: list[float]) -> str:
+    """One binaryDataArray, declaring its real ``encodedLength`` so ``validate`` accepts the fixture."""
     encoded = base64.b64encode(np.asarray(values, dtype="<f8").tobytes()).decode()
     return (
-        '<binaryDataArray encodedLength="0">'
+        f'<binaryDataArray encodedLength="{len(encoded)}">'
         '<cvParam cvRef="MS" accession="MS:1000523" name="64-bit float"/>'
         '<cvParam cvRef="MS" accession="MS:1000576" name="no compression"/>'
         f'<cvParam cvRef="MS" accession="{accession}" name="{name}"/>'
@@ -94,7 +95,7 @@ def test_multiple_per_point_arrays_warn_and_return_the_first(tmp_path: Path) -> 
     """Both hold one value per point, so document order decides and the warning names the winner."""
     with Mzml(str(_write(tmp_path, [MZ, IM_MEAN, IM_RAW]))) as reader:
         spec = reader.spectra[0]
-        with pytest.warns(UserWarning, match=r"2 ion mobility arrays.*MS:1003006.*one value per point \(2\)"):
+        with pytest.warns(UserWarning, match=r"2 ion mobility arrays holding one value per point \(2\).*MS:1003006"):
             im = spec.ion_mobility_array
     assert im is not None
     np.testing.assert_array_equal(im, [0.9, 0.8])  # first in document order
@@ -117,11 +118,16 @@ def test_an_array_of_another_length_is_not_per_point(tmp_path: Path) -> None:
         np.testing.assert_array_equal(raw.data, [0.9, 0.8, 0.7])  # reachable, just not as the per-point array
 
 
-def test_the_first_per_point_array_wins_over_an_earlier_mismatched_one(tmp_path: Path) -> None:
-    """Document order alone would return the 3-value array for a 2-point spectrum."""
+def test_an_array_of_another_length_beside_a_per_point_one_is_not_an_ambiguity(tmp_path: Path) -> None:
+    """The per-point array wins over an earlier array of another length, and nothing warns.
+
+    Document order alone would return the 3-value array for a 2-point spectrum. Only one of the two
+    holds one value per point, so the length makes the choice and there is nothing to warn about.
+    """
     with Mzml(str(_write(tmp_path, [MZ, IM_RAW_LONG, IM_MEAN]))) as reader:
         spec = reader.spectra[0]
-        with pytest.warns(UserWarning, match=r"2 ion mobility arrays.*MS:1003006"):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
             im = spec.ion_mobility_array
     assert im is not None
     np.testing.assert_array_equal(im, [0.9, 0.8])

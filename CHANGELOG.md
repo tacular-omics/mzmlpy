@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- `Spectrum.ion_mobility_array` warned on every spectrum carrying two or more ion mobility arrays, even
+  when only one of them holds one value per point, where the length makes the choice and nothing is
+  ambiguous. It now warns only for the case it was written for, and that 0.11.0 documented it as having:
+  two or more arrays with one value per point.
+
 ## [0.11.0] (2026-11-16)
 
 ### Added
