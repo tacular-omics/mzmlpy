@@ -12,8 +12,11 @@ The governing sentence, from the ``MS:1002893`` stanza in that file:
     def: "Abstract array of ion mobility data values. A more specific child term concept
     should be specified in data files to make precise the nature of the data being provided."
 
-So the terms a reader must recognise as an ion mobility array are ``MS:1002893`` and every
-term whose ``is_a`` is ``MS:1002893``.
+That sentence is addressed to the writers of files, so the reader's half is an inference from
+it; what carries these tests is the plain fact of the ``is_a: MS:1002893`` line on each term.
+
+The outside-sourced expectations here are the **accession set** and the term **names**. The
+``[0.9, 0.8]`` values in the behavioural test are an input echoed back, not an outside value.
 """
 
 import base64
@@ -62,11 +65,17 @@ CV_ION_MOBILITY_ARRAYS = {ION_MOBILITY_ARRAY} | {
 
 
 def test_the_fixture_really_is_the_cv_excerpt_it_claims_to_be() -> None:
-    """Guard the apparatus: an empty or mis-parsed fixture would make every test below vacuous."""
-    assert len(CV) == 10, f"expected the parent and its nine children, parsed {len(CV)}"
+    """Guard the apparatus: an empty or mis-parsed fixture would make every test below vacuous.
+
+    The count is a floor, not an equality: the CV had nine children of ``MS:1002893`` at
+    ``data-version: 4.2.17``, and a later release may add more but will not drop one, so a refreshed
+    fixture fails the comparison below (which is the point) without also failing this guard.
+    """
+    assert len(CV) >= 10, f"expected at least the parent and its nine children, parsed {len(CV)}"
     assert CV[ION_MOBILITY_ARRAY]["name"] == "ion mobility array"
     assert CV[ION_MOBILITY_ARRAY]["is_a"] == ["MS:1000513"]  # binary data array
-    assert len(CV_ION_MOBILITY_ARRAYS) == 10
+    # The excerpt holds the subtree and nothing else, so no stray term can enter the comparison.
+    assert set(CV) == CV_ION_MOBILITY_ARRAYS
     assert not [accession for accession, term in CV.items() if term["obsolete"]]
     # Names vary ("mean ion mobility array", "raw ion mobility drift time array"), so check the shape.
     assert all("ion mobility" in str(term["name"]) and str(term["name"]).endswith("array") for term in CV.values())

@@ -13,7 +13,7 @@ All notable changes to this project are documented here. The format is based on
   On a spectrum whose ion mobility array carries that term, `Spectrum.has_im` was `False`,
   `Spectrum.im_types` was empty and `Spectrum.ion_mobility_array` returned `None`, with no warning, even
   though `BinaryDataArray.binary_array_type` named the term and both of its neighbours in the CV
-  (`MS:1003155`, `MS:1003156`) were supported.
+  (`MS:1003153` before it and `MS:1003155` after it) were supported.
 - Who sees a difference: anyone reading a file written with `MS:1003154`. `has_im` becomes `True`,
   `im_types` gains the accession, and `ion_mobility_array` returns the array (or warns that it is not
   per point) instead of `None`. Code that relied on that `None`, or on `has_im` being `False` for such a
