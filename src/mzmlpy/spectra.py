@@ -9,8 +9,10 @@ a set of internal mixin classes (`_BinaryDataArrayMixin`, `_ScanListMixin`, `_Pr
 import base64
 import contextlib
 import warnings
+from collections.abc import Iterator
 from dataclasses import dataclass
 from functools import cached_property
+from itertools import chain
 from typing import Literal
 
 import numpy as np
@@ -1147,6 +1149,22 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
             if barray.binary_array_type in ION_MOBILITIES
         ]
 
+    def _point_counts(self) -> Iterator[int]:
+        """The spectrum's per-point array length, most authoritative first; nothing when the file gives none.
+
+        ``defaultArrayLength`` comes first: it is an attribute, so reading it costs nothing. It is only the
+        *default* for the element's arrays, though — mzML lets one ``binaryDataArray`` declare its own
+        ``arrayLength``, and :func:`mzmlpy.validate` checks each such array against that instead. So when
+        the declared count matches no array, the length of :attr:`mz` is offered next, that being the array
+        a caller indexes alongside. :attr:`mz` is decoded only if it is reached.
+        """
+        declared = self.default_array_length
+        if declared is not None:
+            yield declared
+        mz = self.mz
+        if mz is not None and len(mz) != declared:
+            yield len(mz)
+
     @property
     def ion_mobility_array(self) -> np.ndarray | None:
         """Return the per-point ion mobility array, or None if the spectrum has no per-point one.
@@ -1159,22 +1177,24 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
         A spectrum that records ion mobility only as a scan-level value (e.g. Bruker timsTOF PASEF MS2,
         see :attr:`Spectrum.ook0`) has no such array and returns None.
 
-        Per point is checked, not assumed. An array counts only when it holds one value per point, which
-        is :attr:`default_array_length` (the ``defaultArrayLength`` attribute), or the length of :attr:`mz`
-        when that attribute is absent. mzML lets one ``binaryDataArray`` carry its own ``arrayLength``, so
-        an array of another length measures something else and pairing it with :attr:`mz` by index would
-        misalign the two silently: a ``UserWarning`` is emitted and None returned, and
-        :meth:`get_binary_array` still reaches the array itself. When more than one array holds one value
-        per point, a ``UserWarning`` is emitted and the first in document order is returned.
+        Per point is checked, not assumed. An array counts only when it holds one value per point, which is
+        :attr:`default_array_length` (the ``defaultArrayLength`` attribute), falling back to the length of
+        :attr:`mz` when that attribute is absent or names a count no array holds: mzML lets one
+        ``binaryDataArray`` declare its own ``arrayLength``, so the declared default can disagree with the
+        m/z array a caller indexes alongside. An ion mobility array of any other length measures something
+        else, and pairing it with :attr:`mz` by index would misalign the two silently: a ``UserWarning`` is
+        emitted and None returned, and :meth:`get_binary_array` still reaches the array itself.
+
+        Only an ambiguous choice warns. An array beside others of a different length is not ambiguous,
+        because the length picks it, so that case is silent. When two or more arrays hold one value per
+        point a ``UserWarning`` is emitted and the first in document order is returned.
         """
         arrays = self._im_arrays()
         if not arrays:
             return None
-        points = self.default_array_length
-        if points is None:
-            mz = self.mz
-            points = None if mz is None else len(mz)
-        if points is None:
+        counts = self._point_counts()
+        first = next(counts, None)
+        if first is None:
             # No point count to check against, so take the file at its word.
             if len(arrays) > 1:
                 warnings.warn(
@@ -1184,22 +1204,27 @@ class Spectrum(_ParamGroup, _BinaryDataArrayMixin, _ScanListMixin, _PrecursorLis
                     stacklevel=2,
                 )
             return arrays[0][1]._decode()
-        lengths = []
-        for accession, barray in arrays:
-            values = barray._decode()
-            lengths.append(len(values))
-            if len(values) == points:
-                if len(arrays) > 1:
-                    warnings.warn(
-                        f"This spectrum has {len(arrays)} ion mobility arrays. Returning "
-                        f"{accession}, the first with one value per point ({points}).",
-                        UserWarning,
-                        stacklevel=2,
-                    )
-                return values
+        decoded = [(accession, barray._decode()) for accession, barray in arrays]
+        tried: list[int] = []
+        for points in chain((first,), counts):
+            tried.append(points)
+            per_point = [(accession, values) for accession, values in decoded if len(values) == points]
+            if not per_point:
+                continue
+            if len(per_point) > 1:
+                names = ", ".join(str(accession) for accession, _ in per_point)
+                warnings.warn(
+                    f"This spectrum has {len(per_point)} ion mobility arrays holding one value per point "
+                    f"({points}): {names}. Returning {per_point[0][0]}, the first in document order.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            return per_point[0][1]
         warnings.warn(
-            f"This spectrum has {len(arrays)} ion mobility array(s) of length {lengths}, and it has {points} "
-            "points, so none of them is per-point. Returning None; read one with get_binary_array().",
+            f"This spectrum has {len(arrays)} ion mobility array(s) of length "
+            f"{[len(values) for _, values in decoded]}, and it has "
+            f"{' or '.join(str(count) for count in tried)} points, so none of them is per-point. "
+            "Returning None; read one with get_binary_array().",
             UserWarning,
             stacklevel=2,
         )

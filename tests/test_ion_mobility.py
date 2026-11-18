@@ -7,17 +7,19 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from mzmlpy import Mzml
+from mzmlpy import Mzml, validate
 from mzmlpy.constants import BinaryDataArrayAccession
 
 DATA = Path(__file__).parent / "data"
 COMBINED_ID = "merged=1015 frame=1016 scanStart=655 scanEnd=679"
 
 
-def _array(accession: str, name: str, values: list[float]) -> str:
+def _array(accession: str, name: str, values: list[float], array_length: int | None = None) -> str:
+    """One binaryDataArray. ``array_length`` writes the optional per-array ``arrayLength`` attribute."""
     encoded = base64.b64encode(np.asarray(values, dtype="<f8").tobytes()).decode()
+    declared = "" if array_length is None else f' arrayLength="{array_length}"'
     return (
-        '<binaryDataArray encodedLength="0">'
+        f'<binaryDataArray encodedLength="{len(encoded)}"{declared}>'
         '<cvParam cvRef="MS" accession="MS:1000523" name="64-bit float"/>'
         '<cvParam cvRef="MS" accession="MS:1000576" name="no compression"/>'
         f'<cvParam cvRef="MS" accession="{accession}" name="{name}"/>'
@@ -94,7 +96,7 @@ def test_multiple_per_point_arrays_warn_and_return_the_first(tmp_path: Path) -> 
     """Both hold one value per point, so document order decides and the warning names the winner."""
     with Mzml(str(_write(tmp_path, [MZ, IM_MEAN, IM_RAW]))) as reader:
         spec = reader.spectra[0]
-        with pytest.warns(UserWarning, match=r"2 ion mobility arrays.*MS:1003006.*one value per point \(2\)"):
+        with pytest.warns(UserWarning, match=r"2 ion mobility arrays holding one value per point \(2\).*MS:1003006"):
             im = spec.ion_mobility_array
     assert im is not None
     np.testing.assert_array_equal(im, [0.9, 0.8])  # first in document order
@@ -117,14 +119,41 @@ def test_an_array_of_another_length_is_not_per_point(tmp_path: Path) -> None:
         np.testing.assert_array_equal(raw.data, [0.9, 0.8, 0.7])  # reachable, just not as the per-point array
 
 
-def test_the_first_per_point_array_wins_over_an_earlier_mismatched_one(tmp_path: Path) -> None:
-    """Document order alone would return the 3-value array for a 2-point spectrum."""
+def test_an_array_of_another_length_beside_a_per_point_one_is_not_an_ambiguity(tmp_path: Path) -> None:
+    """The per-point array wins over an earlier array of another length, and nothing warns.
+
+    Document order alone would return the 3-value array for a 2-point spectrum. Only one of the two
+    holds one value per point, so the length makes the choice and there is nothing to warn about.
+    """
     with Mzml(str(_write(tmp_path, [MZ, IM_RAW_LONG, IM_MEAN]))) as reader:
         spec = reader.spectra[0]
-        with pytest.warns(UserWarning, match=r"2 ion mobility arrays.*MS:1003006"):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
             im = spec.ion_mobility_array
     assert im is not None
     np.testing.assert_array_equal(im, [0.9, 0.8])
+
+
+def test_the_mz_length_is_tried_when_default_array_length_names_no_array(tmp_path: Path) -> None:
+    """``defaultArrayLength`` is only the default: a ``binaryDataArray`` may declare its own ``arrayLength``.
+
+    ``validate(decode_binary=True)`` calls this file valid, because it checks such an array against its own
+    ``arrayLength``, so the property must not drop an ion mobility array that pairs with ``mz`` one value
+    per point just because the element's declared default disagrees.
+    """
+    mz = _array("MS:1000514", "m/z array", [100.0, 200.0, 300.0], array_length=3)
+    im_long = _array("MS:1003006", "mean inverse reduced ion mobility array", [0.9, 0.8, 0.7], array_length=3)
+    path = _write(tmp_path, [mz, im_long], points=2)
+    assert validate(str(path), decode_binary=True).valid
+    with Mzml(str(path)) as reader:
+        spec = reader.spectra[0]
+        assert spec.default_array_length == 2
+        assert spec.mz is not None and len(spec.mz) == 3
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            im = spec.ion_mobility_array
+    assert im is not None
+    np.testing.assert_array_equal(im, [0.9, 0.8, 0.7])
 
 
 def test_the_point_count_falls_back_to_the_mz_length(tmp_path: Path) -> None:

@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- `Spectrum.ion_mobility_array` warned on every spectrum carrying two or more ion mobility arrays, even
+  when only one of them holds one value per point, where the length makes the choice and nothing is
+  ambiguous. It now warns only for the case it was written for, and that 0.11.0 documented it as having:
+  two or more arrays with one value per point.
+- `Spectrum.ion_mobility_array` returned `None` for a spectrum whose m/z array declares its own
+  `arrayLength`, because the element's `defaultArrayLength` was the only point count it checked.
+  `defaultArrayLength` is only the *default* for the arrays inside a spectrum, and `validate` already
+  checks an array that declares `arrayLength` against that instead, so such a file is valid and its ion
+  mobility array does pair with `mz` one value per point. The length of `mz` is now tried when the
+  declared count matches no array; `mz` is decoded only in that fallback.
+
 ## [0.11.0] (2026-11-16)
 
 ### Added
