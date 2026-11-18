@@ -1,0 +1,107 @@
+! Excerpt of the PSI-MS controlled vocabulary: the term MS:1002893 "ion mobility array"
+! and every term whose is_a is MS:1002893, copied verbatim (stanzas unmodified).
+!
+! Source: https://raw.githubusercontent.com/HUPO-PSI/psi-ms-CV/master/psi-ms.obo
+! Downloaded: 2026-11-18 (UTC); the file's own header follows, unedited.
+! Used by tests/test_cv_ion_mobility_terms.py as the outside authority for
+! mzmlpy.constants.ION_MOBILITIES. Refresh it from the URL above, do not hand-edit.
+
+format-version: 1.2
+data-version: 4.2.17
+date: 11:11:2026 13:00
+saved-by: Douwe Schulte
+default-namespace: MS
+
+[Term]
+id: MS:1002893
+name: ion mobility array
+def: "Abstract array of ion mobility data values. A more specific child term concept should be specified in data files to make precise the nature of the data being provided." [PSI:PI]
+subset: core
+is_a: MS:1000513 ! binary data array
+
+[Term]
+id: MS:1002477
+name: mean ion mobility drift time array
+def: "Array of population mean ion mobility values from a drift time device, reported in seconds (or milliseconds), corresponding to a spectrum of individual peaks encoded with an m/z array." [PSI:MS]
+subset: core
+is_a: MS:1002893 ! ion mobility array
+relationship: has_units UO:0000028 ! millisecond
+relationship: has_units UO:0000010 ! second
+relationship: has_value_type xsd:float ! The allowed value-type for this CV term
+
+[Term]
+id: MS:1002816
+name: mean ion mobility array
+def: "Array of population mean ion mobility values (K or K0) based on ion separation in gaseous phase due to different ion mobilities under an electric field based on ion size, m/z and shape, corresponding to a spectrum of individual peaks encoded with an m/z array." [PSI:MS]
+subset: core
+is_a: MS:1002893 ! ion mobility array
+relationship: has_units UO:0000028 ! millisecond
+relationship: has_units UO:0000010 ! second
+relationship: has_value_type xsd:float ! The allowed value-type for this CV term
+
+[Term]
+id: MS:1003006
+name: mean inverse reduced ion mobility array
+def: "Array of population mean ion mobility values based on ion separation in gaseous phase due to different ion mobilities under an electric field based on ion size, m/z and shape, normalized for the local conditions and reported in volt-second per square centimeter, corresponding to a spectrum of individual peaks encoded with an m/z array." [PSI:MS]
+subset: core
+is_a: MS:1002893 ! ion mobility array
+relationship: has_units MS:1002814 ! volt-second per square centimeter
+relationship: has_value_type xsd:float ! The allowed value-type for this CV term
+
+[Term]
+id: MS:1003007
+name: raw ion mobility array
+def: "Array of raw ion mobility values (K or K0) based on ion separation in gaseous phase due to different ion mobilities under an electric field based on ion size, m/z and shape, corresponding to a spectrum of individual peaks encoded with an m/z array." [PSI:MS]
+subset: core
+is_a: MS:1002893 ! ion mobility array
+relationship: has_units UO:0000028 ! millisecond
+relationship: has_units UO:0000010 ! second
+relationship: has_value_type xsd:float ! The allowed value-type for this CV term
+
+[Term]
+id: MS:1003008
+name: raw inverse reduced ion mobility array
+def: "Array of raw ion mobility values based on ion separation in gaseous phase due to different ion mobilities under an electric field based on ion size, m/z and shape, normalized for the local conditions and reported in volt-second per square centimeter, corresponding to a spectrum of individual peaks encoded with an m/z array." [PSI:MS]
+subset: core
+is_a: MS:1002893 ! ion mobility array
+relationship: has_units MS:1002814 ! volt-second per square centimeter
+relationship: has_value_type xsd:float ! The allowed value-type for this CV term
+
+[Term]
+id: MS:1003153
+name: raw ion mobility drift time array
+def: "Array of raw ion mobility values from a drift time device, reported in seconds (or milliseconds), corresponding to a spectrum of individual peaks encoded with an m/z array." [PSI:MS]
+subset: core
+is_a: MS:1002893 ! ion mobility array
+relationship: has_units UO:0000028 ! millisecond
+relationship: has_units UO:0000010 ! second
+relationship: has_value_type xsd:float ! The allowed value-type for this CV term
+
+[Term]
+id: MS:1003154
+name: deconvoluted ion mobility array
+def: "Array of ion mobility values (K or K0) based on ion separation in gaseous phase due to different ion mobilities under an electric field based on ion size, m/z and shape, as an average property of an analyte post peak-detection, weighted charge state reduction, and/or adduct aggregation, corresponding to a spectrum of individual peaks encoded with an m/z array." [PSI:MS]
+subset: core
+is_a: MS:1002893 ! ion mobility array
+relationship: has_units UO:0000028 ! millisecond
+relationship: has_units UO:0000010 ! second
+relationship: has_value_type xsd:float ! The allowed value-type for this CV term
+
+[Term]
+id: MS:1003155
+name: deconvoluted inverse reduced ion mobility array
+def: "Array of ion mobility values based on ion separation in gaseous phase due to different ion mobilities under an electric field based on ion size, m/z and shape, normalized for the local conditions and reported in volt-second per square centimeter, as an average property of an analyte post peak-detection, weighted charge state reduction, and/or adduct aggregation, corresponding to a spectrum of individual peaks encoded with an m/z array." [PSI:MS]
+subset: core
+is_a: MS:1002893 ! ion mobility array
+relationship: has_units MS:1002814 ! volt-second per square centimeter
+relationship: has_value_type xsd:float ! The allowed value-type for this CV term
+
+[Term]
+id: MS:1003156
+name: deconvoluted ion mobility drift time array
+def: "Array of mean ion mobility values from a drift time device, reported in seconds (or milliseconds), as an average property of an analyte post peak-detection, weighted charge state reduction, and/or adduct aggregation, corresponding to a spectrum of individual peaks encoded with an m/z array." [PSI:MS]
+subset: core
+is_a: MS:1002893 ! ion mobility array
+relationship: has_units UO:0000028 ! millisecond
+relationship: has_units UO:0000010 ! second
+relationship: has_value_type xsd:float ! The allowed value-type for this CV term
