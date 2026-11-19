@@ -154,6 +154,7 @@ ION_MOBILITIES: frozenset[BinaryDataArrayAccession] = frozenset(
         BinaryDataArrayAccession.DECONVOLUTED_INVERSE_REDUCED_ION_MOBILITY,
         BinaryDataArrayAccession.RAW_ION_MOBILITY_DRIFT_TIME,
         BinaryDataArrayAccession.RAW_INVERSE_REDUCED_ION_MOBILITY,
+        BinaryDataArrayAccession.DECONVOLUTED_ION_MOBILITY,
         BinaryDataArrayAccession.ION_MOBILITY,
     }
 )
