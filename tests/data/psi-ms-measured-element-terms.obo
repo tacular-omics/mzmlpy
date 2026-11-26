@@ -1,0 +1,88 @@
+! Excerpt of the PSI-MS controlled vocabulary: MS:1000513 "binary data array",
+! MS:1000822 "temperature array" and MS:1002716 "measured element", copied verbatim
+! (stanzas unmodified).
+!
+! Source: https://raw.githubusercontent.com/HUPO-PSI/psi-ms-CV/master/psi-ms.obo
+! Downloaded: 2026-11-26 (UTC); the file's own header follows, unedited.
+! Used by tests/test_measured_element.py as the outside authority for which of the two terms
+! is an array type. Refresh it from the URL above, do not hand-edit.
+
+format-version: 1.2
+data-version: 4.2.18
+date: 19:11:2026 10:10
+saved-by: Justin Sing
+default-namespace: MS
+subsetdef: core "Core community curated PSI-MS controlled vocabulary"
+subsetdef: columns "PSI-MS Chromatographic column models (from RepoRT)"
+subsetdef: NCIT "NCI Thesaurus terms"
+subsetdef: mzQC "Mass spectrometry quality control terms"
+subsetdef: PEFF "PSI Extended FASTA Format terms"
+subsetdef: UO "Unit Ontology terms"
+subsetdef: unit_group_slim "unit group slim"
+subsetdef: unit_slim "unit slim"
+namespace-id-rule: * MS:$sequence(7,0,9999999)$
+namespace-id-rule: * PEFF:$sequence(7,0,9999999)$
+remark: GENERATED FILE, do not edit. This release is built by scripts/build_release_obo.py from psi-ms-core.obo and psi-ms-columns.obo-fragment. Edit psi-ms-core.obo instead.
+remark: coverage of namespace-id: MS:$sequence(7,4000000,4999999)$: Mass spectrometry quality control metrics
+remark: namespace: MS
+remark: namespace: PEFF
+remark: coverage: Mass spectrometer output files and spectra interpretation
+remark: The chromatographic column models (MS:5000000-MS:5999999) are derived from the RepoRT column database, https://github.com/michaelwitting/RepoRT. See Kretschmer F, Harrieder EM, Hoffmann MA, Boecker S, Witting M. RepoRT: a comprehensive repository for small molecule retention times. Nat Methods. 2024;21(2):153-155. PMID:38191934, doi:10.1038/s41592-023-02143-z
+remark: creator: Yasset Perez-Riverol <yperez <-at-> ebi.ac.uk>
+remark: creator: Matt Chambers <matt.chambers <-at-> vanderbilt.edu>
+remark: creator: Andreas Bertsch <bertsch <-at-> informatik.uni-tuebingen.de>
+remark: creator: Marius Kallhardt <Marius.Kallhardt <-at-> bdal.de>
+remark: creator: Eric Deutsch <edeutsch <-at-> systemsbiology.org>
+remark: creator: Fredrik Levander <fredrik.levander <-at-> immun.lth.se>
+remark: creator: Pierre-Alain Binz <pierre-alain.binz <-at-> chuv.ch>
+remark: creator: Gerhard Mayer <mayerg97 <-at-> rub.de>
+remark: creator: Joshua Klein <jaklein <-at-> bu.edu>
+remark: creator: Chris Bielow <chris.bielow <-at-> fu-berlin.de>
+remark: creator: Wout Bittremieux <wout.bittremieux <-at-> uantwerpen.be>
+remark: creator: Nils Hoffmann < nils.hoffmann <-at-> cebitec.uni-bielefeld.de>
+remark: creator: Julian Uszkoreit <julian.uszkoreit <-at-> ruhr-uni-bochum.de>
+remark: creator: Mathias Walzer <walzer <-at-> ebi.ac.uk>
+remark: creator: Nithu Sara John <nithu <-at-> ebi.ac.uk>
+remark: creator: David Cox <david.cox <-at-> sciex.com>
+remark: creator: Jonathan Hunter <jhunter <-at-> ebi.ac.uk>
+remark: creator: Samuel Wein <sam <-at-> openms.de>
+remark: creator: Jeroen Van Goey <j.vangoey <-at-> instadeep.com>
+remark: creator: Fatemeh Mirzadeh Sarcheshmeh <fatemeh.mirzadehsarcheshmeh <-at-> uantwerpen.be>
+remark: creator: Jannick Kappelmann <jannick.kappelmann <-at-> gmail.com>
+remark: creator: Patrick Boschmann <patrick.boschmann <-at-> uni-tuebingen.de>
+remark: creator: Ethan Bass <ethanbass <-at-> gmail.com>
+remark: creator: Franziska Nicolaus <f.nicolaus <-at-> fz-juelich.de>
+remark: publisher: HUPO Proteomics Standards Initiative Mass Spectrometry Standards Working Group and HUPO Proteomics Standards Initiative Proteomics Informatics Working Group
+remark: When appropriate the definition and synonyms of a term are reported exactly as in the chapter 12 of IUPAC orange book. See http://www.iupac.org/projects/2003/2003-056-2-500.html and http://mass-spec.lsu.edu/msterms/index.php/Main_Page
+remark: For any queries contact psidev-ms-vocab@lists.sourceforge.net
+remark: URL: http://purl.obolibrary.org/obo/ms/psi-ms.obo
+remark: This work is licensed under the Creative Commons Attribution 4.0 International (CC BY 4.0) license.
+remark: To view a copy of this license, visit https://creativecommons.org/licenses/by/4.0/ or send a letter to Creative Commons, 444 Castro Street, Suite 900, Mountain View, California, 94041, USA.
+ontology: ms
+
+[Term]
+id: MS:1000513
+name: binary data array
+def: "A data array of values." [PSI:MS]
+subset: core
+relationship: part_of MS:1000442 ! spectrum
+relationship: part_of MS:1000625 ! chromatogram
+
+[Term]
+id: MS:1000822
+name: temperature array
+def: "A data array of temperature measurements." [PSI:MS]
+subset: core
+xref: binary-data-type:MS\:1000521 "32-bit float"
+xref: binary-data-type:MS\:1000523 "64-bit float"
+is_a: MS:1000513 ! binary data array
+relationship: has_units UO:0000012 ! kelvin
+relationship: has_units UO:0000027 ! degree Celsius
+
+[Term]
+id: MS:1002716
+name: measured element
+def: "The component or dimension of an object being measured, for example the temperature of an instrument component over time." [PSI:MS]
+subset: core
+relationship: part_of MS:1000513 ! binary data array
+relationship: has_value_type xsd:string ! The allowed value-type for this CV term
