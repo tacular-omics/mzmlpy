@@ -105,5 +105,10 @@ def test_measured_element_alone_is_still_reported(tmp_path: Path) -> None:
         assert array.binary_array_type == BinaryDataArrayAccession.MEASURED_ELEMENT
 
 
+def test_array_without_an_array_type_term_has_none(tmp_path: Path) -> None:
+    with Mzml(str(_write(tmp_path, ""))) as reader:
+        assert reader.chromatograms[0].binary_arrays[1].binary_array_type is None
+
+
 def test_the_enum_member_is_kept() -> None:
     assert BinaryDataArrayAccession.MEASURED_ELEMENT == "MS:1002716"
