@@ -115,6 +115,11 @@ _NUMPRESS_COMBINATIONS: dict[tuple[CompressionTypeAccession, CompressionTypeAcce
 _COMPRESSION_BY_ACCESSION: dict[str, CompressionTypeAccession] = {term.value: term for term in CompressionTypeAccession}
 _DATA_TYPE_BY_ACCESSION: dict[str, BinaryDataTypeAccession] = {term.value: term for term in BinaryDataTypeAccession}
 _ARRAY_TYPE_BY_ACCESSION: dict[str, BinaryDataArrayAccession] = {term.value: term for term in BinaryDataArrayAccession}
+# Members of BinaryDataArrayAccession that annotate an array but are not a kind of array: in the
+# PSI-MS CV, MS:1002716 "measured element" is ``part_of`` MS:1000513 "binary data array", not
+# ``is_a`` it, and carries a string value such as "source". binary_array_type reports one of these
+# only when the array carries no real array-type term.
+_NOT_ARRAY_TYPES: frozenset[BinaryDataArrayAccession] = frozenset({BinaryDataArrayAccession.MEASURED_ELEMENT})
 
 
 def _parse_native_id(identifier: str) -> dict[str, int | str]:
@@ -194,9 +199,18 @@ class BinaryDataArray(_ParamGroup):
 
     @cached_property
     def binary_array_type(self) -> BinaryDataArrayAccession | None:
-        """Return the semantic array type accession (e.g. m/z, intensity, ion mobility), or None if absent."""
+        """Return the semantic array type accession (e.g. m/z, intensity, ion mobility), or None if absent.
+
+        A term that annotates the array without being an array type, such as ``MS:1002716``
+        (measured element), is skipped when the array also carries a real array type, so an
+        array with ``MS:1000822`` and ``MS:1002716`` is a temperature array. Its value stays
+        readable from ``cv_params``.
+        """
         found = {term for param in self.cv_params if (term := _ARRAY_TYPE_BY_ACCESSION.get(param.accession))}
-        return next((term for term in BinaryDataArrayAccession if term in found), None) if found else None
+        if not found:
+            return None
+        preferred = found - _NOT_ARRAY_TYPES or found
+        return next(term for term in BinaryDataArrayAccession if term in preferred)
 
     def _decode(self) -> np.ndarray:
 

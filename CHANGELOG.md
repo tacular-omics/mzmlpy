@@ -19,6 +19,12 @@ All notable changes to this project are documented here. The format is based on
   per point) instead of `None`. Code that relied on that `None`, or on `has_im` being `False` for such a
   file, changes answer. No file in `tests/data` carries the term, and nothing else in mzmlpy inspects it
   except through `ION_MOBILITIES`. The set is now compared against a committed excerpt of `psi-ms.obo`.
+- `BinaryDataArray.binary_array_type` could return `MS:1002716` measured element, which is not an array
+  type: in the PSI-MS CV it is `part_of` `MS:1000513` binary data array, not `is_a`, and carries a string
+  value such as `source`. Because `MEASURED_ELEMENT` is declared before `TEMPERATURE`, an array carrying
+  `MS:1000822` temperature array and `MS:1002716` reported `MS:1002716`. It now reports `MS:1000822`, and the
+  measured-element value stays readable from the array's `cv_params`. An array whose only type-like term is
+  `MS:1002716` still reports it. `BinaryDataArrayAccession.MEASURED_ELEMENT` is kept (#86).
 
 ## [0.11.0] (2026-11-16)
 
